@@ -1,5 +1,12 @@
 # Hydraulics simulator
 
+> **2026-10-11, after extraction from fd-app:** `ROADMAP.md` now sets what
+> the simulator is for and the order of work. This document still governs
+> the model, constants and sources (§2–§4, §6). §1, §5 and §8 describe the
+> fd-app integration as it was; the files they cite (`BACKLOG.md`,
+> `eslint.config.mjs`, `scripts/dev/smoke.mjs`, `data/catalog/`) are not in
+> this repo. §9's wye milestone moves after nozzles and the pump (ROADMAP §7).
+
 > Status: **V0 built** (2026-09-30) — `/simulator`, one attack line
 > (pump → hose → nozzle). Full-screen, behind login, not in the navigation.
 > 2026-10-01: checked against the CGBVP 2019 manual (§3); its elevation rule

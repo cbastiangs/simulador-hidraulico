@@ -20,8 +20,9 @@ import { METHODS, type Method } from "./references.ts";
  * (`requiredPumpPressurePsi`), so there is no separate "training mode".
  *
  * k comes from the calculation method (references.ts, METHODS): hydrostatic
- * 0.434 psi/ft by default, or the CGBVP manual's 1.5 psi/m. A method swaps
- * constants, never laws.
+ * 0.434 psi/ft when no method is passed, or the CGBVP manual's 1.5 psi/m
+ * (the screen's default, PLAN-simulador.md §3). A method swaps constants,
+ * never laws.
  *
  * Hose and nozzle both take the form Δp = r·Q², the element law a network
  * solver needs once lines branch. Appliances (wyes, reducers) and velocity
