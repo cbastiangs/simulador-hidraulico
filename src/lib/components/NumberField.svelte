@@ -1,7 +1,6 @@
 <script lang="ts">
-  // A number you can type or nudge: − / value / + with its unit. Commits on
-  // every valid keystroke and on each button press; an empty or invalid entry
-  // is ignored rather than sent on (the edit functions clamp the rest).
+  // A number you can type or step (UX.md §1.2): [−big] [−] value unit [+] [+big].
+  // Commits every valid keystroke; an empty or invalid entry is ignored (edit.ts clamps the rest).
   let {
     label,
     value,
@@ -9,28 +8,29 @@
     step = 1,
     bigStep,
     digits = 1,
+    dark = false,
+    hideLabel = false,
     onchange,
   }: {
     label: string;
     value: number;
     unit: string;
     step?: number;
-    /** Optional second pair of buttons, e.g. ±10 psi or ±1 floor. */
     bigStep?: { size: number; label: string };
     digits?: number;
+    dark?: boolean;
+    hideLabel?: boolean;
     onchange: (value: number) => void;
   } = $props();
 
   const round = (n: number) => Number(n.toFixed(digits));
 </script>
 
-<div class="field">
-  <span class="label">{label}</span>
+<div class="field" class:dark>
+  {#if !hideLabel}<span class="label">{label}</span>{/if}
   <div class="row">
-    {#if bigStep}
-      <button type="button" onclick={() => onchange(round(value - bigStep.size))} aria-label={`− ${bigStep.label}`}>−{bigStep.label}</button>
-    {/if}
-    <button type="button" onclick={() => onchange(round(value - step))} aria-label={`− ${step} ${unit}`}>−</button>
+    {#if bigStep}<button type="button" onclick={() => onchange(round(value - bigStep.size))}>−{bigStep.label}</button>{/if}
+    <button type="button" aria-label={`Bajar ${step} ${unit}`} onclick={() => onchange(round(value - step))}>−</button>
     <input
       type="number"
       inputmode="decimal"
@@ -43,19 +43,22 @@
       }}
     />
     <span class="unit">{unit}</span>
-    <button type="button" onclick={() => onchange(round(value + step))} aria-label={`+ ${step} ${unit}`}>+</button>
-    {#if bigStep}
-      <button type="button" onclick={() => onchange(round(value + bigStep.size))} aria-label={`+ ${bigStep.label}`}>+{bigStep.label}</button>
-    {/if}
+    <button type="button" aria-label={`Subir ${step} ${unit}`} onclick={() => onchange(round(value + step))}>+</button>
+    {#if bigStep}<button type="button" onclick={() => onchange(round(value + bigStep.size))}>+{bigStep.label}</button>{/if}
   </div>
 </div>
 
 <style>
-  .field { display: grid; gap: 0.25rem; }
-  .label { font-size: 0.8rem; color: var(--muted); }
-  .row { display: flex; align-items: center; gap: 0.25rem; }
-  input { width: 5.5rem; font: inherit; font-size: 1.1rem; padding: 0.35rem; text-align: right; font-variant-numeric: tabular-nums; }
-  .unit { min-width: 2rem; color: var(--muted); }
-  button { font: inherit; min-width: 2.5rem; min-height: 2.5rem; padding: 0 0.5rem; border: 1px solid var(--grid); border-radius: 6px; background: var(--surface); color: var(--ink); }
-  button:active { background: var(--grid); }
+  .field { display: grid; gap: 6px; min-width: 0; }
+  .label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+  .row { display: flex; align-items: center; gap: 4px; }
+  button { min-width: 44px; height: 44px; padding: 0 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); font-weight: 600; cursor: pointer; }
+  button:active { background: var(--band); }
+  input { width: 4.4rem; min-width: 0; height: 44px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); text-align: right; padding: 0 8px; font-size: 18px; font-weight: 700; }
+  .unit { color: var(--muted); margin: 0 2px; }
+  .dark .label { color: var(--panel-muted); }
+  .dark button { background: var(--panel-2); border-color: var(--panel-line); color: var(--panel-ink); }
+  .dark button:active { background: var(--panel-line); }
+  .dark input { background: var(--panel-well); border-color: var(--panel-line); color: var(--panel-ink); font-size: 20px; width: 6.5rem; }
+  .dark .unit { color: var(--panel-muted); }
 </style>
