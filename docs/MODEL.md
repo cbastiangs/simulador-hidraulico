@@ -188,7 +188,14 @@ grows with Q². What a coupling does limit is **what can be connected**
   (UX.md §6).
 - A hose's coupling size is its diameter, except 1¾″ (1½″ couplings) and 3″
   (2½″ or 3″, already two rows in §3.1). Basis: `convention`, `verify`
-  against the station's hose; `hoseCouplingIn` in `catalog.ts`.
+  against the station's hose; `hoseCouplingIn` in `catalog.ts`. **Confirmed by
+  the owner (2026-10-14):** most stations run 1¾″ hose on 1½″ couplings and
+  3″ hose on 2½″ couplings.
+- **Effect on the friction law:** none of its own. The coupling is already
+  inside C: the 1¾″ row (15.5) is empirical for 1½″ couplings, and the two
+  3″ rows (0.8 vs 0.677) differ only by coupling. So the hose row *is* the
+  distinction; picking a hose picks its coupling and its C together. What a
+  mismatch adds is an adapter, a separate loss not modelled until §3.10.
 - A "maximum practical flow" per hose size is a training rule of thumb, not
   a law; it enters only with a published source (§9).
 
