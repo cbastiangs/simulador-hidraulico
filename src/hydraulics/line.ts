@@ -1,6 +1,7 @@
 // Keep ".ts": node --test runs this folder with no bundler, and Node resolves
 // only full paths (tsconfig's allowImportingTsExtensions lets tsc accept it).
 import { METHODS, type Method } from "./references.ts";
+import { metersToFeet } from "./units.ts";
 
 /**
  * One attack line: a pump discharge, one hose lay and one nozzle -- the first
@@ -9,7 +10,7 @@ import { METHODS, type Method } from "./references.ts";
  * Each element has its own pressure law, and the line is those laws solved
  * together:
  *
- *   hose     FL  = C · (Q/100)² · (L/100)   friction loss
+ *   hose     FL  = C · (Q/100)² · (L/100)   friction loss; L in feet, as C is published
  *   nozzle   NP  = NPr · (Q/Qr)²            a fixed orifice: rated flow Qr at rated pressure NPr
  *   height   EP  = k · h                    h > 0 when the nozzle is above the pump
  *   line     PDP = NP + FL + EP
@@ -20,19 +21,18 @@ import { METHODS, type Method } from "./references.ts";
  * (`requiredPumpPressurePsi`), so there is no separate "training mode".
  *
  * k comes from the calculation method (references.ts, METHODS): hydrostatic
- * 0.434 psi/ft when no method is passed, or the CGBVP manual's 1.5 psi/m
- * (the screen's default, PLAN-simulador.md §3). A method swaps constants,
- * never laws.
+ * 1.424 psi/m (0.434 psi/ft) by default, or the CGBVP manual's 1.5 psi/m,
+ * shown beside it as the reference. A method swaps constants, never laws.
  *
  * Hose and nozzle both take the form Δp = r·Q², the element law a network
  * solver needs once lines branch. Appliances (wyes, reducers) and velocity
  * head are not modelled yet. Pressures are gauge.
  *
- * Units: psi, US gpm, feet (units.ts says why).
+ * Units: metres for length and height, psi, US gpm (units.ts says why).
  */
 
 export type HoseLay = {
-  lengthFt: number;
+  lengthM: number;
   /** C in FL = C × (Q/100)² × (L/100); published values in references.ts. */
   frictionCoefficient: number;
 };
@@ -54,8 +54,8 @@ export type AttackLine = {
   pumpPressurePsi: number;
   hose: HoseLay;
   nozzle: FixedOrificeNozzle;
-  /** Height of the nozzle above the pump discharge; negative when below it. */
-  nozzleElevationFt: number;
+  /** Height of the nozzle above the pump discharge, metres; negative when below it. */
+  nozzleElevationM: number;
 };
 
 /**
@@ -83,7 +83,7 @@ export type AttackLineResult = {
 
 /** r in FL = r·Q², psi per gpm². */
 function hoseResistance(hose: HoseLay) {
-  return (hose.frictionCoefficient * (hose.lengthFt / 100)) / 100 ** 2;
+  return (hose.frictionCoefficient * (metersToFeet(hose.lengthM) / 100)) / 100 ** 2;
 }
 
 /** r in NP = r·Q², psi per gpm². */
@@ -95,8 +95,8 @@ export function frictionLossPsi(hose: HoseLay, flowGpm: number) {
   return hoseResistance(hose) * flowGpm ** 2;
 }
 
-export function elevationPressurePsi(heightFt: number, method: Method = METHODS.physical) {
-  return method.psiPerFootOfHeight * heightFt;
+export function elevationPressurePsi(heightM: number, method: Method = METHODS.physical) {
+  return method.psiPerMeterOfHeight * heightM;
 }
 
 export function requiredPumpPressurePsi(line: AttackLine, method: Method = METHODS.physical) {
@@ -104,7 +104,7 @@ export function requiredPumpPressurePsi(line: AttackLine, method: Method = METHO
   return (
     nozzle.ratedPressurePsi +
     frictionLossPsi(line.hose, nozzle.ratedFlowGpm) +
-    elevationPressurePsi(line.nozzleElevationFt, method)
+    elevationPressurePsi(line.nozzleElevationM, method)
   );
 }
 
@@ -117,11 +117,11 @@ type Rule = "finite" | "zero or more" | "greater than zero";
 function assertValidLine(line: AttackLine) {
   const checks: Array<[string, number, Rule]> = [
     ["pumpPressurePsi", line.pumpPressurePsi, "zero or more"],
-    ["hose.lengthFt", line.hose.lengthFt, "zero or more"],
+    ["hose.lengthM", line.hose.lengthM, "zero or more"],
     ["hose.frictionCoefficient", line.hose.frictionCoefficient, "zero or more"],
     ["nozzle.ratedFlowGpm", line.nozzle.ratedFlowGpm, "greater than zero"],
     ["nozzle.ratedPressurePsi", line.nozzle.ratedPressurePsi, "greater than zero"],
-    ["nozzleElevationFt", line.nozzleElevationFt, "finite"],
+    ["nozzleElevationM", line.nozzleElevationM, "finite"],
   ];
   for (const [field, value, rule] of checks) {
     const valid =
@@ -133,7 +133,7 @@ function assertValidLine(line: AttackLine) {
 
 export function solveAttackLine(line: AttackLine, method: Method = METHODS.physical): AttackLineResult {
   assertValidLine(line);
-  const elevation = elevationPressurePsi(line.nozzleElevationFt, method);
+  const elevation = elevationPressurePsi(line.nozzleElevationM, method);
   const requiredPump = requiredPumpPressurePsi(line, method);
   // What the pump has left for nozzle and friction once the water is lifted.
   const head = line.pumpPressurePsi - elevation;

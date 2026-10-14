@@ -30,9 +30,11 @@ here untouched; the screen and station-data integration are still open (see
 - `src/hydraulics/` imports only its own files (`./references.ts`, `./units.ts`)
   and runs under `node --test` with no bundler. Never import React, a
   framework, or anything outside the folder.
-- Units are internally psi / US gpm / feet because every published constant is
-  defined in them; conversions live only in `src/hydraulics/units.ts` and
-  happen at the screen's edge.
+- Units are the station's: **metres** (length, height), **inches**
+  (diameters), **psi**, **US gpm**. A published constant defined in feet is
+  converted inside the law that uses it, with a factor from
+  `src/hydraulics/units.ts`, the only place conversion factors live. Other
+  display units (bar, L/min, ft) are converted at the screen's edge.
 - Flow is a solved output, never an input. `line.ts` says why.
 - Invalid input is a caller's bug (`assertValidLine` throws `RangeError`), not
   a hydraulic state.

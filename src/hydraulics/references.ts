@@ -36,7 +36,9 @@ export type SourceId = keyof typeof SOURCES;
 
 /**
  * A hose size with a published friction-loss coefficient C, for
- * FL = C × (Q/100)² × (L/100): FL in psi, Q in US gpm, L in feet.
+ * FL = C × (Q/100)² × (L/100): FL in psi, Q in US gpm, L in feet -- the
+ * units C is published in. The engine takes lengths in metres and converts
+ * at the law (line.ts, frictionLossPsi).
  *
  * `diameter` is spelled as the catalog spells `Manguera.diametro`
  * (data/catalog/item-types.json), so a hose from a unit's inventory can be
@@ -77,8 +79,8 @@ export type MethodId = "cgbvp-2019" | "physical";
  */
 export type Method = {
   id: MethodId;
-  /** Pressure per foot of height between the pump and the nozzle. */
-  psiPerFootOfHeight: number;
+  /** Pressure per metre of height between the pump and the nozzle. */
+  psiPerMeterOfHeight: number;
   source: SourceId | null;
 };
 
@@ -88,10 +90,10 @@ export const METHODS: Record<MethodId, Method> = {
    * same page also mentions 1.4; its worked table uses 1.5. Which one is
    * examined today is unconfirmed.
    */
-  "cgbvp-2019": { id: "cgbvp-2019", psiPerFootOfHeight: 1.5 * METERS_PER_FOOT, source: "cgbvpManual2019" },
+  "cgbvp-2019": { id: "cgbvp-2019", psiPerMeterOfHeight: 1.5, source: "cgbvpManual2019" },
   /**
    * Hydrostatics: 62.4 lb/ft³ over 144 in²/ft² = 0.433, published as 0.434
-   * psi per foot (1.42 psi per metre).
+   * psi per foot; per metre, 0.434 / 0.3048 = 1.424.
    */
-  physical: { id: "physical", psiPerFootOfHeight: 0.434, source: null },
+  physical: { id: "physical", psiPerMeterOfHeight: 0.434 / METERS_PER_FOOT, source: null },
 };

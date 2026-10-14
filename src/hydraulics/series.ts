@@ -28,8 +28,8 @@ import { METHODS, type Method } from "./references.ts";
 
 export type Section = {
   hose: HoseLay;
-  /** Height of this section's downstream coupling above the pump discharge. */
-  endElevationFt: number;
+  /** Height of this section's downstream coupling above the pump discharge, metres. */
+  endElevationM: number;
 };
 
 export type SeriesLine = {
@@ -41,7 +41,7 @@ export type SeriesLine = {
 
 /** Pressure at a coupling: index 0 is the pump discharge, the last is the nozzle inlet. */
 export type NodeReading = {
-  elevationFt: number;
+  elevationM: number;
   pressurePsi: number;
 };
 
@@ -100,10 +100,10 @@ function assertValidSeriesLine(line: SeriesLine) {
   };
   atLeastZero("pumpPressurePsi", line.pumpPressurePsi);
   if (line.sections.length === 0) fail("sections", "at least one section", 0);
-  line.sections.forEach(({ hose, endElevationFt }, i) => {
-    atLeastZero(`sections[${i}].hose.lengthFt`, hose.lengthFt);
+  line.sections.forEach(({ hose, endElevationM }, i) => {
+    atLeastZero(`sections[${i}].hose.lengthM`, hose.lengthM);
     atLeastZero(`sections[${i}].hose.frictionCoefficient`, hose.frictionCoefficient);
-    if (!Number.isFinite(endElevationFt)) fail(`sections[${i}].endElevationFt`, "finite", endElevationFt);
+    if (!Number.isFinite(endElevationM)) fail(`sections[${i}].endElevationM`, "finite", endElevationM);
   });
   aboveZero("nozzle.ratedFlowGpm", line.nozzle.ratedFlowGpm);
   aboveZero("nozzle.ratedPressurePsi", line.nozzle.ratedPressurePsi);
@@ -112,9 +112,9 @@ function assertValidSeriesLine(line: SeriesLine) {
 export function solveSeriesLine(line: SeriesLine, method: Method = METHODS.physical): SeriesResult {
   assertValidSeriesLine(line);
   const { pumpPressurePsi, sections, nozzle } = line;
-  const elevations = [0, ...sections.map((s) => s.endElevationFt)];
-  const nozzleElevationFt = elevations[elevations.length - 1];
-  const elevation = elevationPressurePsi(nozzleElevationFt, method);
+  const elevations = [0, ...sections.map((s) => s.endElevationM)];
+  const nozzleElevationM = elevations[elevations.length - 1];
+  const elevation = elevationPressurePsi(nozzleElevationM, method);
   const requiredPumpPressurePsi =
     nozzle.ratedPressurePsi + totalFrictionPsi(sections, nozzle.ratedFlowGpm) + elevation;
 
@@ -126,15 +126,15 @@ export function solveSeriesLine(line: SeriesLine, method: Method = METHODS.physi
     : 0;
 
   // Walk the line from the pump, spending friction and height at each section.
-  const nodes: NodeReading[] = [{ elevationFt: 0, pressurePsi: pumpPressurePsi }];
-  sections.forEach(({ hose, endElevationFt }, i) => {
+  const nodes: NodeReading[] = [{ elevationM: 0, pressurePsi: pumpPressurePsi }];
+  sections.forEach(({ hose, endElevationM }, i) => {
     const previous = nodes[i];
     nodes.push({
-      elevationFt: endElevationFt,
+      elevationM: endElevationM,
       pressurePsi:
         previous.pressurePsi -
         frictionLossPsi(hose, flowGpm) -
-        elevationPressurePsi(endElevationFt - previous.elevationFt, method),
+        elevationPressurePsi(endElevationM - previous.elevationM, method),
     });
   });
 

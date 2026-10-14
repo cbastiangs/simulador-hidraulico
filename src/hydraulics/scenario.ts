@@ -10,8 +10,9 @@ import { solveSeriesLine, type SeriesLine, type SeriesResult } from "./series.ts
  *   `hoseSizeId` and `specId` only record where they came from. Editing a
  *   value never touches the catalog, and a document stays solvable even if
  *   the catalog later changes.
- * - **Internal units** (psi, US gpm, feet), like the engine. The screen
- *   converts at its edge (units.ts).
+ * - **Station units**, like the engine: metres for length and height,
+ *   inches for diameter, psi, US gpm. Other display units (bar, L/min, ft)
+ *   are converted at the screen's edge (units.ts).
  * - **No layout.** The side view derives positions from lengths and
  *   heights; the top-down view's layout will be a separate, optional part.
  * - **Untrusted until parsed.** A link or file can contain anything.
@@ -32,9 +33,9 @@ export type ScenarioSection = {
   hoseSizeId: string | null;
   diameterIn: number;
   frictionCoefficient: number;
-  lengthFt: number;
-  /** Height of the section's downstream coupling above the source. */
-  endElevationFt: number;
+  lengthM: number;
+  /** Height of the section's downstream coupling above the source, metres. */
+  endElevationM: number;
 };
 
 export type ScenarioNozzle = {
@@ -56,7 +57,7 @@ export type Scenario = {
   nozzle: ScenarioNozzle;
 };
 
-/** A document that can't be used, with the path of the first bad field (e.g. `sections[1].lengthFt`). */
+/** A document that can't be used, with the path of the first bad field (e.g. `sections[1].lengthM`). */
 export class ScenarioError extends Error {
   readonly path: string;
 
@@ -133,8 +134,8 @@ export function parseScenario(value: unknown): Scenario {
         hoseSizeId: idOrNull(section.hoseSizeId, `${path}.hoseSizeId`),
         diameterIn: number(section.diameterIn, `${path}.diameterIn`, "greater than zero"),
         frictionCoefficient: number(section.frictionCoefficient, `${path}.frictionCoefficient`, "zero or more"),
-        lengthFt: number(section.lengthFt, `${path}.lengthFt`, "zero or more"),
-        endElevationFt: number(section.endElevationFt, `${path}.endElevationFt`, "finite"),
+        lengthM: number(section.lengthM, `${path}.lengthM`, "zero or more"),
+        endElevationM: number(section.endElevationM, `${path}.endElevationM`, "finite"),
       };
     }),
     nozzle: {
@@ -151,9 +152,9 @@ export function parseScenario(value: unknown): Scenario {
 export function toSeriesLine(scenario: Scenario): SeriesLine {
   return {
     pumpPressurePsi: scenario.source.pressurePsi,
-    sections: scenario.sections.map(({ lengthFt, frictionCoefficient, endElevationFt }) => ({
-      hose: { lengthFt, frictionCoefficient },
-      endElevationFt,
+    sections: scenario.sections.map(({ lengthM, frictionCoefficient, endElevationM }) => ({
+      hose: { lengthM, frictionCoefficient },
+      endElevationM,
     })),
     nozzle: {
       ratedFlowGpm: scenario.nozzle.ratedFlowGpm,

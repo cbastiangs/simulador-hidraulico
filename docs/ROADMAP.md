@@ -45,7 +45,8 @@ demonstrable in a few taps from a preset.
   + appliances) is a main visual.
 - **Methods swap constants, never laws** (`cgbvp-2019` vs `physical`).
 - **Pure TypeScript engine, tested against published tables.**
-- **US units inside, conversion at the screen's edge.**
+- **Station units inside** (m, in, psi, gpm; laws convert their own published
+  constants), other display units at the screen's edge.
 
 **Change:**
 

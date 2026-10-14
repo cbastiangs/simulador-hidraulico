@@ -12,8 +12,8 @@
       "hoseSizeId": "1-1/2",
       "diameterIn": 1.5,
       "frictionCoefficient": 24,
-      "lengthFt": 98.42519685039369,
-      "endElevationFt": 0
+      "lengthM": 30,
+      "endElevationM": 0
     }
   ],
   "nozzle": {
