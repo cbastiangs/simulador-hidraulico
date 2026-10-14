@@ -29,17 +29,26 @@
   straight line between its couplings, the slack is drawn as a sag
   (owner, 2026-10-16; replaces "horizontal = distance along the hose").
 - **One uniform scale, no exaggeration.** 14 px per metre at zoom 1 in both
-  directions, so a 3 m floor is 42 px and lengths look like lengths. Content
-  never changes the scale.
-- **Bounds expand, never shrink, while editing.** The world is at least the
-  initial size (80 m × 4 floors, one floor below ground) and grows to keep a
-  margin (15 m, one floor) around the content. It shrinks only on loading a
-  preset or pressing "Ajustar".
-- **Viewport.** The canvas fills its area and scrolls/pans over the world.
-  Zoom with pinch, wheel + Ctrl, or the − / + / Ajustar buttons. On loading
-  a lay and on "Ajustar" it fits the lay to the width (never below 60 %) and
-  scrolls the selected element into view; otherwise only the person changes
-  the zoom.
+  directions, so lengths look like lengths.
+- **The canvas sizes itself to the lay** (owner, 2026-10-16; replaces "the
+  scale never changes on its own" and "bounds grow, never shrink"). The
+  world is the lay plus margins, recomputed on every edit; the zoom fits
+  its width, the canvas takes the height that needs, capped at the window's
+  available height. Below 55 % zoom the constant-size gauges would crowd, so
+  it stops shrinking and scrolls sideways instead, starting on the nozzle.
+  During a drag the world and zoom are frozen (refitting under the pointer
+  would move the target) and refit on release. − / + set a manual zoom;
+  "Ajustar" returns to automatic.
+- **Constant-size overlays.** Gauges, labels, handles and the nozzle keep
+  their screen size at any zoom; hoses and the engine scale with the world.
+- **Controls below the drawing,** never over it: drag mode, zoom readout,
+  − / + / Ajustar.
+- **Tap vs drag.** A press that moves less than 6 px is a tap: it selects
+  (on the nozzle it also works the bale, open/shut). More is a drag.
+- **On-canvas editing.** Tapping a hose shows a small toolbar on the canvas
+  with the hose sizes and −15 / +15 m. Tapping the engine selects the pump:
+  its discharge outlet size (1½, 2½, 3″ or "same as the hose"); a different
+  outlet size draws an adapter, whose loss is not modelled yet.
 - **Two drag modes** (toggle on the canvas; fixed length is the default):
   - **Largo fijo (tether):** the hose length is fixed. The coupling moves
     within the hose's reach and the hose sags if there is slack; dragged
