@@ -1,4 +1,4 @@
-import type { SourceId } from "./references.ts";
+import type { HoseSize, SourceId } from "./references.ts";
 
 /**
  * Built-in equipment specs the app offers as starting points. Unlike
@@ -27,8 +27,36 @@ export type NozzleSpec = {
   settingsGpm: readonly number[];
   ratedFlowGpm: number;
   ratedPressurePsi: number;
-  provenance: { ratedFlowGpm: Provenance; ratedPressurePsi: Provenance };
+  /**
+   * Coupling size of the nozzle's inlet, inches. A physical fact of the
+   * nozzle (datasheet or plate), not derived from its flow: the inlet decides
+   * which line it goes on, and so bounds the flows a nozzle of that inlet
+   * can be built for (MODEL.md §3.4c).
+   */
+  inletIn: number;
+  provenance: { ratedFlowGpm: Provenance; ratedPressurePsi: Provenance; inletIn: Provenance };
 };
+
+const GENERIC_INLET: Provenance = {
+  sources: [],
+  note: "generic: 1-1/2\" inlet for nozzles up to 150 gpm, 2-1/2\" above; replace with the datasheet value",
+};
+
+/**
+ * Coupling size of a hose, inches. Convention: the hose's own diameter, except
+ * 1-3/4\" (1-1/2\" couplings) and 3\" (2-1/2\" or 3\" per its row). `verify`
+ * against the station's hose (MODEL.md §3.4c).
+ */
+export function hoseCouplingIn(hose: HoseSize): number {
+  if (hose.id === "1-3/4") return 1.5;
+  if (hose.id === "3/2-1/2") return 2.5;
+  return hose.nominalDiameterIn;
+}
+
+/** "direct" if the nozzle screws on; "adapter" if it needs one (drawn, not costed). */
+export function couplingFit(nozzleInletIn: number, hose: HoseSize): "direct" | "adapter" {
+  return nozzleInletIn === hoseCouplingIn(hose) ? "direct" : "adapter";
+}
 
 const FOG_PRESSURE: Provenance = {
   sources: ["cgbvpManual2019"],
@@ -48,9 +76,11 @@ export const NOZZLE_SPECS: readonly NozzleSpec[] = [
     settingsGpm: [30, 60, 95, 125],
     ratedFlowGpm: 95,
     ratedPressurePsi: 100,
+    inletIn: 1.5,
     provenance: {
       ratedFlowGpm: { sources: [], note: "generic gallonage settings; replace with the station's nozzle when known" },
       ratedPressurePsi: FOG_PRESSURE,
+      inletIn: GENERIC_INLET,
     },
   },
   {
@@ -60,7 +90,8 @@ export const NOZZLE_SPECS: readonly NozzleSpec[] = [
     settingsGpm: [],
     ratedFlowGpm: 100,
     ratedPressurePsi: 100,
-    provenance: { ratedFlowGpm: GENERIC_FLOW, ratedPressurePsi: FOG_PRESSURE },
+    inletIn: 1.5,
+    provenance: { ratedFlowGpm: GENERIC_FLOW, ratedPressurePsi: FOG_PRESSURE, inletIn: GENERIC_INLET },
   },
   {
     id: "fog-150",
@@ -69,7 +100,8 @@ export const NOZZLE_SPECS: readonly NozzleSpec[] = [
     settingsGpm: [],
     ratedFlowGpm: 150,
     ratedPressurePsi: 100,
-    provenance: { ratedFlowGpm: GENERIC_FLOW, ratedPressurePsi: FOG_PRESSURE },
+    inletIn: 1.5,
+    provenance: { ratedFlowGpm: GENERIC_FLOW, ratedPressurePsi: FOG_PRESSURE, inletIn: GENERIC_INLET },
   },
   {
     id: "fog-250",
@@ -78,6 +110,7 @@ export const NOZZLE_SPECS: readonly NozzleSpec[] = [
     settingsGpm: [],
     ratedFlowGpm: 250,
     ratedPressurePsi: 100,
-    provenance: { ratedFlowGpm: GENERIC_FLOW, ratedPressurePsi: FOG_PRESSURE },
+    inletIn: 2.5,
+    provenance: { ratedFlowGpm: GENERIC_FLOW, ratedPressurePsi: FOG_PRESSURE, inletIn: GENERIC_INLET },
   },
 ];
