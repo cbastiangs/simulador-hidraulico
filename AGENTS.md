@@ -12,8 +12,9 @@ here untouched; the screen and station-data integration are still open (see
 - `tests/` — `node --test`, checked against published tables (Colorado DFPC
   chart, CGBVP 2019 manual, metric cross-check). `boundaries.test.mjs`
   enforces the engine's import rule below.
-- `docs/ROADMAP.md` — what the simulator is for (seven lessons), the
-  assessment of current choices, and the milestone order. Read it first.
+- `docs/ROADMAP.md` — what the simulator is (a playground of lays), the
+  stack, the scenario document, trucks, and the milestone order. Read it
+  first.
 - `docs/PLAN-simulador.md` — the design authority: model, constants and their
   sources, the open licence/placement question, solver roadmap. Where its
   sequencing or fd-app plumbing disagrees with `ROADMAP.md`, the roadmap wins.
