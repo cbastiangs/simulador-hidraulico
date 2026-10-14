@@ -84,7 +84,15 @@
 - Diagrams are flat and technical, not skeuomorphic: clean shapes, a few
   well-chosen details (coupling rings, bale lever), no gradients or textures.
 
-## 6. Process
+## 6. Approved design
+
+**Main screen, approved by the owner 2026-10-15:**
+`design/main-screen.html` (static mock-up, open in a browser) and its
+renders `design/main-screen-desktop.png`, `design/main-screen-phone.png`.
+The app is built to it; departures need a revised, approved mock-up. Its
+nozzle settings (30/60/95/125 gpm) are generic placeholders.
+
+## 7. Process
 
 - **New screens and major visual changes start as a static mock-up**
   (rendered and sent to the owner) and are built only once approved.
