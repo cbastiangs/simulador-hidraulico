@@ -38,12 +38,21 @@ export type ScenarioSection = {
   endElevationM: number;
 };
 
+/**
+ * `fixed-orifice`: one rating. `selectable`: a gallonage ring; each setting is
+ * a fixed orifice at the same rated pressure, and `ratedFlowGpm` is the one
+ * selected (MODEL.md §3.5). The solver sees only the selected rating.
+ */
 export type ScenarioNozzle = {
-  kind: "fixed-orifice";
+  kind: "fixed-orifice" | "selectable";
   /** Catalog spec (catalog.ts NOZZLE_SPECS) the values came from; null when entered by hand. */
   specId: string | null;
+  /** The ring's settings, ascending; empty for a fixed orifice. */
+  settingsGpm: number[];
   ratedFlowGpm: number;
   ratedPressurePsi: number;
+  /** 0 straight stream … 1 wide fog. Drawing only: the flow does not depend on it (MODEL.md §3.5). */
+  pattern: number;
   open: boolean;
 };
 
@@ -117,6 +126,22 @@ export function parseScenario(value: unknown): Scenario {
     throw new ScenarioError("sections", `must be a list of 1 to ${MAX_SECTIONS} sections`);
   }
   if (typeof nozzle.open !== "boolean") throw new ScenarioError("nozzle.open", "must be true or false");
+  const nozzleKind = oneOf(nozzle.kind, "nozzle.kind", ["fixed-orifice", "selectable"] as const);
+  const ratedFlowGpm = number(nozzle.ratedFlowGpm, "nozzle.ratedFlowGpm", "greater than zero");
+  if (!Array.isArray(nozzle.settingsGpm) || nozzle.settingsGpm.length > 12) {
+    throw new ScenarioError("nozzle.settingsGpm", "must be a list of at most 12 flows");
+  }
+  const settingsGpm = nozzle.settingsGpm.map((q: unknown, i) =>
+    number(q, `nozzle.settingsGpm[${i}]`, "greater than zero"),
+  );
+  if (nozzleKind === "fixed-orifice" && settingsGpm.length > 0) {
+    throw new ScenarioError("nozzle.settingsGpm", "must be empty for a fixed-orifice nozzle");
+  }
+  if (nozzleKind === "selectable" && (settingsGpm.length < 2 || !settingsGpm.includes(ratedFlowGpm))) {
+    throw new ScenarioError("nozzle.settingsGpm", "must list 2 or more settings, including ratedFlowGpm");
+  }
+  const pattern = number(nozzle.pattern, "nozzle.pattern", "zero or more");
+  if (pattern > 1) throw new ScenarioError("nozzle.pattern", "must be between 0 and 1");
 
   return {
     schema: SCENARIO_SCHEMA,
@@ -139,10 +164,12 @@ export function parseScenario(value: unknown): Scenario {
       };
     }),
     nozzle: {
-      kind: oneOf(nozzle.kind, "nozzle.kind", ["fixed-orifice"] as const),
+      kind: nozzleKind,
       specId: idOrNull(nozzle.specId, "nozzle.specId"),
-      ratedFlowGpm: number(nozzle.ratedFlowGpm, "nozzle.ratedFlowGpm", "greater than zero"),
+      settingsGpm: [...settingsGpm].sort((a, b) => a - b),
+      ratedFlowGpm,
       ratedPressurePsi: number(nozzle.ratedPressurePsi, "nozzle.ratedPressurePsi", "greater than zero"),
+      pattern,
       open: nozzle.open,
     },
   };

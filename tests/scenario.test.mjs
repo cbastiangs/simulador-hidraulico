@@ -42,6 +42,14 @@ test("preset reduccion-un-piso: physical vs the CGBVP reference", () => {
   assert.ok(pressures[0] > pressures[1] && pressures[1] > pressures[2]);
 });
 
+test("preset ataque-segundo-piso: the main-screen design's lay", () => {
+  // Combination nozzle on 95 gpm at 100 psi; 30 m = 0.98425 × 100 ft.
+  // 2-1/2": 2 × 0.95² × 0.98425 = 1.777; 1-1/2": 24 × 0.95² × 0.98425 = 21.319;
+  // 6 m × 0.434/0.3048 = 8.543. Required: 100 + 1.777 + 21.319 + 8.543 = 131.64 psi.
+  const scenario = parseScenario(preset("ataque-segundo-piso.json"));
+  near(solveScenario(scenario).requiredPumpPressurePsi, 131.64, 0.01);
+});
+
 test("the document carries values; the catalog id is provenance only", () => {
   const doc = preset("linea-basica.json");
   doc.sections[0].frictionCoefficient = 12; // an edited C, as from a flow test
@@ -62,6 +70,8 @@ test("a bad document is rejected with the path of the first bad field", () => {
     [(d) => (d.nozzle.ratedFlowGpm = 0), "nozzle.ratedFlowGpm"],
     [(d) => (d.nozzle.open = "yes"), "nozzle.open"],
     [(d) => (d.nozzle.kind = "automatic"), "nozzle.kind"],
+    [(d) => ((d.nozzle.kind = "selectable"), (d.nozzle.settingsGpm = [30, 60])), "nozzle.settingsGpm"],
+    [(d) => (d.nozzle.pattern = 2), "nozzle.pattern"],
   ];
   for (const [spoil, path] of cases) {
     const doc = preset("linea-basica.json");

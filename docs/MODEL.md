@@ -143,9 +143,15 @@ psi.
 (`convention`, CGBVP p. 72). Low-pressure models (50/75 psi) are presets, not
 a different law.
 
-**Selectable gallonage:** `nozzle.selectable` ⏳ M2. A list of settings, each
-a fixed orifice (Q_r at NP_r). Turning the setting down reduces the flow, and
-with it the cooling capacity (§3.12).
+**Selectable gallonage:** `nozzle.selectable` ✅. A list of settings, each a
+fixed orifice (Q_r at NP_r); the solver uses `nozzle.fixed-orifice` with the
+selected setting. Turning the setting down reduces the flow, and with it the
+cooling capacity (§3.12).
+
+**Pattern** (straight stream ↔ wide fog) is stored and drawn but does not
+enter the solution: on constant-gallonage combination nozzles the flow is
+taken as independent of pattern. Basis: `verify` against manufacturer data
+before the app states it as fact (§9).
 
 **Automatic:** `nozzle.automatic` ⏳ M2. Candidate law: holds NP ≈ NP_set
 while Q_min ≤ Q ≤ Q_max (the baffle opens or closes); outside that range it
@@ -298,6 +304,7 @@ geometry or crashes (see AGENTS.md).
 | Item | Law | Milestone | Where to check |
 |---|---|---|---|
 | Freeman constant 29.7 | `nozzle.smooth-bore` | M2 | IFSTA Pumping Apparatus Driver/Operator |
+| Flow independent of pattern on combination nozzles | `nozzle.selectable` (pattern) | M2 | TFT / Akron / Elkhart [E5] |
 | Automatic nozzle behaviour at its limits | `nozzle.automatic` | M2 | TFT / Akron / Elkhart [E5] curves |
 | Standpipe outlet design pressure | `supply.fixed-pressure` presets | M2 | NFPA 14, by edition |
 | Envelope above rated flow | `pump.envelope` | M3 | A real pump curve (Hale [E9]; M11-1/M11-5 plates) |

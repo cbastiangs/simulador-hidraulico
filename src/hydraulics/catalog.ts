@@ -22,7 +22,9 @@ export type NozzleSpec = {
   id: string;
   /** Spanish: shown in the app as is. */
   label: string;
-  kind: "fixed-orifice";
+  kind: "fixed-orifice" | "selectable";
+  /** Selectable only: the gallonage ring's settings; ratedFlowGpm is the default one. */
+  settingsGpm: readonly number[];
   ratedFlowGpm: number;
   ratedPressurePsi: number;
   provenance: { ratedFlowGpm: Provenance; ratedPressurePsi: Provenance };
@@ -40,9 +42,22 @@ const GENERIC_FLOW: Provenance = {
 
 export const NOZZLE_SPECS: readonly NozzleSpec[] = [
   {
+    id: "combination-selectable",
+    label: "Pitón combinado, selector 30/60/95/125 gpm @ 100 psi",
+    kind: "selectable",
+    settingsGpm: [30, 60, 95, 125],
+    ratedFlowGpm: 95,
+    ratedPressurePsi: 100,
+    provenance: {
+      ratedFlowGpm: { sources: [], note: "generic gallonage settings; replace with the station's nozzle when known" },
+      ratedPressurePsi: FOG_PRESSURE,
+    },
+  },
+  {
     id: "fog-100",
     label: "Pitón de niebla 100 gpm @ 100 psi",
     kind: "fixed-orifice",
+    settingsGpm: [],
     ratedFlowGpm: 100,
     ratedPressurePsi: 100,
     provenance: { ratedFlowGpm: GENERIC_FLOW, ratedPressurePsi: FOG_PRESSURE },
@@ -51,6 +66,7 @@ export const NOZZLE_SPECS: readonly NozzleSpec[] = [
     id: "fog-150",
     label: "Pitón de niebla 150 gpm @ 100 psi",
     kind: "fixed-orifice",
+    settingsGpm: [],
     ratedFlowGpm: 150,
     ratedPressurePsi: 100,
     provenance: { ratedFlowGpm: GENERIC_FLOW, ratedPressurePsi: FOG_PRESSURE },
@@ -59,6 +75,7 @@ export const NOZZLE_SPECS: readonly NozzleSpec[] = [
     id: "fog-250",
     label: "Pitón de niebla 250 gpm @ 100 psi",
     kind: "fixed-orifice",
+    settingsGpm: [],
     ratedFlowGpm: 250,
     ratedPressurePsi: 100,
     provenance: { ratedFlowGpm: GENERIC_FLOW, ratedPressurePsi: FOG_PRESSURE },
