@@ -22,6 +22,8 @@ here untouched; the screen and station-data integration are still open (see
 - `docs/MODEL.md` — every law and constant: formula, units, source, status,
   and what to verify before implementing. Code, tests and on-screen formulas
   follow it.
+- `docs/UX.md` — how screens behave and look: canvas, controls, layout,
+  mobile, visual style, and the mock-up-first process.
 - `docs/PLAN-simulador.md` — history and open questions: the licence and
   placement question, solver roadmap, station data. Where its sequencing or
   fd-app plumbing disagrees with `ROADMAP.md`, the roadmap wins.
@@ -53,8 +55,15 @@ here untouched; the screen and station-data integration are still open (see
 - The app never computes hydraulics itself: it builds an input, calls the
   engine, and formats the result.
 - UI text in Spanish, code and docs in English.
+- **UI work follows `docs/UX.md`.** A new screen or a major visual change
+  starts as a static mock-up the owner approves; before handing back, check
+  it in a browser at 390 px and 1024 px and send a screenshot.
 
 ## Design documents over code
+
+**Decisions go in the docs, in the same commit.** When the owner states a
+preference or decision that outlives the task at hand, record it where it
+belongs (`ROADMAP.md` decisions, `UX.md`, `MODEL.md`), not only in chat.
 
 The `docs/` documents are the design pass. Before changing the model, the
 constants, or the element laws, re-read `MODEL.md` and the summaries it
