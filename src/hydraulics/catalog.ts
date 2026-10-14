@@ -55,7 +55,7 @@ export const NOZZLE_SPECS: readonly NozzleSpec[] = [
   },
   {
     id: "fog-100",
-    label: "Pitón de niebla 100 gpm @ 100 psi",
+    label: "Pitón combinado, caudal único 100 gpm @ 100 psi",
     kind: "fixed-orifice",
     settingsGpm: [],
     ratedFlowGpm: 100,
@@ -64,7 +64,7 @@ export const NOZZLE_SPECS: readonly NozzleSpec[] = [
   },
   {
     id: "fog-150",
-    label: "Pitón de niebla 150 gpm @ 100 psi",
+    label: "Pitón combinado, caudal único 150 gpm @ 100 psi",
     kind: "fixed-orifice",
     settingsGpm: [],
     ratedFlowGpm: 150,
@@ -73,7 +73,7 @@ export const NOZZLE_SPECS: readonly NozzleSpec[] = [
   },
   {
     id: "fog-250",
-    label: "Pitón de niebla 250 gpm @ 100 psi",
+    label: "Pitón combinado, caudal único 250 gpm @ 100 psi",
     kind: "fixed-orifice",
     settingsGpm: [],
     ratedFlowGpm: 250,

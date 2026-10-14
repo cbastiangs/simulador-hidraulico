@@ -149,7 +149,11 @@ A nozzle has a **design** and a **flow control**, chosen independently:
   across a flow range). It decides the pressure–flow law.
 
 A combination nozzle can have any of the three flow controls; a smooth bore
-is single per tip. The scenario's `nozzle.kind` is the flow control; the
+is single per tip.
+
+**Scope (owner, 2026-10-16):** professional combination nozzles (adjustable
+pattern) and smooth bores only. Fixed-pattern fog nozzles (fog tips,
+piercing applicators, cellar and booster nozzles) are out of scope. The scenario's `nozzle.kind` is the flow control; the
 design is a separate attribute (catalog and data template:
 `data/templates/nozzles-template.csv`).
 
