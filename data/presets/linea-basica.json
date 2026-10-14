@@ -1,0 +1,26 @@
+{
+  "schema": "simulador-hidraulico/scenario",
+  "version": 1,
+  "name": "Línea básica: 30 m de 1-1/2\"",
+  "methodId": "physical",
+  "source": {
+    "kind": "fixed-pressure",
+    "pressurePsi": 125
+  },
+  "sections": [
+    {
+      "hoseSizeId": "1-1/2",
+      "diameterIn": 1.5,
+      "frictionCoefficient": 24,
+      "lengthFt": 98.42519685039369,
+      "endElevationFt": 0
+    }
+  ],
+  "nozzle": {
+    "kind": "fixed-orifice",
+    "specId": "fog-100",
+    "ratedFlowGpm": 100,
+    "ratedPressurePsi": 100,
+    "open": true
+  }
+}
