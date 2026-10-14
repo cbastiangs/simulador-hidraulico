@@ -1,11 +1,12 @@
 /**
  * Unit conversions for the hydraulics module, and the only place they live.
  *
- * The calculations work in US fire-service units -- psi, US gallons per
- * minute, feet -- because every published coefficient they use is defined in
- * those units (references.ts). Screens convert what a person types or reads
- * at the edge, through these functions; nothing else holds a conversion
- * factor.
+ * The engine works in the units the station uses: metres for length and
+ * height, inches for diameters, psi, US gpm. Published constants are often
+ * defined in feet (C per 100 ft, 0.434 psi/ft); each law converts its
+ * constant once, where the law is defined, using these factors. Screens
+ * convert to other display units (bar, L/min, ft) at their edge; nothing
+ * else holds a conversion factor.
  *
  * Every factor below is exact by definition (NIST SP 811, Appendix B).
  */

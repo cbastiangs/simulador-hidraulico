@@ -32,9 +32,9 @@ function near(actual, expected, tolerance = 1e-9) {
 //   PDP − EP = 0.0148 × Q²
 const line = ({ hose = {}, nozzle = {}, ...rest } = {}) => ({
   pumpPressurePsi: 148,
-  nozzleElevationFt: 0,
+  nozzleElevationM: feetToMeters(0),
   ...rest,
-  hose: { lengthFt: 200, frictionCoefficient: 24, ...hose },
+  hose: { lengthM: feetToMeters(200), frictionCoefficient: 24, ...hose },
   nozzle: { ratedFlowGpm: 100, ratedPressurePsi: 100, open: true, ...nozzle },
 });
 
@@ -51,7 +51,7 @@ test("friction loss per 100 ft matches the Colorado DFPC pumper chart (Jan 2020)
     [0.08, 500, 2], [0.08, 1000, 8], [0.08, 2000, 32],
   ];
   for (const [frictionCoefficient, flowGpm, printed] of cells) {
-    near(frictionLossPsi({ lengthFt: 100, frictionCoefficient }, flowGpm), printed, 0.5);
+    near(frictionLossPsi({ lengthM: feetToMeters(100), frictionCoefficient }, flowGpm), printed, 0.5);
   }
 });
 
@@ -88,7 +88,7 @@ test("an under-pumped line delivers less flow at less nozzle pressure", () => {
 
 test("positive elevation costs 0.434 psi per foot", () => {
   // EP = 0.434 × 50 = 21.7; required = 148 + 21.7 = 169.7
-  const uphill = line({ nozzleElevationFt: 50, pumpPressurePsi: 169.7 });
+  const uphill = line({ nozzleElevationM: feetToMeters(50), pumpPressurePsi: 169.7 });
   near(requiredPumpPressurePsi(uphill), 169.7);
   const result = solveAttackLine(uphill);
   near(result.elevationPressurePsi, 21.7);
@@ -100,7 +100,7 @@ test("negative elevation gives pressure back", () => {
   // EP = −21.7; required = 148 − 21.7 = 126.3.
   // At PDP 157.38: head = 179.08 = 0.0148 × 110² → Q = 110;
   // NP = 100 × 1.1² = 121; FL = 24 × 1.1² × 2 = 58.08
-  const downhill = line({ nozzleElevationFt: -50, pumpPressurePsi: 157.38 });
+  const downhill = line({ nozzleElevationM: feetToMeters(-50), pumpPressurePsi: 157.38 });
   near(requiredPumpPressurePsi(downhill), 126.3);
   const result = solveAttackLine(downhill);
   near(result.elevationPressurePsi, -21.7);
@@ -117,13 +117,13 @@ test("a closed nozzle has zero flow, no friction, and static pressure", () => {
   near(level.nozzlePressurePsi, 150);
 
   // 150 − 0.434 × 50 = 128.3
-  const upstairs = solveAttackLine(line({ pumpPressurePsi: 150, nozzleElevationFt: 50, nozzle: { open: false } }));
+  const upstairs = solveAttackLine(line({ pumpPressurePsi: 150, nozzleElevationM: feetToMeters(50), nozzle: { open: false } }));
   near(upstairs.nozzlePressurePsi, 128.3);
 });
 
 test("a pump below the elevation pressure leaves nothing at the nozzle", () => {
   // 20 − 21.7 = −1.7
-  const result = solveAttackLine(line({ pumpPressurePsi: 20, nozzleElevationFt: 50 }));
+  const result = solveAttackLine(line({ pumpPressurePsi: 20, nozzleElevationM: feetToMeters(50) }));
   assert.equal(result.state, "no-pressure");
   assert.equal(result.flowGpm, 0);
   assert.equal(result.frictionLossPsi, 0);
@@ -133,23 +133,23 @@ test("a pump below the elevation pressure leaves nothing at the nozzle", () => {
 test("friction loss grows linearly with hose length", () => {
   // 24 × 1² × (L/100)
   for (const [lengthFt, expected] of [[0, 0], [100, 24], [250, 60], [400, 96]]) {
-    near(frictionLossPsi({ lengthFt, frictionCoefficient: 24 }, 100), expected);
+    near(frictionLossPsi({ lengthM: feetToMeters(lengthFt), frictionCoefficient: 24 }, 100), expected);
   }
 });
 
 test("friction loss grows with the square of flow", () => {
   // 24 × (Q/100)² × 1
   for (const [flowGpm, expected] of [[0, 0], [50, 6], [100, 24], [200, 96]]) {
-    near(frictionLossPsi({ lengthFt: 100, frictionCoefficient: 24 }, flowGpm), expected);
+    near(frictionLossPsi({ lengthM: feetToMeters(100), frictionCoefficient: 24 }, flowGpm), expected);
   }
 });
 
 test("pumping the required pressure always gives the rated flow, and the pressures add up", () => {
   const lines = [
     line(),
-    line({ hose: { lengthFt: 131.23, frictionCoefficient: 2 }, nozzle: { ratedFlowGpm: 250, ratedPressurePsi: 50 } }),
-    line({ hose: { lengthFt: 0 }, nozzleElevationFt: 30 }),
-    line({ hose: { frictionCoefficient: 0 }, nozzleElevationFt: -80, nozzle: { ratedPressurePsi: 75 } }),
+    line({ hose: { lengthM: feetToMeters(131.23), frictionCoefficient: 2 }, nozzle: { ratedFlowGpm: 250, ratedPressurePsi: 50 } }),
+    line({ hose: { lengthM: feetToMeters(0) }, nozzleElevationM: feetToMeters(30) }),
+    line({ hose: { frictionCoefficient: 0 }, nozzleElevationM: feetToMeters(-80), nozzle: { ratedPressurePsi: 75 } }),
   ];
   for (const candidate of lines) {
     const pumpPressurePsi = requiredPumpPressurePsi(candidate);
@@ -165,8 +165,7 @@ test("metric input agrees with the published metric friction table", () => {
   // (bomberos.info, "Cálculo de pérdidas de presión por fricción").
   // 400 L/min through 100 m of 38 mm: 38 × 4² × 1 = 608 kPa.
   const flowGpm = litersPerMinuteToGpm(400);
-  const lengthFt = metersToFeet(100);
-  const kilopascals = frictionLossPsi({ lengthFt, frictionCoefficient: 24 }, flowGpm) * 6.894757;
+  const kilopascals = frictionLossPsi({ lengthM: 100, frictionCoefficient: 24 }, flowGpm) * 6.894757;
   near(kilopascals, 608, 608 * 0.01);
 });
 
@@ -182,10 +181,10 @@ test("unit conversions use the exact definitions", () => {
 });
 
 test("an impossible line is rejected instead of solved", () => {
-  assert.throws(() => solveAttackLine(line({ hose: { lengthFt: -1 } })), RangeError);
+  assert.throws(() => solveAttackLine(line({ hose: { lengthM: feetToMeters(-1) } })), RangeError);
   assert.throws(() => solveAttackLine(line({ nozzle: { ratedFlowGpm: 0 } })), RangeError);
   assert.throws(() => solveAttackLine(line({ pumpPressurePsi: Number.NaN })), RangeError);
-  assert.throws(() => solveAttackLine(line({ nozzleElevationFt: Infinity })), RangeError);
+  assert.throws(() => solveAttackLine(line({ nozzleElevationM: feetToMeters(Infinity) })), RangeError);
 });
 
 // CGBVP, "Curso de Hidráulica aplicada a la lucha contra incendios" (2019),
@@ -194,16 +193,16 @@ test("an impossible line is rejected instead of solved", () => {
 
 test("CGBVP VC-01..03: the manual's hose tables follow the same C formula", () => {
   // VC-01, p. 40: 1-1/2", 40 gpm, 100 ft: 24 × 0.4² = 3.84; printed 4.
-  near(frictionLossPsi({ lengthFt: 100, frictionCoefficient: 24 }, 40), 3.84);
+  near(frictionLossPsi({ lengthM: feetToMeters(100), frictionCoefficient: 24 }, 40), 3.84);
   // VC-02, p. 41: 2-1/2", 250 gpm, 30 m. Printed 13 because the tables read
   // 30 m as 100 ft (2 × 2.5² = 12.5); exactly, 30 m = 98.425 ft gives 12.303.
-  near(frictionLossPsi({ lengthFt: metersToFeet(30), frictionCoefficient: 2 }, 250), 12.303, 0.001);
+  near(frictionLossPsi({ lengthM: 30, frictionCoefficient: 2 }, 250), 12.303, 0.001);
   // VC-03, p. 42: 3", 500 gpm, 100 ft: 0.8 × 5² = 20, as printed.
-  near(frictionLossPsi({ lengthFt: 100, frictionCoefficient: 0.8 }, 500), 20);
+  near(frictionLossPsi({ lengthM: feetToMeters(100), frictionCoefficient: 0.8 }, 500), 20);
 });
 
 test("CGBVP VC-04: 10 m of height is 15 psi by the manual, 14.2 by hydrostatics", () => {
-  const tenMetres = metersToFeet(10);
+  const tenMetres = 10;
   // p. 44: 1 m = 1.5 psi, so 10 m = 15 psi.
   near(elevationPressurePsi(tenMetres, METHODS["cgbvp-2019"]), 15);
   // ρgh = 1000 kg/m³ × 9.80665 m/s² × 10 m = 98.07 kPa = 14.22 psi.
@@ -214,14 +213,14 @@ test("CGBVP VC-06: a fixed orifice from 50 to 80 psi flows 26.5% more, not the p
   // No hose and no height, so the nozzle gets the pump pressure: 100 × √(80/50) = 126.491.
   const result = solveAttackLine(line({
     pumpPressurePsi: 80,
-    hose: { lengthFt: 0 },
+    hose: { lengthM: feetToMeters(0) },
     nozzle: { ratedPressurePsi: 50 },
   }));
   near(result.flowGpm, 126.491, 0.001);
 });
 
 test("a method changes the elevation constant, never the laws", () => {
-  const uphill = line({ nozzleElevationFt: metersToFeet(10) });
+  const uphill = line({ nozzleElevationM: 10 });
   // 100 nozzle + 48 friction + 15 height (manual) = 163
   near(requiredPumpPressurePsi(uphill, METHODS["cgbvp-2019"]), 163);
   for (const method of Object.values(METHODS)) {

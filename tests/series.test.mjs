@@ -3,6 +3,7 @@ import test from "node:test";
 import { requiredPumpPressurePsi, solveAttackLine } from "../src/hydraulics/line.ts";
 import { METHODS } from "../src/hydraulics/references.ts";
 import { solveSeriesLine } from "../src/hydraulics/series.ts";
+import { feetToMeters } from "../src/hydraulics/units.ts";
 
 // Expected values are worked by hand in the comments, or come from line.ts's
 // closed form -- an independent derivation of the same laws.
@@ -12,20 +13,21 @@ function near(actual, expected, tolerance = 1e-6) {
 }
 
 const nozzle = { ratedFlowGpm: 100, ratedPressurePsi: 100, open: true };
-const hose = (lengthFt, frictionCoefficient) => ({ lengthFt, frictionCoefficient });
+// Lengths and heights below are in feet, as the hand arithmetic is; the engine takes metres.
+const hose = (lengthFt, frictionCoefficient) => ({ lengthM: feetToMeters(lengthFt), frictionCoefficient });
 
 test("one section agrees with line.ts's closed form", () => {
   const cases = [
-    { pumpPressurePsi: 148, hose: hose(200, 24), nozzleElevationFt: 0 },
-    { pumpPressurePsi: 37, hose: hose(200, 24), nozzleElevationFt: 0 },
-    { pumpPressurePsi: 157.38, hose: hose(200, 24), nozzleElevationFt: -50 },
-    { pumpPressurePsi: 120, hose: hose(500, 2), nozzleElevationFt: 33 },
+    { pumpPressurePsi: 148, hose: hose(200, 24), nozzleElevationM: feetToMeters(0) },
+    { pumpPressurePsi: 37, hose: hose(200, 24), nozzleElevationM: feetToMeters(0) },
+    { pumpPressurePsi: 157.38, hose: hose(200, 24), nozzleElevationM: feetToMeters(-50) },
+    { pumpPressurePsi: 120, hose: hose(500, 2), nozzleElevationM: feetToMeters(33) },
   ];
-  for (const { pumpPressurePsi, hose, nozzleElevationFt } of cases) {
+  for (const { pumpPressurePsi, hose, nozzleElevationM } of cases) {
     for (const method of Object.values(METHODS)) {
-      const closed = solveAttackLine({ pumpPressurePsi, hose, nozzle, nozzleElevationFt }, method);
+      const closed = solveAttackLine({ pumpPressurePsi, hose, nozzle, nozzleElevationM }, method);
       const series = solveSeriesLine(
-        { pumpPressurePsi, sections: [{ hose, endElevationFt: nozzleElevationFt }], nozzle },
+        { pumpPressurePsi, sections: [{ hose, endElevationM: nozzleElevationM }], nozzle },
         method,
       );
       assert.equal(series.state, closed.state);
@@ -43,8 +45,8 @@ test("a 2-1/2\" section reduced to 1-1/2\" spends friction section by section", 
   const result = solveSeriesLine({
     pumpPressurePsi: 126,
     sections: [
-      { hose: hose(100, 2), endElevationFt: 0 },
-      { hose: hose(100, 24), endElevationFt: 0 },
+      { hose: hose(100, 2), endElevationM: feetToMeters(0) },
+      { hose: hose(100, 24), endElevationM: feetToMeters(0) },
     ],
     nozzle,
   });
@@ -60,8 +62,8 @@ test("up a stairwell and back down: each coupling pays its own height", () => {
   const result = solveSeriesLine({
     pumpPressurePsi: 134.68,
     sections: [
-      { hose: hose(100, 2), endElevationFt: 30 },
-      { hose: hose(100, 24), endElevationFt: 20 },
+      { hose: hose(100, 2), endElevationM: feetToMeters(30) },
+      { hose: hose(100, 24), endElevationM: feetToMeters(20) },
     ],
     nozzle,
   });
@@ -73,12 +75,12 @@ test("up a stairwell and back down: each coupling pays its own height", () => {
 });
 
 test("splitting a section in two changes nothing", () => {
-  const whole = solveSeriesLine({ pumpPressurePsi: 150, sections: [{ hose: hose(200, 24), endElevationFt: 0 }], nozzle });
+  const whole = solveSeriesLine({ pumpPressurePsi: 150, sections: [{ hose: hose(200, 24), endElevationM: feetToMeters(0) }], nozzle });
   const halves = solveSeriesLine({
     pumpPressurePsi: 150,
     sections: [
-      { hose: hose(100, 24), endElevationFt: 0 },
-      { hose: hose(100, 24), endElevationFt: 0 },
+      { hose: hose(100, 24), endElevationM: feetToMeters(0) },
+      { hose: hose(100, 24), endElevationM: feetToMeters(0) },
     ],
     nozzle,
   });
@@ -91,8 +93,8 @@ test("a closed nozzle shows static pressure at every coupling", () => {
   const result = solveSeriesLine({
     pumpPressurePsi: 150,
     sections: [
-      { hose: hose(100, 2), endElevationFt: 30 },
-      { hose: hose(100, 24), endElevationFt: 20 },
+      { hose: hose(100, 2), endElevationM: feetToMeters(30) },
+      { hose: hose(100, 24), endElevationM: feetToMeters(20) },
     ],
     nozzle: { ...nozzle, open: false },
   });
@@ -107,8 +109,8 @@ test("a pump that can't reach the highest coupling flows nothing, even to a lowe
   const result = solveSeriesLine({
     pumpPressurePsi: 10,
     sections: [
-      { hose: hose(100, 2), endElevationFt: 30 },
-      { hose: hose(100, 24), endElevationFt: 0 },
+      { hose: hose(100, 2), endElevationM: feetToMeters(30) },
+      { hose: hose(100, 24), endElevationM: feetToMeters(0) },
     ],
     nozzle,
   });
@@ -120,8 +122,8 @@ test("a pump that can't reach the highest coupling flows nothing, even to a lowe
 test("required pump pressure delivers the rated flow under either method", () => {
   for (const method of Object.values(METHODS)) {
     const sections = [
-      { hose: hose(150, 2), endElevationFt: 10 },
-      { hose: hose(100, 15.5), endElevationFt: 40 },
+      { hose: hose(150, 2), endElevationM: feetToMeters(10) },
+      { hose: hose(100, 15.5), endElevationM: feetToMeters(40) },
     ];
     const probe = solveSeriesLine({ pumpPressurePsi: 0, sections, nozzle }, method);
     const result = solveSeriesLine({ pumpPressurePsi: probe.requiredPumpPressurePsi, sections, nozzle }, method);
@@ -129,7 +131,7 @@ test("required pump pressure delivers the rated flow under either method", () =>
     near(result.nozzlePressurePsi, 100);
     // The single-section closed form agrees when the same total resistance and height are used.
     const closed = requiredPumpPressurePsi(
-      { pumpPressurePsi: 0, hose: hose(100, 2 * 1.5 + 15.5), nozzle, nozzleElevationFt: 40 },
+      { pumpPressurePsi: 0, hose: hose(100, 2 * 1.5 + 15.5), nozzle, nozzleElevationM: feetToMeters(40) },
       method,
     );
     near(probe.requiredPumpPressurePsi, closed);
@@ -139,11 +141,11 @@ test("required pump pressure delivers the rated flow under either method", () =>
 test("an impossible line is rejected instead of solved", () => {
   assert.throws(() => solveSeriesLine({ pumpPressurePsi: 100, sections: [], nozzle }), RangeError);
   assert.throws(
-    () => solveSeriesLine({ pumpPressurePsi: 100, sections: [{ hose: hose(-1, 2), endElevationFt: 0 }], nozzle }),
+    () => solveSeriesLine({ pumpPressurePsi: 100, sections: [{ hose: hose(-1, 2), endElevationM: feetToMeters(0) }], nozzle }),
     RangeError,
   );
   assert.throws(
-    () => solveSeriesLine({ pumpPressurePsi: 100, sections: [{ hose: hose(100, 2), endElevationFt: NaN }], nozzle }),
+    () => solveSeriesLine({ pumpPressurePsi: 100, sections: [{ hose: hose(100, 2), endElevationM: feetToMeters(NaN) }], nozzle }),
     RangeError,
   );
 });

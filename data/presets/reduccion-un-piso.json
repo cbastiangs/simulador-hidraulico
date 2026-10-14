@@ -12,15 +12,15 @@
       "hoseSizeId": "2-1/2",
       "diameterIn": 2.5,
       "frictionCoefficient": 2,
-      "lengthFt": 98.42519685039369,
-      "endElevationFt": 9.84251968503937
+      "lengthM": 30,
+      "endElevationM": 3
     },
     {
       "hoseSizeId": "1-1/2",
       "diameterIn": 1.5,
       "frictionCoefficient": 24,
-      "lengthFt": 98.42519685039369,
-      "endElevationFt": 9.84251968503937
+      "lengthM": 30,
+      "endElevationM": 3
     }
   ],
   "nozzle": {

@@ -80,12 +80,16 @@ simulates, and shows the classic answer beside it with one tap to apply it.
 "Hidrostática" differ only in k. Both are solved by the same code, so every
 answer the screen gives is consistent under either.
 
-**Units.** Internally psi, US gpm and feet. Every published constant is
-defined in them, and it is also the system EPANET computes in internally
-(feet and ft³/s, whatever units its input uses). The unit system has no
-effect on numerical performance. Conversions happen only at the screen's
-edge (`src/hydraulics/units.ts`, exact NIST factors), and a displayed
-rounding never writes back into the model (`UnitNumberInput`).
+**Units.** Internally the station's units (owner, 2026-10-14; replaces
+psi/gpm/feet): metres for length and height, inches for diameters, psi,
+US gpm. Published constants defined in feet (C per 100 ft, 0.434 psi/ft)
+are converted once, inside the law that uses them, with the exact factor
+in `src/hydraulics/units.ts`; CGBVP's 1.5 psi/m is now its native value.
+The choice has no numerical effect (exact factors, error ~1e-16 against
+2–3-figure constants): it is for readable documents and tests. EPANET,
+when used as an oracle, accepts SI input and converts internally. Other
+display units (bar, L/min, ft) are converted at the screen's edge, and a
+displayed rounding never writes back into the model.
 
 **Position is not hydraulics, yet.** The drawing is a plan view, and
 dragging only arranges it. §7 proposes making the drag meaningful.

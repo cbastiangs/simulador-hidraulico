@@ -10,8 +10,8 @@
   const line = $derived<SeriesLine>({
     pumpPressurePsi,
     sections: [
-      { hose: { lengthFt: 98.425, frictionCoefficient: 2 }, endElevationFt: 9.843 },
-      { hose: { lengthFt: 98.425, frictionCoefficient: 24 }, endElevationFt: 9.843 },
+      { hose: { lengthM: 30, frictionCoefficient: 2 }, endElevationM: 3 },
+      { hose: { lengthM: 30, frictionCoefficient: 24 }, endElevationM: 3 },
     ],
     nozzle: { ratedFlowGpm: 100, ratedPressurePsi: 100, open: true },
   });
