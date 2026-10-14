@@ -1,0 +1,21 @@
+/* Design tokens (docs/UX.md §5), light and dark. Components use only these. */
+:root {
+  --bg: #eef0ee; --surface: #ffffff; --band: #f6f7f5; --ground: #e9ece8; --line: #d5dadf;
+  --ink: #1b2128; --muted: #5f6b76;
+  --panel: #1f262d; --panel-2: #2a333c; --panel-line: #3a4550; --panel-well: #11161b; --panel-ink: #e9edf1; --panel-muted: #9aa6b2;
+  --hose: #c2412d; --pump: #c0392b; --steel: #6b747d; --water: #1c7ed6; --water-soft: #a5d8ff;
+  --accent: #1f6feb; --accent-soft: #e7f0ff; --warn: #c62828; --ok-bg: #1b4d2e; --ok-ink: #b2f2bb;
+  --friction: #f08c00; --elevation: #7048e8; --needle: #c62828;
+  --radius: 10px; --gap: 12px;
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #12161a; --surface: #1b2128; --band: #20272f; --ground: #171c21; --line: #343d47;
+    --ink: #e7eaee; --muted: #9aa4ae; --accent-soft: #15284a;
+    --hose: #e0735a; --water: #4dabf7; --water-soft: #1c4a73; --needle: #ff6b6b;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.35 system-ui, sans-serif; font-variant-numeric: tabular-nums; }
+button, select, input { font: inherit; color: inherit; }
