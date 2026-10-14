@@ -1,303 +1,248 @@
-# Roadmap: from engine to teaching simulator
+# Roadmap
 
-> 2026-10-11. Reorganises the project around what the simulator is **for**:
-> showing firefighters at the station how water behaves. `PLAN-simulador.md`
-> stays the authority on the model, constants and sources (§2–§4, §6). Its
-> sequencing (§9) and its fd-app plumbing (§1, §5, §8) are superseded here
-> wherever the two disagree.
+> 2026-10-14. Sets what the simulator is, how it is built, and the order of
+> work. `PLAN-simulador.md` stays the authority on the hydraulic model,
+> constants and sources (§2–§4, §6). Its sequencing (§9) and fd-app plumbing
+> (§1, §5, §8) are superseded here wherever the two disagree.
 
-## 1. What it is for
+## 1. What it is
 
-Seven things the station should be able to *see*, not just calculate:
+**A playground for fireground lays.** You pick a truck, lay hose from its
+outlets, add couplings, wyes and nozzles, set heights, open and close
+things, and watch pressure and flow respond. It is a tool and a demo, not a
+game: a simplified but physically honest overview of a maneuver, never an
+immersive scene.
 
-| # | Lesson | The one idea to leave the room with |
+- **Who:** firefighters and instructors at the station; maintained by the
+  owner with AI help.
+- **Where:** any browser, from a projector to an older phone. Static files,
+  works offline, no login. Can be embedded in fd-app (iframe or web
+  component) without sharing its stack.
+- **Later, same app:** an aerial (ladder/platform) module (§8).
+
+## 2. What it must make easy to show
+
+These are the playground's acceptance tests, not a lesson list. Each must be
+demonstrable in a few taps from a preset.
+
+| Idea | How the playground shows it |
+|---|---|
+| Flow vs pressure | Turn up the pump: the gauges rise, the particles speed up, and gpm rises by √, not linearly. |
+| Friction loss | Add paños or raise flow: the pressure budget's friction slice grows (∝ Q², ∝ L). |
+| Elevation | Drag the nozzle up in the side view: elevation loss appears even with the nozzle closed. |
+| Diameter and couplings | Hoses are drawn to diameter. Swap 1-1/2" for 2-1/2" and friction falls ~12× (published C, ≈ d⁵). 3" with 2-1/2" couplings: +18 % friction. |
+| Smooth bore vs fog | A/B compare: flow law, nozzle pressure, reaction per gpm. An under-pumped automatic nozzle shows a good pressure while flowing too little. |
+| Pump capacity | Open a second outlet: the operating point slides down the pump's capacity envelope and every line feels it. |
+| GPM extinguishes | An optional view: delivered gpm × heat absorbed per gpm against a fire's heat release (§7.6). |
+
+## 3. What exists and what changes
+
+**Keep:**
+
+- **Flow is solved, never typed in** (PLAN §2). It is the core of the
+  flow-vs-pressure idea.
+- **Element laws solved together**; the pressure budget (PDP = NP + FL + EP
+  + appliances) is a main visual.
+- **Methods swap constants, never laws** (`cgbvp-2019` vs `physical`).
+- **Pure TypeScript engine, tested against published tables.**
+- **US units inside, conversion at the screen's edge.**
+
+**Change:**
+
+| What | Why | Now |
 |---|---|---|
-| L1 | Flow vs pressure | Pressure is what you pay; flow is what you get. The pump sets a pressure, and the line decides the flow. |
-| L2 | Friction loss | Friction grows with the **square** of flow and linearly with length. Doubling flow costs four times the friction. |
-| L3 | Elevation | Each metre up costs about 1.4 psi (1.5 by the CGBVP rule), whether or not water is flowing. |
-| L4 | Diameter and couplings | A slightly bigger hose cuts friction by a lot (roughly d⁵). Couplings and appliances are restrictions too. |
-| L5 | Smooth bore vs fog | Different pressure needs, reaction per gpm, reach, and how each one fails when the line is under-pumped or kinked. |
-| L6 | Pump capacity | A pump is not an unlimited pressure source. More flow means less pressure is available, and a pump only delivers its full rated flow at its rated pressure. |
-| L7 | GPM puts the fire out | Water absorbs heat per litre, not per psi. Pressure only matters for getting the flow there and shaping it into a stream. |
+| Ideal pressure-source pump | Pump capacity can't be shown | Trucks as data, with a capacity envelope, outlets and a governor (§6) |
+| One generic nozzle | Smooth bore vs fog needs real types | Nozzle kinds and reaction (§7.2) |
+| `line.ts` hard-codes one topology | Every new element breaks the closed form | Element laws + a generic solver; the closed form becomes a test oracle (§7.1) |
+| Wye as the next milestone, lessons as the structure | The product is a playground of lays | Playground first; branching comes with trucks (§10) |
+| No screen in this repo | The V0 screen stayed in fd-app behind a login | Standalone static app here (§9) |
+| fd-app references in PLAN | Those files aren't here; the import rule was unenforced | `tests/boundaries.test.mjs` enforces it |
 
-Every feature should serve one of these. If it serves none, it waits.
+## 4. Product shape: the scenario document
 
-## 2. Assessment of what exists
+Everything on screen is one **scenario document**: plain JSON with a schema
+version, naming the truck, the elements, their connections, valve and nozzle
+settings, heights, and the method. The solver reads it; the views draw it;
+nothing else holds state that matters.
 
-### Keep: these choices are right for teaching
+That one decision gives:
 
-- **Flow is solved, never typed in.** This is L1 itself: you turn the pump
-  up and watch the gpm follow. A screen where gpm is an input can show
-  impossible states, and the old fd-app lab did exactly that (PLAN §2).
-- **Element laws solved together** (PDP = NP + FL + EP). That sum is the
-  "pressure budget", the main visual of L1–L4 (§3).
-- **Methods swap constants, never laws** (`cgbvp-2019` vs `physical`). The
-  station can be shown the manual's answer and the physical one side by
-  side, with the difference explained (`compatibility-vs-physics.md`).
-- **Pure TypeScript engine, tested against published tables.** This makes it
-  cheap to trust and to reuse, and it is the part that would be hardest to
-  redo.
-- **US units inside, conversion at the edge.** Fine as it is. Nothing a
-  learner sees depends on it.
+- **Presets** ("start from 1410 bifurcada") instead of a blank canvas.
+- **A/B compare:** duplicate, change one thing, show both.
+- **Share links:** the document encoded in the URL.
+- **Undo:** edits are commands on the document.
+- **Lessons, if ever wanted:** a preset plus a few lines of text. No separate
+  system.
 
-### Change
+The document stores hydraulic facts (lengths, diameters, heights) and
+separately a layout (where things are drawn). Moving something on screen
+never changes the hydraulics.
 
-| What | Why | Proposal |
+## 5. Views and drawing rules
+
+- **Top-down view = the editor.** Connections, not geography: hose length is
+  a number on the hose, not its drawn length.
+- **Side view = one path.** Tap a nozzle: the path from pump to it unrolls,
+  with distance along the hose horizontal and height vertical. Dragging the
+  nozzle up writes its height.
+- **No 3D.** Both views draw the same document; height is data, never a
+  pixel position.
+
+Drawing rules:
+
+- **Hose thickness = diameter.** Physical size, so it's honest.
+- **Pressure = gauges** (needles, psi), at the pump outlets, the nozzles and
+  anywhere tapped.
+- **Flow = moving water** (particle speed and density, gpm). Flow and
+  pressure never share an encoding.
+- **Pressure budget** bar for the selected path.
+- **Pump × system curve** chart: the operating point where the pump's
+  capacity meets the lay's demand. One picture for flow, friction,
+  elevation, nozzle type and capacity.
+- **Performance:** SVG for the lay (tens of elements, crisp, touchable,
+  accessible); one canvas layer for particles, animated outside the
+  framework, with the count adapted to the device. Particles are off under
+  `prefers-reduced-motion`.
+
+## 6. Trucks
+
+A truck is a data file (`data/apparatus/*.json`), not code:
+
+- **Pump:** rating points (NFPA: 100 % flow at 150 psi, 70 % at 200, 50 % at
+  250; review §11 [E10]) defining a capacity envelope; maximum pressure.
+- **Outlets:** size, preconnect or not, each with a discharge valve that can
+  be partly closed ("gated").
+- **Intakes and supply:** tank volume, tank-to-pump line flow limit; later
+  hydrant and drafting.
+- **Control:** pressure governor (holds a set-point until the envelope) or
+  RPM mode (pressure moves with flow).
+
+What it shows: one pump gives one pressure, so lower-pressure lines are gated
+down; opening an outlet makes the pump pressure sag in RPM mode, or the
+governor hold it until capacity runs out; the tank empties at the current
+flow.
+
+M11-1 and M11-5 become two files once their pump specs are known. A generic
+1000 gpm pump ships first, labelled generic.
+
+## 7. Engine work, in order
+
+### 7.1 Element laws + solver
+
+Each element reports Δp(Q) (hose, coupling, appliance, nozzle, valve) or
+p(Q) (pump). All are monotone in Q. A single path is solved by bisection on
+Q; a tree from one pump by bisection on pump pressure with each branch
+solved inside it. `solveAttackLine` stays as a wrapper and its closed form
+as the test oracle. EPANET stays the oracle for true networks later
+(PLAN §6).
+
+### 7.2 Nozzles
+
+- Smooth bore by tip size (Freeman: Q = 29.7·d²·√NP).
+- Fixed-gallonage fog (today's nozzle).
+- Automatic fog (holds its set pressure over a flow range).
+- Reaction: 1.57·d²·NP for smooth bore and 0.0505·Q·√NP for fog (TFT;
+  review §8).
+
+### 7.3 Pump and truck (§6)
+
+Envelope, outlets, discharge valves, governor modes, tank.
+
+### 7.4 Branching
+
+Wyes, siamese, reducers and couplings. Under `cgbvp-2019`, fixed losses (p.
+45: 5/10/25/40 psi). Under `physical`, a K or manufacturer curve once a
+source is chosen.
+
+### 7.5 Kinks (open)
+
+No published source gives a kink's loss. The options are an adjustable
+restriction labelled illustrative, or waiting for data. Owner to decide.
+
+### 7.6 Extinguishment
+
+Its own folder (`src/extinguishment/`), never imported by the hydraulics.
+
+- Water heated 20→100 °C and boiled absorbs ~2.6 MJ/kg, so ~160 kW per gpm
+  at full vaporisation. The application efficiency needs a traceable source
+  before shipping (Särdqvist 2002; Grimwood).
+- The message: flow sets the cooling capacity; pressure moves the flow and
+  shapes the stream.
+
+### 7.7 Two pumps
+
+Relay and a siamese fed by two engines. This needs the general network
+solver (PLAN §6, global gradient algorithm).
+
+## 8. Aerial module (later)
+
+A second engine (`src/aerial/`), same rules: plain TypeScript, tested, every
+constant sourced.
+
+- **Shows:** overturning moment (boom weight, tip load, nozzle reaction,
+  wind) against restoring moment about the outrigger line, as angle,
+  extension, load and spread change.
+- **Authority:** the manufacturer's load chart, drawn as the real limit.
+  Structural limits usually govern before tipping, so a simplified tipping
+  point is **never** presented as an operational answer. Labelled as a
+  teaching model.
+- **Link to hydraulics:** the ladder pipe's nozzle reaction comes from the
+  hydraulics engine.
+- **Needs:** PLT-11's specs and load chart.
+
+## 9. Stack and layout
+
+| Concern | Choice | Why |
 |---|---|---|
-| The pump is an ideal pressure source | It always delivers the requested PDP at any flow, so L6 cannot be shown at all | Add a pump element: governor set-point bounded by a capacity envelope (§5.2) |
-| The only nozzle is a generic fixed orifice | L5 needs tip size, reaction, an automatic nozzle and preset types | Add nozzle kinds (§5.3) |
-| `line.ts` hard-codes one topology with a closed form | Every new element (pump curve, automatic nozzle, coupling) breaks the closed form | Elements expose Δp(Q), and a series solver finds Q by bisection. The closed form stays as the test oracle (§5.1) |
-| The next milestone is the wye (PLAN §9) | A wye serves none of L1–L7 by itself, while nozzles and the pump serve three | Wye moves after nozzles and the pump. It comes back as the way to show L6 ("open a second line") |
-| No screen in this repo; the V0 UI stayed in fd-app behind a login | A station demo should open on a projector or tablet with no account and no network | Standalone static app in this repo (§6) |
-| PLAN §1, §5 and §8 describe fd-app (Next.js, Supabase, `BACKLOG.md`, ESLint rules, smoke script) | Those files are not here. The import rule in AGENTS.md was enforced by fd-app's ESLint, so it is now unenforced | Import rule is now a test (`tests/boundaries.test.mjs`). Station data and saving wait until there is a host (§7, M6) |
-| PLAN says Node 24; this environment runs 22.22 | Both strip TypeScript types natively | `engines: node >=22.18` in `package.json` |
-
-### Gaps no current document covers
-
-- **L7 (extinguishment)** has no model, no sources and no design yet (§5.5).
-- **Visual vocabulary.** Nothing yet says how flow and pressure must look
-  different on screen. For L1 that is the whole point (§3).
-
-## 3. The organising idea: lessons, not a sandbox
-
-A blank canvas where anyone can build any layout is a tool for people who
-already understand hydraulics. For teaching, each lesson opens a **prepared
-scenario** with one or two controls in focus. A "free" mode can come later,
-built from the same pieces.
-
-Two charts carry almost every lesson, so they are worth building well once:
-
-1. **Pressure budget.** A stacked bar: pump pressure = nozzle + friction +
-   elevation (+ appliances). Drag any control and the slices trade places.
-   Used in L1–L4.
-2. **Pump curve × system curve.** The line's demand, P = EP + (r_hose +
-   r_nozzle)·Q², drawn against what the pump can give, P(Q). The operating
-   point is where they cross. One picture explains:
-   - flow vs pressure (moving along the curves);
-   - friction and diameter (how steep the system curve is);
-   - elevation (the system curve shifts up);
-   - nozzle type (fixed orifice vs automatic changes the system curve's shape);
-   - pump capacity (the pump curve bends down);
-   - a second line (the combined system curve flattens, and the operating
-     point slides down the pump curve).
-
-   It is the most useful visual in the whole project. Used in L1, L5 and L6.
-
-Rules for the drawing:
-
-- **Flow and pressure never share an encoding.** Pressure is a gauge (needle,
-  psi). Flow is moving water (particle density and speed along the hose,
-  gpm). If a hose is drawn thicker because of pressure, people will read
-  pressure as quantity, which is the misconception L1 is meant to remove.
-- **A/B comparison** (two lines side by side, same pump) is the default
-  layout for L4 and L5. Most of these lessons are comparisons.
-- **Side (profile) view** for L3, as PLAN §7 already proposes: drag the
-  nozzle up and watch EP and the pump pressure move.
-
-## 4. Lessons in detail
-
-Status: ✅ the engine supports it today · 🟡 partial · ⬜ not started.
-
-### L1 Flow vs pressure ✅ engine, ⬜ screen
-- Scenario: pump → 60 m of 1-1/2" → fog nozzle 100 gpm @ 100 psi.
-- Control: pump pressure slider. Readouts: nozzle gauge and gpm.
-- Show: Q ∝ √(PDP − EP). On level ground, doubling pump pressure gives about
-  1.41× the flow, not twice. The "required pressure" button lands exactly on the rated
-  point (`requiredPumpPressurePsi`).
-- Engine: `solveAttackLine` as it stands.
-
-### L2 Friction loss ✅ engine, ⬜ screen
-- Controls: hose length (paños of 15/20 m), flow target.
-- Show: FL ∝ Q²·L with the pressure-budget bar, plus a chart of FL against
-  flow for the chosen hose. The same nozzle at the end of 1 vs 4 paños.
-
-### L3 Elevation ✅ engine, ⬜ screen
-- Profile view, drag the nozzle up floors. Toggle CGBVP 1.5 psi/m vs
-  hydrostatic 1.42 psi/m and show the difference (VC-04).
-- Show the closed-nozzle case too: elevation costs pressure even when nothing
-  flows, and friction does not.
-
-### L4 Diameter and couplings 🟡 engine (C table done), ⬜ screen
-- A/B: the same nozzle on 1-1/2", 1-3/4" and 2-1/2".
-- The published C values follow d⁵ closely, and that is the lesson:
-
-  | From → to | C ratio | (d₂/d₁)⁵ |
-  |---|---|---|
-  | 1-1/2" → 2-1/2" | 12.0 | 12.9 |
-  | 2-1/2" → 3" | 2.5 | 2.5 |
-  | 3" → 4" | 4.0 | 4.2 |
-  | 1-1/2" → 1-3/4" | 1.55 | 2.16 |
-
-  The last row is the exception worth explaining: 1-3/4" hose usually has
-  1-1/2" couplings and its real inside diameter varies, so its C (15.5) is
-  empirical. That is why C stays a published table and is not derived from
-  diameter.
-- **Couplings, already in the data:** 3" hose with 2-1/2" couplings has
-  C = 0.8, and with 3" couplings C = 0.677. The smaller couplings add about
-  18 % more friction to the whole lay. Today that is a choice between two
-  hose rows. A per-coupling minor loss (K·v²/2g at the coupling's bore)
-  would let it be drawn as a restriction at each joint. **Needs a source**
-  for K before it ships.
-- Optional "why" panel: Darcy–Weisbach with a fixed friction factor gives
-  the d⁵ scaling. It is for explanation only. The C table remains the law.
-
-### L5 Smooth bore vs fog ⬜
-What the engine can compute (all formulas already cited in the review, §8
-and VC-05/06):
-
-| Property | Smooth bore | Fog, fixed gallonage | Automatic fog |
-|---|---|---|---|
-| Flow law | Freeman: Q = 29.7·d²·√NP | Q = Qr·√(NP/NPr) | NP held near its set pressure over a flow range |
-| Typical NP | 50 psi handline, 80 master | 100 psi (also 75 or 50 psi low-pressure models) | ~100 psi |
-| Reaction | 1.57·d²·NP | 0.0505·Q·√NP | same as fog |
-| Example | 15/16" @ 50 psi: 185 gpm, 69 lbf | 185 gpm @ 100 psi: 93 lbf | — |
-| Under-pumped or kinked | Pressure and flow both drop, and the crew can see the stream weaken | Same | **Pressure looks right while flow drops.** The stream still looks good, but the gpm isn't there |
-
-The last row is the most important thing this lesson teaches, and it links
-straight to L7.
-
-Shown qualitatively as explanation cards, not simulated: debris tolerance,
-air entrainment and ventilation effects, steam production, protective
-pattern, penetration. Reach can be a ballistic sketch only with the
-manual's own caveat (review §14). Real reach needs manufacturer data.
-
-### L6 Pump capacity ⬜
-- Pump curve × system curve chart, with a throttle/governor set-point.
-- Capacity envelope through the NFPA rating points: 100 % flow at 150 psi,
-  70 % at 200, 50 % at 250 (review §11, [E10]). These are test points
-  reached at different engine speeds. They mark the pump's limit, not a
-  single curve.
-- Hydraulic horsepower = Q·P / 1714 (gpm, psi). For a 1000 gpm pump:
-  1000 @ 150 = 87.5 hp, 700 @ 200 = 82 hp, 500 @ 250 = 73 hp. "Capacity" is
-  roughly a power budget split between flow and pressure.
-- Show it: open a second line (needs the wye) or lengthen the lay until the
-  set-point can't be held, and the operating point slides down the
-  envelope.
-- Later: supply limits (tank-to-pump line, hydrant residual), which are the
-  other way a pump runs out.
-
-### L7 GPM extinguishes ⬜ (separate module, sources first)
-- Physics: heating water from 20 °C to 100 °C and boiling it absorbs about
-  2.6 MJ/kg. 1 gpm ≈ 0.063 kg/s, so full vaporisation would absorb about
-  **160 kW per gpm**. Only part of the water ever vaporises on a real fire.
-  That fraction (application efficiency) is the one parameter that needs a
-  traceable source before shipping (candidates: Särdqvist, *Water and Other
-  Extinguishing Agents*, 2002; Grimwood's critical flow-rate work).
-- Show it: a fire with a growing heat release rate (a curve, not a CFD
-  model), and the delivered gpm × absorption × efficiency as a line against
-  it. The fire is controlled when that line passes the fire's output.
-  - Same nozzle pressure, different flow: 100 psi at 95 gpm (under-pumped
-    automatic nozzle, L5) loses, and 100 psi at 150 gpm wins.
-  - Same flow, different pressure: the outcome doesn't change, apart from
-    reach and drop size.
-- Fire-ground rules of thumb as a second view: NFA needed-fire-flow
-  (area/3 × % involvement) and the Iowa formula (volume/100).
-- **Guardrail:** this is a teaching model, labelled as one, and it lives
-  outside `src/hydraulics/` (e.g. `src/extinguishment/`) so it never
-  touches the hydraulic laws. The honest message is "flow sets the cooling
-  capacity; pressure moves the flow and shapes the stream". Firefighters
-  will rightly reject a version that says pressure doesn't matter.
-
-## 5. Engine changes, in order
-
-### 5.1 Element laws + series solver (enables everything below)
-
-```ts
-// Each element reports its pressure change at a given flow.
-type Element = { dropPsi(flowGpm: number): number };      // hose, coupling, appliance, elevation
-type Terminal = { dropPsi(flowGpm: number): number };     // nozzles (monotone in Q)
-type Source = { pressurePsi(flowGpm: number): number };   // pump: set-point capped by envelope
-// solveSeries(source, elements, terminal, method) finds Q where
-// source.pressurePsi(Q) = Σ element drops + terminal drop.
-```
-
-Every law is monotone in Q, so bisection always converges and needs no
-derivatives. `solveAttackLine` keeps its signature and becomes a thin
-wrapper. Its closed form is the oracle in tests (EPANET stays the oracle for
-networks later, PLAN §6).
-
-### 5.2 Pump
-`{ setPointPsi, envelope: ratingPoints }`. Delivered pressure =
-min(set-point, envelope(Q)). Result gains `pumpLimited: boolean` and
-hydraulic hp.
-
-### 5.3 Nozzles
-`smoothBore { tipDiameterIn }`, `fixedFog { ratedFlowGpm, ratedPressurePsi }`
-(today's nozzle), `automaticFog { setPressurePsi, minGpm, maxGpm }`, and a
-`reactionLbf(nozzle, result)` function. Presets for the station's real
-nozzles once they are known (PLAN §4).
-
-### 5.4 Couplings and appliances
-Fixed losses for `cgbvp-2019` (5/10/25/40 psi, manual p. 45). A K-based or
-manufacturer curve for `physical` once a source is chosen. The method gains
-an `applianceLossPsi` table, and laws stay the same, as PLAN requires.
-
-### 5.5 Wye / tree solve
-As PLAN §9 already designs it, but after 5.2, because its teaching value is
-L6.
-
-### 5.6 Extinguishment model
-A separate folder, its own sources, its own tests.
-
-## 6. Repo layout and stack
+| Language | TypeScript | Browsers run it natively; the solver needs microseconds, so WebAssembly languages add size and buy nothing. Keeps the tested engine as is. Most AI-assist examples. |
+| UI | Svelte 5 (runes) + SvelteKit, `adapter-static` | Fine-grained updates and built-in motion suit gauges and sliders; less code than React. Risk: AI writing Svelte 4 syntax. Mitigation: the AGENTS.md rule, and Svelte's `llms.txt` docs. |
+| Drawing | SVG for the lay, one canvas for particles | §5 |
+| Offline | Installable web app (PWA) | Home-screen install on tablets; no app stores |
+| Hosting | Any static host (e.g. GitHub Pages) | Public hosting brings back PLAN §1's licence question |
+| Tests | `node --test` for engines; a test per preset that it solves to the numbers its notes claim | |
+| Not now | Workspace/packages, React, XYFlow, chart libraries, WASM | Add only when a second consumer or a measured limit needs one |
 
 ```
-packages/hydraulics/        ← today's src/hydraulics (the "fire-calc" seed)
-  src/units.ts  sources.ts  hoses.ts  methods.ts
-  src/elements/ hose.ts nozzle.ts pump.ts appliance.ts
-  src/solve/    series.ts  (tree.ts later)
-  tests/
-packages/extinguishment/    ← L7, never imported by hydraulics
-apps/simulador/             ← the station app
-  src/lessons/L1-flow-pressure/ …   one folder per lesson: scenario + copy + layout
-  src/charts/  PressureBudget, PumpSystemCurve
-  src/drawing/ LineProfile, Gauge, FlowParticles
+src/
+  hydraulics/      engine (existing); imports only itself
+  extinguishment/  later; imports nothing from the app
+  aerial/          later
+  lib/             Svelte: views (TopDown, SideView), parts (Hose, Nozzle,
+                   Gauge), canvas particles, scenario store, units display
+  routes/          SvelteKit pages
+data/
+  apparatus/       truck files
+  presets/         scenario documents
+tests/
 docs/
 ```
 
-- **pnpm workspace**, created when the app lands (one PR: move + package
-  manifests). fd-app can then depend on `packages/hydraulics` and the
-  "Toolkit" question in PLAN §1 becomes a deployment choice, not a
-  restructure.
-- **App:** Vite + React + TypeScript, built as static files and installable
-  offline (PWA). It works on the station's projector, tablets and phones
-  with no login and no network. Host it on GitHub Pages or any static
-  host. React because the V0 screen and the team's experience are both
-  React. Mantine can come along if the V0 components are ported. Charts are
-  hand-built SVG: two chart types don't need a chart library, and they
-  need the drag interaction.
-- **Language:** code and docs in English (as now), UI in Spanish, with the
-  CGBVP terms (pitón, paño, bifurca, desnivel).
-- **Tests:** engine tests stay as they are. Each lesson gets a "story" test:
-  the scenario solves to the numbers its text claims (e.g. L5 says 185 gpm
-  at 50 psi, and a test checks that).
+Language: code and docs in English, UI in Spanish, with CGBVP terms (pitón,
+paño, bifurca, desnivel).
 
-## 7. Milestones
+## 10. Milestones
 
-| | Delivers | Lessons |
+| | Delivers | Shows |
 |---|---|---|
-| **M0** (this change) | This roadmap, import-boundary test, Node engine pin | — |
-| **M1** | Workspace + app shell; pressure budget; profile view; port or rebuild the V0 screen | L1, L2, L3 |
-| **M2** | Element laws + series solver (5.1); nozzle kinds and reaction (5.3); A/B layout | L4, L5 |
-| **M3** | Pump envelope (5.2); pump × system curve chart | L6 (single line), L1 revisited |
-| **M4** | Wye + appliance losses (5.4, 5.5) | L6 (two lines) |
-| **M5** | Extinguishment model with its sources | L7 |
-| Later | Station data (M11-1, M11-5 maniobras), saved scenarios, relay, drafting/NPSH, free-build mode | — |
+| **M0** ✅ | Roadmap; import-boundary test; Node pin | — |
+| **M1 Foundation** | SvelteKit static app; scenario document v1; element laws + solver (7.1); one truck outlet → hose → nozzle; top-down and side views; gauges; particles; pressure budget; units; share link. **Test on the oldest tablet at the station.** | Flow vs pressure, friction, elevation |
+| **M2 Nozzles** | Nozzle kinds and reaction; A/B compare | Smooth bore vs fog |
+| **M3 Trucks** | Truck files, capacity envelope, several outlets with valves, governor, tank; pump × system chart | Pump capacity |
+| **M4 Branching** | Wyes, appliances, couplings, (kinks); presets from station maniobras | Diameter and couplings in real lays |
+| **M5 Extinguishment** | §7.6 with its sources | GPM extinguishes |
+| **M6 Aerial** | §8 | Tipping margin vs load chart |
+| Later | Two pumps (7.7), hydrant and drafting, station data from fd-app, lessons as annotated presets | |
 
-## 8. Decisions for the owner
+## 11. Open questions for the owner
 
-1. **Standalone static app** (recommended) or a route inside fd-app? This
-   decides where M1 lands. The licence question (PLAN §1) becomes real
-   when the app is hosted publicly. A private repo with an unlisted static
-   URL can postpone it.
-2. **Who drives it:** an instructor on a projector, or firefighters on their
-   own phones? This sets layout density and whether lessons need guided
-   steps.
-3. **Default method on screen:** `cgbvp-2019` (PLAN's current choice, matches
-   exams) or `physical` with CGBVP shown beside it.
-4. **Station data to collect** (most useful first): the nozzles actually
-   carried (type, tip or gallonage, rated pressure); pump rating of M11-1
-   and M11-5; the station's hose sizes and couplings. PLAN §4 has the full
-   list. These make L5 and L6 about *their* equipment.
-5. **L7 sources:** who at the station or CGBVP can confirm which
-   extinguishment rule of thumb is taught (NFA, Iowa, critical flow rate)?
+1. **Kinks:** an illustrative restriction, or wait for data (§7.5)?
+2. **Equipment data:**
+   - M11-1 and M11-5: pump make, model and rating; outlets and intakes;
+     tank. The pump panel plate is enough.
+   - The nozzles carried.
+   - Hose sizes and couplings.
+   - PLT-11: load chart.
+3. **Default method on screen:** `cgbvp-2019` (matches exams) or `physical`
+   with CGBVP beside it.
+4. **Hosting:** private unlisted URL or public. This decides when the licence
+   question (PLAN §1) must be answered.

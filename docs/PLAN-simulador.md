@@ -5,7 +5,7 @@
 > the model, constants and sources (§2–§4, §6). §1, §5 and §8 describe the
 > fd-app integration as it was; the files they cite (`BACKLOG.md`,
 > `eslint.config.mjs`, `scripts/dev/smoke.mjs`, `data/catalog/`) are not in
-> this repo. §9's wye milestone moves after nozzles and the pump (ROADMAP §7).
+> this repo. §9's wye milestone moves after nozzles and trucks (ROADMAP §10).
 
 > Status: **V0 built** (2026-09-30) — `/simulator`, one attack line
 > (pump → hose → nozzle). Full-screen, behind login, not in the navigation.
