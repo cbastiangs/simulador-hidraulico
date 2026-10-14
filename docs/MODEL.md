@@ -159,9 +159,10 @@ piercing applicators, cellar and booster nozzles) are out of scope.
 nozzle (same laws as handlines, larger ratings; CGBVP default 80 psi for
 master smooth bore, p. 72) on a **monitor**, which is an appliance whose
 waterway loss grows with flow (§3.10: CGBVP fixed 10–25 psi; physical needs
-the manufacturer's loss curve). A deck gun is fed by the pump's own piping
-and fits the single-line model once appliance losses exist (M4); a portable
-(ground) monitor fed by two or more lines needs branching (M4). Reaction
+the manufacturer's loss curve). A deck gun (fed by the pump's own piping) and
+a single-inlet portable (floor/ground) monitor fed by one line both fit the
+single-line model once appliance losses exist (M4); a portable monitor fed
+by two or more lines through a siamese inlet needs branching (M4). Reaction
 (§3.6) matters for portable monitors' stability. Data templates:
 `data/templates/nozzles-template.csv` (`use` = handline | master) and
 `data/templates/monitors-template.csv`. The scenario's `nozzle.kind` is the flow control; the
