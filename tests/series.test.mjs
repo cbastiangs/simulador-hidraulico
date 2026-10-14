@@ -72,6 +72,8 @@ test("up a stairwell and back down: each coupling pays its own height", () => {
   near(result.nodes[1].pressurePsi, 119.66);
   near(result.nodes[2].pressurePsi, 100);
   near(result.elevationPressurePsi, 8.68);
+  // The on-screen breakdown accounts for the whole pump pressure: 2 + 24 + 8.68 + 100.
+  near(result.terms.reduce((sum, t) => sum + t.valuePsi, 0), 134.68);
 });
 
 test("splitting a section in two changes nothing", () => {
