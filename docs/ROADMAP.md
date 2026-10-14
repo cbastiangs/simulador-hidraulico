@@ -154,10 +154,9 @@ Wyes, siamese, reducers and couplings. Under `cgbvp-2019`, fixed losses (p.
 45: 5/10/25/40 psi). Under `physical`, a K or manufacturer curve once a
 source is chosen.
 
-### 7.5 Kinks (open)
+### 7.5 Kinks: out of scope
 
-No published source gives a kink's loss. The options are an adjustable
-restriction labelled illustrative, or waiting for data. Owner to decide.
+Dropped (owner, 2026-10-14): no published source gives a kink's loss.
 
 ### 7.6 Extinguishment
 
@@ -228,21 +227,22 @@ paño, bifurca, desnivel).
 | **M1 Foundation** | SvelteKit static app; scenario document v1; element laws + solver (7.1); one truck outlet → hose → nozzle; top-down and side views; gauges; particles; pressure budget; units; share link. **Test on the oldest tablet at the station.** | Flow vs pressure, friction, elevation |
 | **M2 Nozzles** | Nozzle kinds and reaction; A/B compare | Smooth bore vs fog |
 | **M3 Trucks** | Truck files, capacity envelope, several outlets with valves, governor, tank; pump × system chart | Pump capacity |
-| **M4 Branching** | Wyes, appliances, couplings, (kinks); presets from station maniobras | Diameter and couplings in real lays |
+| **M4 Branching** | Wyes, appliances, couplings; presets from station maniobras | Diameter and couplings in real lays |
 | **M5 Extinguishment** | §7.6 with its sources | GPM extinguishes |
 | **M6 Aerial** | §8 | Tipping margin vs load chart |
 | Later | Two pumps (7.7), hydrant and drafting, station data from fd-app, lessons as annotated presets | |
 
-## 11. Open questions for the owner
+## 11. Decisions (owner, 2026-10-14)
 
-1. **Kinks:** an illustrative restriction, or wait for data (§7.5)?
-2. **Equipment data:**
-   - M11-1 and M11-5: pump make, model and rating; outlets and intakes;
-     tank. The pump panel plate is enough.
-   - The nozzles carried.
-   - Hose sizes and couplings.
-   - PLT-11: load chart.
-3. **Default method on screen:** `cgbvp-2019` (matches exams) or `physical`
-   with CGBVP beside it.
-4. **Hosting:** private unlisted URL or public. This decides when the licence
-   question (PLAN §1) must be answered.
+1. **Kinks:** out of scope (§7.5).
+2. **Equipment:** built-in default specs (generic truck, hoses, nozzles),
+   editable in the app; a user's edits live in the scenario document. Linking
+   to fd-app's station data comes later. Every built-in names its source, or
+   says "generic" when it has none.
+3. **Method:** `physical` is the default; `cgbvp-2019` is always shown beside
+   it as the reference, with the difference. **Every number the app shows can
+   name its source** (`references.ts` SOURCES; a "Fuentes" panel in the app).
+4. **Hosting and licence:** deferred.
+
+Still wanted: M11-1 and M11-5 pump plates, the nozzles carried, hose sizes
+and couplings, PLT-11's load chart.
