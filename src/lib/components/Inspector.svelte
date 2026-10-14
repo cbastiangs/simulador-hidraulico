@@ -37,7 +37,28 @@
 </script>
 
 <aside class="inspector">
-  {#if selection.kind === "nozzle"}
+  {#if selection.kind === "pump"}
+    {@const outlet = scenario.source.outletSizeIn}
+    <header>
+      <h3>Bomba · salida de descarga</h3>
+      <p>La presión se ajusta en el panel de bomba.</p>
+    </header>
+    <div>
+      <div class="label">Tamaño de la salida</div>
+      <div class="seg" role="radiogroup" aria-label="Tamaño de la salida">
+        <button type="button" role="radio" aria-checked={outlet === undefined} class:on={outlet === undefined} onclick={() => onchange(edit.setOutletSize(scenario, undefined))}>Igual a la manguera</button>
+        {#each [1.5, 2.5, 3] as d (d)}
+          <button type="button" role="radio" aria-checked={outlet === d} class:on={outlet === d} onclick={() => onchange(edit.setOutletSize(scenario, d))}>{d.toString().replace(".5", "½")}″</button>
+        {/each}
+      </div>
+    </div>
+    {#if outlet !== undefined && outlet !== scenario.sections[0].diameterIn}
+      <p class="note">
+        Adaptador {outlet.toString().replace(".5", "½")}″ → {scenario.sections[0].diameterIn.toString().replace(".5", "½").replace(".75", "¾")}″:
+        su pérdida aún no se modela (accesorios, MODEL.md §3.10).
+      </p>
+    {/if}
+  {:else if selection.kind === "nozzle"}
     {@const n = scenario.nozzle}
     <header>
       <h3>{n.kind === "selectable" ? "Pitón combinado" : "Pitón"}</h3>

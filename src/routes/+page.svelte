@@ -62,6 +62,8 @@
       {mode}
       onModeChange={(m) => (mode = m)}
       onMove={(i, runM, elevationM) => (scenario = edit.moveCoupling(scenario, i, { runM, elevationM }, mode))}
+      onHoseSize={(i, id) => (scenario = edit.setSectionHose(scenario, i, id))}
+      onLength={(i, m) => (scenario = edit.setSectionLength(scenario, i, m))}
       onToggleNozzle={() => (scenario = edit.setNozzleOpen(scenario, !scenario.nozzle.open))}
     />
   </div>
@@ -103,7 +105,7 @@
   .top h1 { margin: 0; font-size: 18px; }
   .top select { height: 44px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); padding: 0 10px; max-width: 100%; }
   .pump { grid-area: pump; }
-  .canvas { grid-area: canvas; height: 460px; min-width: 0; }
+  .canvas { grid-area: canvas; min-width: 0; }
   .side { grid-area: side; display: grid; gap: var(--gap); align-content: start; }
   .results { grid-area: results; display: grid; gap: var(--gap); min-width: 0; }
   .add { min-height: 44px; border-radius: 8px; border: 1px dashed var(--muted); background: transparent; cursor: pointer; font-weight: 600; }
@@ -116,11 +118,11 @@
 
   @media (max-width: 1023px) {
     .app { grid-template-columns: minmax(0, 1fr); grid-template-areas: "top" "pump" "canvas" "side" "results"; }
-    .canvas { height: 420px; }
+    
   }
   @media (max-width: 599px) {
     .app { padding: 8px; gap: 8px; grid-template-areas: "top" "pump" "canvas" "results" "side"; }
-    .canvas { height: 380px; }
+    
     .side :global(.inspector) { border-radius: 16px 16px 0 0; box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.12); }
   }
 </style>

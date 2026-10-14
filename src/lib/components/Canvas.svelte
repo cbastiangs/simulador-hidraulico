@@ -1,73 +1,99 @@
 <script lang="ts">
-  import { untrack } from "svelte";
+  import { HOSE_SIZES } from "$hydraulics/references.ts";
   import type { Scenario } from "$hydraulics/scenario.ts";
   import type { SeriesResult } from "$hydraulics/series.ts";
+  import type { LengthMode } from "$lib/edit.ts";
   import {
     PX_PER_M,
     fillViewport,
     fitBounds,
-    growBounds,
     layoutWorld,
     snapHeightM,
     type Bounds,
   } from "$lib/geometry/world.ts";
-  import type { LengthMode } from "$lib/edit.ts";
   import type { Selection } from "$lib/selection.ts";
   import Gauge from "./Gauge.svelte";
   import NozzleDrawing from "./NozzleDrawing.svelte";
 
-  // The canvas (UX.md §2): fixed scales, bounds that grow but never shrink
-  // while editing, zoom only by the person. Drag a coupling sideways for the
-  // length of the section ending there, up or down for its height.
+  // The canvas (UX.md §2): one uniform scale, the lay auto-fitted to the
+  // space available; gauges, labels, handles and the nozzle keep their screen
+  // size at any zoom. A press that moves under 6 px is a tap (select; on the
+  // nozzle, work the bale); more is a drag (move the coupling).
   let {
     scenario,
     result,
     selection,
     floorM = 3,
     resetKey,
-    onSelect,
     mode,
     onModeChange,
+    onSelect,
     onMove,
     onToggleNozzle,
+    onHoseSize,
+    onLength,
   }: {
     scenario: Scenario;
     result: SeriesResult;
     selection: Selection;
     floorM?: number;
-    /** Changes when a new lay is loaded: the world is refitted to it. */
+    /** Changes when a new lay is loaded: auto-fit is restored. */
     resetKey: string;
-    onSelect: (s: Selection) => void;
     mode: LengthMode;
     onModeChange: (mode: LengthMode) => void;
+    onSelect: (s: Selection) => void;
     /** Move the coupling at the end of a section to a horizontal run and height (edit.moveCoupling). */
     onMove: (sectionIndex: number, runM: number, elevationM: number) => void;
     onToggleNozzle: () => void;
+    onHoseSize: (sectionIndex: number, hoseSizeId: string) => void;
+    onLength: (sectionIndex: number, lengthM: number) => void;
   } = $props();
 
-  let zoom = $state(1);
+  const TAP_PX = 6;
+
   let viewWidth = $state(0);
   let viewHeight = $state(0);
+  let windowHeight = $state(800);
   let scroller: HTMLDivElement | undefined = $state();
+  /** Below this the constant-size gauges crowd each other; the canvas scrolls sideways instead. */
+  const MIN_FIT_ZOOM = 0.55;
   let svg: SVGSVGElement | undefined = $state();
-  let dragging: number | null = $state(null);
-  // The world starts fitted to the first lay; afterwards the effect below owns it.
-  let bounds: Bounds = $state(untrack(() => fitBounds(scenario.sections, floorM)));
-  let lastReset = untrack(() => resetKey);
 
-  // A new lay refits the world; edits only grow it, and not while dragging,
-  // because growing the top would move the same pointer position higher.
-  // `bounds` is read untracked and written only when it changes, so the
-  // effect can't retrigger itself.
+  // Dragging freezes the world and the zoom: refitting under the pointer would move the target.
+  let press: { node: number; x: number; y: number } | null = null;
+  let dragging = $state<number | null>(null);
+  let frozen = $state<{ bounds: Bounds; zoom: number } | null>(null);
+  /** Set by − / +; null means auto-fit. */
+  let manualZoom = $state<number | null>(null);
+
+  let fittedFor = "";
   $effect(() => {
-    const sections = scenario.sections;
-    const reset = resetKey !== lastReset;
-    if (!reset && dragging !== null) return;
-    lastReset = resetKey;
-    const current = untrack(() => bounds);
-    const next = reset ? fitBounds(sections, floorM) : growBounds(current, sections, floorM);
-    if (Object.entries(next).some(([k, v]) => current[k as keyof Bounds] !== v)) bounds = next;
+    if (resetKey !== fittedFor) {
+      fittedFor = resetKey;
+      manualZoom = null;
+      // When the lay is wider than the canvas, start on the nozzle.
+      requestAnimationFrame(() => {
+        if (scroller) scroller.scrollLeft = scroller.scrollWidth;
+      });
+    }
   });
+
+  const fitted = $derived(fitBounds(scenario.sections, floorM));
+  // Fit the width, then take the height that needs, capped at the space the window has.
+  const maxHeight = $derived(Math.max(320, windowHeight - 200));
+  const fitZoom = $derived.by(() => {
+    if (viewWidth === 0) return 1;
+    const w = (fitted.maxX - fitted.minX) * PX_PER_M;
+    const h = (fitted.maxY - fitted.minY) * PX_PER_M;
+    return Math.min(1.6, Math.max(MIN_FIT_ZOOM, Math.min(viewWidth / w, maxHeight / h)));
+  });
+  const canvasHeight = $derived(
+    Math.min(maxHeight, Math.max(320, (fitted.maxY - fitted.minY) * PX_PER_M * (frozen?.zoom ?? manualZoom ?? fitZoom) + 24)),
+  );
+  const bounds = $derived(frozen?.bounds ?? fitted);
+  const zoom = $derived(frozen?.zoom ?? manualZoom ?? fitZoom);
+  /** Multiply screen-size things by k so they stay the same size at any zoom. */
+  const k = $derived(1 / zoom);
 
   const layout = $derived(
     layoutWorld(
@@ -80,50 +106,31 @@
   );
   const last = $derived(layout.nodes.length - 1);
   const isSection = (i: number) => selection.kind === "section" && selection.index === i;
+  const outletIn = $derived(scenario.source.outletSizeIn);
+  const adapter = $derived(outletIn !== undefined && outletIn !== scenario.sections[0].diameterIn);
 
-  function setZoom(z: number) {
-    zoom = Math.min(2.5, Math.max(0.4, z));
+  function setManualZoom(z: number) {
+    manualZoom = Math.min(2.5, Math.max(0.3, z));
   }
-
-  /**
-   * Refits the world to the lay, zooms so it fits the width (never below 60 %,
-   * so text stays readable), and scrolls the selected element into view. Runs
-   * on loading a lay and on "Ajustar"; otherwise the scale never changes on
-   * its own (UX.md §2).
-   */
-  function fit() {
-    const fitted = fitBounds(scenario.sections, floorM);
-    bounds = fitted;
-    if (viewWidth > 0) setZoom(Math.min(1, Math.max(0.6, viewWidth / ((fitted.maxX - fitted.minX) * PX_PER_M))));
-    requestAnimationFrame(() => {
-      if (!scroller) return;
-      const node = selection.kind === "nozzle" ? layout.nodes[last] : layout.nodes[selection.index + 1];
-      scroller.scrollLeft = Math.max(0, node.x * zoom - viewWidth * 0.6);
-    });
-  }
-
-  // Fit once the canvas has a size, and again whenever a new lay is loaded.
-  let fittedFor: string | null = null;
-  $effect(() => {
-    if (viewWidth > 0 && resetKey !== fittedFor) {
-      fittedFor = resetKey;
-      untrack(fit);
-    }
-  });
 
   function worldPoint(event: PointerEvent) {
     const rect = svg!.getBoundingClientRect();
     return { x: (event.clientX - rect.left) / zoom, y: (event.clientY - rect.top) / zoom };
   }
 
-  function startDrag(event: PointerEvent, node: number) {
-    onSelect(node === last ? { kind: "nozzle" } : { kind: "section", index: node - 1 });
-    dragging = node;
+  function down(event: PointerEvent, node: number) {
+    press = { node, x: event.clientX, y: event.clientY };
     (event.currentTarget as Element).setPointerCapture(event.pointerId);
   }
 
-  function drag(event: PointerEvent) {
-    if (dragging === null) return;
+  function move(event: PointerEvent) {
+    if (!press) return;
+    if (dragging === null) {
+      if (Math.hypot(event.clientX - press.x, event.clientY - press.y) < TAP_PX) return;
+      dragging = press.node;
+      frozen = { bounds: fitted, zoom };
+      onSelect(dragging === last ? { kind: "nozzle" } : { kind: "section", index: dragging - 1 });
+    }
     const i = dragging - 1;
     const p = worldPoint(event);
     const run = Math.max(0, Math.round((layout.distanceAt(p.x) - layout.nodes[i].distanceM) * 2) / 2);
@@ -134,8 +141,19 @@
     }
   }
 
-  function endDrag() {
+  function up() {
+    if (press && dragging === null) {
+      // A tap: select; on the nozzle, also work the bale.
+      if (press.node === last) {
+        onSelect({ kind: "nozzle" });
+        onToggleNozzle();
+      } else {
+        onSelect({ kind: "section", index: press.node - 1 });
+      }
+    }
+    press = null;
     dragging = null;
+    frozen = null;
   }
 
   function keyMove(event: KeyboardEvent, node: number) {
@@ -148,175 +166,221 @@
       ArrowRight: [run + 1, height],
       ArrowLeft: [Math.max(0, run - 1), height],
     };
-    const move = moves[event.key];
-    if (move) {
+    const step = moves[event.key];
+    if (step) {
       event.preventDefault();
-      onMove(i, move[0], move[1]);
+      onMove(i, step[0], step[1]);
+    } else if (event.key === "Enter" && node === last) {
+      onToggleNozzle();
     }
   }
 
   const sizeLabel = (d: number) => `${d.toString().replace(".5", "½").replace(".75", "¾")}″`;
+  const fraction = (s: string) => s.replace("1-1/2", "1½").replace("1-3/4", "1¾").replace("2-1/2", "2½").replace('"', "″");
+  /** 3" hoses come with two coupling sizes: "3″ (2½″)" names the coupling. */
+  const chipLabel = (h: (typeof HOSE_SIZES)[number]) =>
+    h.couplings ? `${fraction(h.diameter)} (${fraction(h.couplings)})` : fraction(h.diameter);
+  const selectedHose = $derived(selection.kind === "section" ? layout.hoses[selection.index] : undefined);
 </script>
 
-<div class="canvas">
-  <div
-    class="scroller"
-    bind:this={scroller}
-    bind:clientWidth={viewWidth}
-    bind:clientHeight={viewHeight}
-    onwheel={(e) => {
-      if (!e.ctrlKey) return;
-      e.preventDefault();
-      setZoom(zoom * (e.deltaY < 0 ? 1.1 : 1 / 1.1));
-    }}
-  >
-    <svg
-      bind:this={svg}
-      width={layout.widthPx * zoom}
-      height={layout.heightPx * zoom}
-      viewBox={`0 0 ${layout.widthPx} ${layout.heightPx}`}
-      role="application"
-      aria-label="Vista lateral de la línea"
-    >
-      <!-- Floors: bands, lines, labels -->
-      {#each layout.floors as f (f.elevationM)}
-        {#if f.number > 0 && f.number % 2 === 1}
-          <rect class="band" x="0" y={f.y} width={layout.widthPx} height={floorM * PX_PER_M} />
-        {/if}
-      {/each}
-      <rect class="ground" x="0" y={layout.groundY} width={layout.widthPx} height={layout.heightPx - layout.groundY} />
-      {#each layout.floors as f (f.elevationM)}
-        {#if f.number > 0}
-          <line class="floor" x1="0" x2={layout.widthPx} y1={f.y} y2={f.y} />
-          <text class="floor-label" x={layout.xAt(0) + 6} y={f.y + 14}>Piso {f.number} · {f.elevationM} m</text>
-        {/if}
-      {/each}
-      <line class="ground-line" x1="0" x2={layout.widthPx} y1={layout.groundY} y2={layout.groundY} />
-      <text class="floor-label" x={layout.xAt(0) + 6} y={layout.groundY + 40}>Planta baja · 0 m</text>
+<svelte:window bind:innerHeight={windowHeight} />
 
-      <!-- Scale bar: 10 m -->
-      <g transform={`translate(16 ${layout.heightPx - 16})`}>
-        <line class="scale" x1="0" x2={10 * PX_PER_M} y1="0" y2="0" />
-        <line class="scale" x1="0" x2="0" y1="-4" y2="4" />
-        <line class="scale" x1={10 * PX_PER_M} x2={10 * PX_PER_M} y1="-4" y2="4" />
-        <text class="floor-label" x={10 * PX_PER_M + 8} y="4">10 m</text>
-      </g>
+<div class="canvas" style:--k={k}>
+  <div class="scroller" style:height={`${canvasHeight}px`} bind:this={scroller} bind:clientWidth={viewWidth} bind:clientHeight={viewHeight}>
+    <div class="stage" style:width={`${layout.widthPx * zoom}px`} style:height={`${layout.heightPx * zoom}px`}>
+      <svg
+        bind:this={svg}
+        width={layout.widthPx * zoom}
+        height={layout.heightPx * zoom}
+        viewBox={`0 0 ${layout.widthPx} ${layout.heightPx}`}
+        role="application"
+        aria-label="Vista lateral de la línea"
+      >
+        <!-- Floors: bands, lines, labels -->
+        {#each layout.floors as f (f.elevationM)}
+          {#if f.number > 0 && f.number % 2 === 1}
+            <rect class="band" x="0" y={f.y - floorM * PX_PER_M} width={layout.widthPx} height={floorM * PX_PER_M} />
+          {/if}
+        {/each}
+        <rect class="ground" x="0" y={layout.groundY} width={layout.widthPx} height={layout.heightPx - layout.groundY} />
+        {#each layout.floors as f (f.elevationM)}
+          {#if f.number > 0}
+            <line class="floor" x1="0" x2={layout.widthPx} y1={f.y} y2={f.y} stroke-width={k} />
+            <text class="floor-label" x={layout.xAt(0) + 6 * k} y={f.y + 14 * k}>Piso {f.number} · {f.elevationM} m</text>
+          {/if}
+        {/each}
+        <line class="ground-line" x1="0" x2={layout.widthPx} y1={layout.groundY} y2={layout.groundY} stroke-width={1.5 * k} />
+        <text class="floor-label" x={layout.xAt(0) + 6 * k} y={layout.groundY + 16 * k}>Planta baja · 0 m</text>
 
-      <!-- Engine -->
-      <g transform={`translate(${layout.xAt(-9.5)} ${layout.groundY - 46})`}>
-        <rect class="truck" width="58" height="38" rx="5" />
-        <rect class="window" x="6" y="6" width="18" height="12" rx="2" />
-        <circle class="wheel" cx="12" cy="40" r="6" /><circle class="wheel" cx="46" cy="40" r="6" />
-        <rect class="outlet" x="58" y="26" width={layout.nodes[0].x - layout.xAt(-9.5) - 58} height="7" />
-      </g>
-      <text class="tag" x={layout.xAt(-5)} y={layout.groundY - 54}>Bomba</text>
-
-      <!-- Hoses -->
-      {#each layout.hoses as h (h.index)}
-        {@const s = scenario.sections[h.index]}
-        <path class="hose" d={h.d} stroke-width={h.thicknessPx} />
-        {#if isSection(h.index)}
-          <path class="hose-selected" d={h.d} stroke-width={h.thicknessPx + 6} />
-        {/if}
-        <path
-          class="hit"
-          d={h.d}
+        <!-- Engine: tap to select the pump -->
+        <g
+          class="pump"
           role="button"
           tabindex="0"
-          aria-label={`Tramo ${h.index + 1}: ${s.lengthM} m de ${sizeLabel(s.diameterIn)}`}
-          onclick={() => onSelect({ kind: "section", index: h.index })}
-          onkeydown={(e) => e.key === "Enter" && onSelect({ kind: "section", index: h.index })}
-        />
-        <text class="tag" transform={`translate(${h.labelX} ${h.labelY + 22}) rotate(${Math.abs(h.angle) > 60 ? 0 : h.angle})`}>
-          {s.lengthM} m · {sizeLabel(s.diameterIn)}{h.slackM >= 0.5 ? ` · holgura ${h.slackM.toFixed(1)} m` : ""}
-        </text>
-      {/each}
-
-      <!-- Couplings (and reducers where the size changes) with their drag handles -->
-      {#each layout.nodes as n, i (i)}
-        {#if i > 0 && i < last}
-          <rect class="coupling" x={n.x - 3.5} y={n.y - 9} width="7" height="18" rx="1.5" />
-          {#if scenario.sections[i].diameterIn !== scenario.sections[i - 1].diameterIn}
-            <path class="coupling" d={`M ${n.x + 3.5} ${n.y - 8} L ${n.x + 13} ${n.y - 4} L ${n.x + 13} ${n.y + 4} L ${n.x + 3.5} ${n.y + 8} Z`} />
-          {/if}
+          aria-label="Bomba: elegir salida"
+          onclick={() => onSelect({ kind: "pump" })}
+          onkeydown={(e) => e.key === "Enter" && onSelect({ kind: "pump" })}
+        >
+          <rect class="truck" class:selected={selection.kind === "pump"} x={layout.xAt(-9.5)} y={layout.groundY - 3.2 * PX_PER_M} width={7 * PX_PER_M} height={2.6 * PX_PER_M} rx="5" />
+          <rect class="window" x={layout.xAt(-8.9)} y={layout.groundY - 2.8 * PX_PER_M} width={1.6 * PX_PER_M} height={0.9 * PX_PER_M} rx="2" />
+          <circle class="wheel" cx={layout.xAt(-8)} cy={layout.groundY - 0.5 * PX_PER_M} r={0.5 * PX_PER_M} />
+          <circle class="wheel" cx={layout.xAt(-4)} cy={layout.groundY - 0.5 * PX_PER_M} r={0.5 * PX_PER_M} />
+        </g>
+        <rect class="outlet" x={layout.xAt(-2.5)} y={layout.nodes[0].y - 0.25 * PX_PER_M} width={layout.nodes[0].x - layout.xAt(-2.5)} height={0.5 * PX_PER_M} />
+        {#if adapter}
+          <path
+            class="coupling"
+            d={`M ${layout.nodes[0].x - 4 * k} ${layout.nodes[0].y - 9 * k} L ${layout.nodes[0].x + 6 * k} ${layout.nodes[0].y - 5 * k} L ${layout.nodes[0].x + 6 * k} ${layout.nodes[0].y + 5 * k} L ${layout.nodes[0].x - 4 * k} ${layout.nodes[0].y + 9 * k} Z`}
+          >
+            <title>Adaptador {sizeLabel(outletIn!)} → {sizeLabel(scenario.sections[0].diameterIn)}</title>
+          </path>
         {/if}
-        {#if i > 0}
-          <circle
-            class="handle"
-            class:active={dragging === i}
-            cx={n.x}
-            cy={n.y}
-            r="22"
-            role="slider"
+        <text class="tag" x={layout.xAt(-5.75)} y={layout.groundY + 16 * k}>Bomba{outletIn ? ` · salida ${sizeLabel(outletIn)}` : ""}</text>
+
+        <!-- Hoses -->
+        {#each layout.hoses as h (h.index)}
+          {@const s = scenario.sections[h.index]}
+          {@const width = Math.max(h.thicknessPx, 3 * k)}
+          <path class="hose" d={h.d} stroke-width={width} />
+          {#if isSection(h.index)}<path class="hose-selected" d={h.d} stroke-width={width + 6 * k} />{/if}
+          <path
+            class="hit"
+            d={h.d}
+            stroke-width={30 * k}
+            role="button"
             tabindex="0"
-            aria-label={i === last ? "Posición del pitón" : `Acople ${i}`}
-            aria-valuenow={n.elevationM}
-            aria-valuetext={`${scenario.sections[i - 1].lengthM} m de largo, ${n.elevationM} m de altura`}
-            onpointerdown={(e) => startDrag(e, i)}
-            onpointermove={drag}
-            onpointerup={endDrag}
-            onpointercancel={endDrag}
-            onkeydown={(e) => keyMove(e, i)}
+            aria-label={`Tramo ${h.index + 1}: ${s.lengthM} m de ${sizeLabel(s.diameterIn)}`}
+            onclick={() => onSelect({ kind: "section", index: h.index })}
+            onkeydown={(e) => e.key === "Enter" && onSelect({ kind: "section", index: h.index })}
           />
-          {#if dragging === i}
-            <text class="drag-label" x={n.x} y={n.y + 40}>{scenario.sections[i - 1].lengthM} m · {n.elevationM} m</text>
+          <text class="tag" transform={`translate(${h.labelX} ${h.labelY + 22 * k}) rotate(${Math.abs(h.angle) > 60 ? 0 : h.angle})`}>
+            {s.lengthM} m · {sizeLabel(s.diameterIn)}{h.slackM >= 0.5 ? ` · holgura ${h.slackM.toFixed(1)} m` : ""}
+          </text>
+        {/each}
+
+        <!-- Couplings (and reducers where the size changes) -->
+        {#each layout.nodes as n, i (i)}
+          {#if i > 0 && i < last}
+            <rect class="coupling" x={n.x - 3.5 * k} y={n.y - 9 * k} width={7 * k} height={18 * k} rx={1.5 * k} />
+            {#if scenario.sections[i].diameterIn !== scenario.sections[i - 1].diameterIn}
+              <path class="coupling" d={`M ${n.x + 3.5 * k} ${n.y - 8 * k} L ${n.x + 13 * k} ${n.y - 4 * k} L ${n.x + 13 * k} ${n.y + 4 * k} L ${n.x + 3.5 * k} ${n.y + 8 * k} Z`} />
+            {/if}
           {/if}
-        {/if}
-      {/each}
+        {/each}
 
-      <NozzleDrawing
-        nozzle={scenario.nozzle}
-        flowGpm={result.flowGpm}
-        x={layout.nodes[last].x}
-        y={layout.nodes[last].y}
-        selected={selection.kind === "nozzle"}
-        onToggle={onToggleNozzle}
-      />
+        <g transform={`translate(${layout.nodes[last].x} ${layout.nodes[last].y}) scale(${k})`}>
+          <NozzleDrawing
+            nozzle={scenario.nozzle}
+            flowGpm={result.flowGpm}
+            x={0}
+            y={0}
+            selected={selection.kind === "nozzle"}
+            onToggle={onToggleNozzle}
+          />
+        </g>
 
-      <!-- Gauges last, so they sit above everything -->
-      {#each layout.nodes as n, i (i)}
-        <Gauge psi={n.pressurePsi} x={i === 0 ? layout.xAt(-5) : n.x} y={(i === 0 ? layout.groundY - 112 : n.y - 72)} />
-      {/each}
-    </svg>
+        <!-- Handles: tap to select (the nozzle's also works the bale), drag to move -->
+        {#each layout.nodes as n, i (i)}
+          {#if i > 0}
+            <circle
+              class="handle"
+              class:active={dragging === i}
+              cx={n.x}
+              cy={n.y}
+              r={22 * k}
+              stroke-width={1.5 * k}
+              role="slider"
+              tabindex="0"
+              aria-label={i === last ? "Pitón: tocar abre o cierra, arrastrar mueve" : `Acople ${i}`}
+              aria-valuenow={n.elevationM}
+              aria-valuetext={`${scenario.sections[i - 1].lengthM} m de largo, ${n.elevationM} m de altura`}
+              onpointerdown={(e) => down(e, i)}
+              onpointermove={move}
+              onpointerup={up}
+              onpointercancel={up}
+              onkeydown={(e) => keyMove(e, i)}
+            />
+            {#if dragging === i}
+              <text class="drag-label" x={n.x} y={n.y + 40 * k}>{scenario.sections[i - 1].lengthM} m · {n.elevationM} m</text>
+            {/if}
+          {/if}
+        {/each}
+
+        <!-- Gauges last, so they sit above everything -->
+        {#each layout.nodes as n, i (i)}
+          <g transform={`translate(${i === 0 ? layout.xAt(-1.5) : n.x} ${(i === 0 ? layout.groundY - 4.6 * PX_PER_M : n.y) - (i === 0 ? 0 : 72 * k)}) scale(${k})`}>
+            <Gauge psi={n.pressurePsi} />
+          </g>
+        {/each}
+      </svg>
+
+      {#if selectedHose && dragging === null}
+        {@const i = selectedHose.index}
+        {@const s = scenario.sections[i]}
+        <div class="hose-bar" style:left={`${selectedHose.labelX * zoom}px`} style:top={`${selectedHose.labelY * zoom + 34}px`}>
+          <div class="chips" role="radiogroup" aria-label="Diámetro del tramo">
+            {#each HOSE_SIZES as size (size.id)}
+              <button type="button" role="radio" aria-checked={s.hoseSizeId === size.id} class:on={s.hoseSizeId === size.id} onclick={() => onHoseSize(i, size.id)}>{chipLabel(size)}</button>
+            {/each}
+          </div>
+          <div class="chips">
+            <button type="button" aria-label="Acortar 15 m" onclick={() => onLength(i, s.lengthM - 15)}>−15 m</button>
+            <span class="len">{s.lengthM} m</span>
+            <button type="button" aria-label="Alargar 15 m" onclick={() => onLength(i, s.lengthM + 15)}>+15 m</button>
+          </div>
+        </div>
+      {/if}
+    </div>
   </div>
-  <span class="badge">Escala 1:1 · {Math.round(zoom * 100)} %</span>
+  <!-- Controls live below the drawing, never over it. -->
+  <div class="toolbar">
   <div class="mode" role="radiogroup" aria-label="Arrastre de acoples">
     <button type="button" role="radio" aria-checked={mode === "tether"} class:on={mode === "tether"} onclick={() => onModeChange("tether")}>Largo fijo</button>
     <button type="button" role="radio" aria-checked={mode === "free"} class:on={mode === "free"} onclick={() => onModeChange("free")}>Libre</button>
   </div>
+  <span class="badge">1:1 · {Math.round(zoom * 100)} %{manualZoom === null ? " · auto" : ""}</span>
   <div class="zoom">
-    <button type="button" aria-label="Alejar" onclick={() => setZoom(zoom / 1.25)}>−</button>
-    <button type="button" aria-label="Acercar" onclick={() => setZoom(zoom * 1.25)}>+</button>
-    <button type="button" onclick={fit}>Ajustar</button>
+    <button type="button" aria-label="Alejar" onclick={() => setManualZoom(zoom / 1.25)}>−</button>
+    <button type="button" aria-label="Acercar" onclick={() => setManualZoom(zoom * 1.25)}>+</button>
+    <button type="button" onclick={() => (manualZoom = null)}>Ajustar</button>
+  </div>
   </div>
 </div>
 
 <style>
-  .canvas { position: relative; background: var(--surface); border-radius: var(--radius); overflow: hidden; height: 100%; min-height: 360px; }
-  .scroller { width: 100%; height: 100%; overflow: auto; }
+  .canvas { position: relative; background: var(--surface); border-radius: var(--radius); overflow: hidden; }
+  .scroller { width: 100%; overflow: auto; }
+  .stage { position: relative; }
   svg { display: block; user-select: none; }
   .band { fill: var(--band); }
   .ground { fill: var(--ground); }
   .floor { stroke: var(--line); stroke-dasharray: 4 4; }
-  .ground-line { stroke: var(--ink); stroke-width: 1.5; }
-  .floor-label, .tag { font-size: 11px; fill: var(--muted); }
-  .tag { text-anchor: middle; font-size: 12px; }
-  .scale { stroke: var(--ink); stroke-width: 2; }
+  .ground-line { stroke: var(--ink); }
+  .floor-label, .tag { font-size: calc(11px * var(--k)); fill: var(--muted); }
+  .tag { text-anchor: middle; font-size: calc(12px * var(--k)); }
+  .pump { cursor: pointer; outline: none; }
   .truck { fill: var(--pump); }
+  .truck.selected, .pump:focus-visible .truck { stroke: var(--accent); stroke-width: calc(3px * var(--k)); }
   .window { fill: #f8d7d3; }
   .wheel { fill: var(--ink); }
   .outlet, .coupling { fill: var(--steel); }
   .hose { stroke: var(--hose); stroke-linecap: butt; fill: none; }
   .hose-selected { fill: none; stroke: var(--accent); stroke-opacity: 0.35; stroke-linecap: round; pointer-events: none; }
-  .hit { fill: none; stroke: transparent; stroke-width: 30; cursor: pointer; outline: none; }
+  .hit { fill: none; stroke: transparent; cursor: pointer; outline: none; }
   .hit:focus-visible { stroke: var(--accent); stroke-opacity: 0.2; }
-  .handle { fill: transparent; stroke: var(--ink); stroke-opacity: 0.3; stroke-width: 1.5; stroke-dasharray: 3 3; cursor: grab; touch-action: none; outline: none; }
-  .handle.active, .handle:focus-visible { stroke: var(--accent); stroke-opacity: 1; stroke-width: 2; cursor: grabbing; }
-  .drag-label { font-size: 13px; font-weight: 700; text-anchor: middle; fill: var(--accent); }
-  .badge { position: absolute; right: 10px; top: 10px; font-size: 12px; color: var(--muted); background: var(--band); border-radius: 6px; padding: 4px 8px; pointer-events: none; }
-  .mode { position: absolute; left: 10px; top: 10px; display: flex; background: var(--band); border-radius: 10px; padding: 3px; }
+  .handle { fill: transparent; stroke: var(--ink); stroke-opacity: 0.3; stroke-dasharray: 3 3; cursor: grab; touch-action: none; outline: none; }
+  .handle.active, .handle:focus-visible { stroke: var(--accent); stroke-opacity: 1; cursor: grabbing; }
+  .drag-label { font-size: calc(13px * var(--k)); font-weight: 700; text-anchor: middle; fill: var(--accent); }
+  .hose-bar { position: absolute; transform: translateX(-50%); display: grid; gap: 4px; justify-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 6px; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15); z-index: 2; }
+  .chips { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; justify-content: center; }
+  .chips button { min-height: 36px; min-width: 40px; padding: 0 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); font-weight: 600; font-size: 13px; cursor: pointer; }
+  .chips .on { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+  .len { font-weight: 700; min-width: 3.5rem; text-align: center; }
+  .toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 8px 10px; border-top: 1px solid var(--line); }
+  .badge { font-size: 12px; color: var(--muted); margin-left: auto; }
+  .mode { display: flex; background: var(--band); border-radius: 10px; padding: 3px; }
   .mode button { min-height: 40px; padding: 0 12px; border: 0; border-radius: 8px; background: transparent; color: var(--muted); font-weight: 600; cursor: pointer; }
   .mode .on { background: var(--surface); color: var(--ink); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15); }
-  .zoom { position: absolute; right: 10px; bottom: 10px; display: flex; gap: 4px; }
+  .zoom { display: flex; gap: 4px; }
   .zoom button { min-width: 44px; height: 44px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); cursor: pointer; }
 </style>
