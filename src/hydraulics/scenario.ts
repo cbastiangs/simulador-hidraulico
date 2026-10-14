@@ -36,6 +36,12 @@ export type ScenarioSection = {
   lengthM: number;
   /** Height of the section's downstream coupling above the source, metres. */
   endElevationM: number;
+  /**
+   * Horizontal distance this section covers, metres: drawing only (the
+   * hydraulics use length and height). Absent means taut: √(L² − Δh²). Less
+   * than that means the hose has slack and is drawn sagging.
+   */
+  runM?: number;
 };
 
 /**
@@ -161,6 +167,7 @@ export function parseScenario(value: unknown): Scenario {
         frictionCoefficient: number(section.frictionCoefficient, `${path}.frictionCoefficient`, "zero or more"),
         lengthM: number(section.lengthM, `${path}.lengthM`, "zero or more"),
         endElevationM: number(section.endElevationM, `${path}.endElevationM`, "finite"),
+        ...(section.runM === undefined ? {} : { runM: number(section.runM, `${path}.runM`, "zero or more") }),
       };
     }),
     nozzle: {

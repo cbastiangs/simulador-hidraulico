@@ -1,6 +1,7 @@
 import { NOZZLE_SPECS } from "$hydraulics/catalog.ts";
 import { HOSE_SIZES } from "$hydraulics/references.ts";
 import type { Scenario, ScenarioSection } from "$hydraulics/scenario.ts";
+import { runsOf, tautRunM } from "$lib/geometry/world.ts";
 
 /**
  * Edits to a scenario. Each returns a new document and never changes the
@@ -30,12 +31,77 @@ export function setSourcePressure(scenario: Scenario, pressurePsi: number): Scen
   return { ...scenario, source: { ...scenario.source, pressurePsi: within(pressurePsi, LIMITS.pressurePsi) } };
 }
 
-export function setEndElevation(scenario: Scenario, index: number, endElevationM: number): Scenario {
-  return withSection(scenario, index, (s) => ({ ...s, endElevationM: within(endElevationM, LIMITS.elevationM) }));
+/**
+ * How dragging or editing a coupling treats hose length (docs/UX.md §2):
+ * - `tether`: the hose length is fixed. The coupling moves within the hose's
+ *   reach; slack sags; a rise can't exceed the hose length.
+ * - `free`: the hose resizes to span the gap, taut (straight-line distance,
+ *   rounded up to 0.5 m).
+ */
+export type LengthMode = "tether" | "free";
+
+const startElevationM = (scenario: Scenario, i: number) => (i === 0 ? 0 : scenario.sections[i - 1].endElevationM);
+
+/**
+ * Moves the coupling at the end of section `i` to a horizontal run and a
+ * height. Everything downstream moves with it: later sections keep their own
+ * runs and rises.
+ */
+export function moveCoupling(
+  scenario: Scenario,
+  i: number,
+  target: { runM: number; elevationM: number },
+  mode: LengthMode,
+): Scenario {
+  const section = scenario.sections[i];
+  const start = startElevationM(scenario, i);
+  let run = Math.max(0, target.runM);
+  let rise = within(target.elevationM, LIMITS.elevationM) - start;
+  let length = section.lengthM;
+  if (mode === "tether") {
+    // The hose can't climb more than its own length, nor reach further than it.
+    rise = clamp(rise, -length, length);
+    run = Math.min(run, tautRunM(length, rise));
+  } else {
+    length = within(Math.ceil(Math.hypot(run, rise) * 2) / 2, LIMITS.lengthM);
+  }
+  const end = start + rise;
+  const shift = end - section.endElevationM;
+  return {
+    ...scenario,
+    sections: scenario.sections.map((s, k) =>
+      k < i ? s : k === i ? { ...s, lengthM: length, endElevationM: end, runM: run } : { ...s, endElevationM: s.endElevationM + shift },
+    ),
+  };
 }
 
-export function setSectionLength(scenario: Scenario, index: number, lengthM: number): Scenario {
-  return withSection(scenario, index, (s) => ({ ...s, lengthM: within(lengthM, LIMITS.lengthM) }));
+/**
+ * Sets a coupling's height. With fixed length, a taut hose stays taut (it
+ * slides along its reach) and a slack one keeps its horizontal position;
+ * free mode keeps the position and resizes the hose.
+ */
+export function setEndElevation(scenario: Scenario, i: number, endElevationM: number, mode: LengthMode): Scenario {
+  const section = scenario.sections[i];
+  const run = runsOf(scenario.sections)[i];
+  const rise = section.endElevationM - startElevationM(scenario, i);
+  const taut = section.lengthM - Math.hypot(run, rise) < 0.05;
+  const newRise = within(endElevationM, LIMITS.elevationM) - startElevationM(scenario, i);
+  const runM = mode === "tether" && taut ? tautRunM(section.lengthM, newRise) : run;
+  return moveCoupling(scenario, i, { runM, elevationM: endElevationM }, mode);
+}
+
+/**
+ * Sets a section's hose length. It can't be shorter than the section's rise.
+ * A taut section (no stored run) stays taut and reaches further; a section
+ * with a stored run keeps it, gaining slack, or is pulled in if the hose no
+ * longer reaches.
+ */
+export function setSectionLength(scenario: Scenario, i: number, lengthM: number): Scenario {
+  const section = scenario.sections[i];
+  const rise = section.endElevationM - startElevationM(scenario, i);
+  const length = Math.max(within(lengthM, LIMITS.lengthM), Math.ceil(Math.abs(rise) * 2) / 2);
+  const runM = section.runM === undefined ? undefined : Math.min(section.runM, tautRunM(length, rise));
+  return withSection(scenario, i, (s) => ({ ...s, lengthM: length, ...(runM === undefined ? {} : { runM }) }));
 }
 
 /** Takes the size's published C and diameter; the catalog id records where they came from. */
