@@ -46,6 +46,14 @@ export function setSourcePressure(scenario: Scenario, pressurePsi: number): Scen
  */
 export type LengthMode = "tether" | "free";
 
+/** A hose's length lock is its own property: locked unless `lengthFree`. */
+export const modeOf = (section: { lengthFree?: boolean }): LengthMode => (section.lengthFree ? "free" : "tether");
+
+/** Locks or unlocks the length of section `i` (a lock icon on the hose). */
+export function toggleLengthLock(scenario: Scenario, i: number): Scenario {
+  return withSection(scenario, i, (s) => (s.lengthFree ? { ...s, lengthFree: false } : { ...s, lengthFree: true }));
+}
+
 const startElevationM = (scenario: Scenario, i: number) => (i === 0 ? 0 : scenario.sections[i - 1].endElevationM);
 
 /**
@@ -57,9 +65,9 @@ export function moveCoupling(
   scenario: Scenario,
   i: number,
   target: { runM: number; elevationM: number },
-  mode: LengthMode,
 ): Scenario {
   const section = scenario.sections[i];
+  const mode = modeOf(section);
   const start = startElevationM(scenario, i);
   let run = Math.max(0, target.runM);
   let rise = within(target.elevationM, LIMITS.elevationM) - start;
@@ -86,14 +94,15 @@ export function moveCoupling(
  * slides along its reach) and a slack one keeps its horizontal position;
  * free mode keeps the position and resizes the hose.
  */
-export function setEndElevation(scenario: Scenario, i: number, endElevationM: number, mode: LengthMode): Scenario {
+export function setEndElevation(scenario: Scenario, i: number, endElevationM: number): Scenario {
   const section = scenario.sections[i];
+  const mode = modeOf(section);
   const run = runsOf(scenario.sections)[i];
   const rise = section.endElevationM - startElevationM(scenario, i);
   const taut = section.lengthM - Math.hypot(run, rise) < 0.05;
   const newRise = within(endElevationM, LIMITS.elevationM) - startElevationM(scenario, i);
   const runM = mode === "tether" && taut ? tautRunM(section.lengthM, newRise) : run;
-  return moveCoupling(scenario, i, { runM, elevationM: endElevationM }, mode);
+  return moveCoupling(scenario, i, { runM, elevationM: endElevationM });
 }
 
 /**

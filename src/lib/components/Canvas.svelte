@@ -2,7 +2,6 @@
   import { HOSE_SIZES } from "$hydraulics/references.ts";
   import type { Scenario } from "$hydraulics/scenario.ts";
   import type { SeriesResult } from "$hydraulics/series.ts";
-  import type { LengthMode } from "$lib/edit.ts";
   import {
     PX_PER_M,
     fillViewport,
@@ -26,8 +25,7 @@
     selection,
     floorM = 3,
     resetKey,
-    mode,
-    onModeChange,
+    onToggleLock,
     onSelect,
     onMove,
     onToggleNozzle,
@@ -40,8 +38,8 @@
     floorM?: number;
     /** Changes when a new lay is loaded: auto-fit is restored. */
     resetKey: string;
-    mode: LengthMode;
-    onModeChange: (mode: LengthMode) => void;
+    /** Lock or unlock the length of section `i` (UX.md §2). */
+    onToggleLock: (i: number) => void;
     onSelect: (s: Selection) => void;
     /** Move the coupling at the end of a section to a horizontal run and height (edit.moveCoupling). */
     onMove: (sectionIndex: number, runM: number, elevationM: number) => void;
@@ -57,7 +55,9 @@
   let windowHeight = $state(800);
   let scroller: HTMLDivElement | undefined = $state();
   /** Below this the constant-size gauges crowd each other; the canvas scrolls sideways instead. */
-  const MIN_FIT_ZOOM = 0.55;
+  const MIN_FIT_ZOOM = 0.3;
+  /** Height of the on-canvas hose toolbar: a selected hose keeps the canvas tall enough to show it. */
+  const HOSE_BAR_PX = 180;
   let svg: SVGSVGElement | undefined = $state();
 
   // Dragging freezes the world and the zoom: refitting under the pointer would move the target.
@@ -89,12 +89,14 @@
     return Math.min(1.6, Math.max(MIN_FIT_ZOOM, Math.min(viewWidth / w, maxHeight / h)));
   });
   const canvasHeight = $derived(
-    Math.min(maxHeight, Math.max(320, (fitted.maxY - fitted.minY) * PX_PER_M * (frozen?.zoom ?? manualZoom ?? fitZoom) + 24)),
+    Math.min(maxHeight, Math.max(selection.kind === "section" ? HOSE_BAR_PX + 80 : 200, ((frozen?.bounds ?? fitted).maxY - (frozen?.bounds ?? fitted).minY) * PX_PER_M * (frozen?.zoom ?? manualZoom ?? fitZoom) + 24)),
   );
   const bounds = $derived(frozen?.bounds ?? fitted);
   const zoom = $derived(frozen?.zoom ?? manualZoom ?? fitZoom);
   /** Multiply screen-size things by k so they stay the same size at any zoom. */
   const k = $derived(1 / zoom);
+  /** Floor labels are constant-size: below this they would overlap, so they hide. */
+  const showFloorLabels = $derived(floorM * PX_PER_M * zoom >= 20);
 
   const layout = $derived(
     layoutWorld(
@@ -216,11 +218,11 @@
         {#each layout.floors as f (f.elevationM)}
           {#if f.number > 0}
             <line class="floor" x1="0" x2={layout.widthPx} y1={f.y} y2={f.y} stroke-width={k} />
-            <text class="floor-label" x={layout.xAt(0) + 6 * k} y={f.y + 14 * k}>Piso {f.number} · {f.elevationM} m</text>
+            {#if showFloorLabels}<text class="floor-label" x={layout.xAt(0) + 6 * k} y={f.y + 14 * k}>Piso {f.number} · {f.elevationM} m</text>{/if}
           {/if}
         {/each}
         <line class="ground-line" x1="0" x2={layout.widthPx} y1={layout.groundY} y2={layout.groundY} stroke-width={1.5 * k} />
-        <text class="floor-label" x={layout.xAt(0) + 6 * k} y={layout.groundY + 16 * k}>Planta baja · 0 m</text>
+        {#if showFloorLabels}<text class="floor-label" x={layout.xAt(0) + 6 * k} y={layout.groundY + 16 * k}>Planta baja · 0 m</text>{/if}
 
         <!-- Engine: tap to select the pump -->
         <g
@@ -268,7 +270,7 @@
             onkeydown={(e) => e.key === "Enter" && onSelect({ kind: "section", index: h.index })}
           />
           <text class="tag" transform={`translate(${h.labelX} ${h.labelY + 22 * k}) rotate(${Math.abs(h.angle) > 60 ? 0 : h.angle})`}>
-            {s.lengthM} m · {sizeLabel(s.diameterIn)}{h.slackM >= 0.5 ? ` · holgura ${h.slackM.toFixed(1)} m` : ""}
+            {s.lengthFree ? "🔓" : "🔒"} {s.lengthM} m · {sizeLabel(s.diameterIn)}{h.slackM >= 0.5 ? ` · holgura ${h.slackM.toFixed(1)} m` : ""}
           </text>
         {/each}
 
@@ -331,7 +333,8 @@
       {#if selectedHose && dragging === null}
         {@const i = selectedHose.index}
         {@const s = scenario.sections[i]}
-        <div class="hose-bar" style:left={`${selectedHose.labelX * zoom}px`} style:top={`${selectedHose.labelY * zoom + 34}px`}>
+        {@const up = selectedHose.labelY * zoom + 34 + HOSE_BAR_PX > layout.heightPx * zoom}
+        <div class="hose-bar" class:up style:left={`${selectedHose.labelX * zoom}px`} style:top={`${selectedHose.labelY * zoom + (up ? -26 : 34)}px`}>
           <div class="chips" role="radiogroup" aria-label="Diámetro del tramo">
             {#each HOSE_SIZES as size (size.id)}
               <button type="button" role="radio" aria-checked={s.hoseSizeId === size.id} class:on={s.hoseSizeId === size.id} onclick={() => onHoseSize(i, size.id)}>{chipLabel(size)}</button>
@@ -341,6 +344,7 @@
             <button type="button" aria-label="Acortar 15 m" onclick={() => onLength(i, s.lengthM - 15)}>−15 m</button>
             <span class="len">{s.lengthM} m</span>
             <button type="button" aria-label="Alargar 15 m" onclick={() => onLength(i, s.lengthM + 15)}>+15 m</button>
+            <button type="button" class="lock" class:on={!s.lengthFree} aria-pressed={!s.lengthFree} onclick={() => onToggleLock(i)}>{s.lengthFree ? "🔓 Libre" : "🔒 Largo fijo"}</button>
           </div>
         </div>
       {/if}
@@ -348,10 +352,6 @@
   </div>
   <!-- Controls live below the drawing, never over it. -->
   <div class="toolbar">
-  <div class="mode" role="radiogroup" aria-label="Arrastre de acoples">
-    <button type="button" role="radio" aria-checked={mode === "tether"} class:on={mode === "tether"} onclick={() => onModeChange("tether")}>Largo fijo</button>
-    <button type="button" role="radio" aria-checked={mode === "free"} class:on={mode === "free"} onclick={() => onModeChange("free")}>Libre</button>
-  </div>
   <span class="badge">1:1 · {Math.round(zoom * 100)} %{manualZoom === null ? " · auto" : ""}</span>
   <div class="zoom">
     <button type="button" aria-label="Alejar" onclick={() => setManualZoom(zoom / 1.25)}>−</button>
@@ -363,7 +363,7 @@
 
 <style>
   .canvas { position: relative; background: var(--surface); border-radius: var(--radius); overflow: hidden; }
-  .scroller { width: 100%; overflow: auto; }
+  .scroller { width: 100%; overflow: auto; transition: height 0.2s ease; }
   .stage { position: relative; }
   svg { display: block; user-select: none; }
   .band { fill: var(--band); }
@@ -388,6 +388,7 @@
   .handle { fill: transparent; stroke: var(--ink); stroke-opacity: 0.3; stroke-dasharray: 3 3; cursor: grab; touch-action: none; outline: none; }
   .handle.active, .handle:focus-visible { stroke: var(--accent); stroke-opacity: 1; cursor: grabbing; }
   .drag-label { font-size: calc(13px * var(--k)); font-weight: 700; text-anchor: middle; fill: var(--accent); }
+  .hose-bar.up { transform: translate(-50%, -100%); }
   .hose-bar { position: absolute; transform: translateX(-50%); display: grid; gap: 4px; justify-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 6px; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15); z-index: 2; }
   .chips { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; justify-content: center; }
   .chips button { min-height: 36px; min-width: 40px; padding: 0 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); font-weight: 600; font-size: 13px; cursor: pointer; }
@@ -395,9 +396,7 @@
   .len { font-weight: 700; min-width: 3.5rem; text-align: center; }
   .toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 8px 10px; border-top: 1px solid var(--line); }
   .badge { font-size: 12px; color: var(--muted); margin-left: auto; }
-  .mode { display: flex; background: var(--band); border-radius: 10px; padding: 3px; }
-  .mode button { min-height: 40px; padding: 0 12px; border: 0; border-radius: 8px; background: transparent; color: var(--muted); font-weight: 600; cursor: pointer; }
-  .mode .on { background: var(--surface); color: var(--ink); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15); }
+  .lock.on { background: var(--surface); border-color: var(--accent); }
   .zoom { display: flex; gap: 4px; }
   .zoom button { min-width: 44px; height: 44px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); cursor: pointer; }
 </style>

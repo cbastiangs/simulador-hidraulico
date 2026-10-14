@@ -22,7 +22,6 @@
   let scenario: Scenario = $state.raw(presets[0].scenario);
   let selection: Selection = $state({ kind: "nozzle" });
   // How dragging and height edits treat hose length (UX.md §2); fixed length by default.
-  let mode: edit.LengthMode = $state("tether");
 
   const result = $derived(solveScenario(scenario));
   const reference = $derived(solveScenario(scenario, "cgbvp-2019"));
@@ -59,9 +58,8 @@
       {selection}
       resetKey={`${presetId}#${loads}`}
       onSelect={(s) => (selection = s)}
-      {mode}
-      onModeChange={(m) => (mode = m)}
-      onMove={(i, runM, elevationM) => (scenario = edit.moveCoupling(scenario, i, { runM, elevationM }, mode))}
+      onMove={(i, runM, elevationM) => (scenario = edit.moveCoupling(scenario, i, { runM, elevationM }))}
+      onToggleLock={(i) => (scenario = edit.toggleLengthLock(scenario, i))}
       onHoseSize={(i, id) => (scenario = edit.setSectionHose(scenario, i, id))}
       onLength={(i, m) => (scenario = edit.setSectionLength(scenario, i, m))}
       onToggleNozzle={() => (scenario = edit.setNozzleOpen(scenario, !scenario.nozzle.open))}
@@ -69,7 +67,7 @@
   </div>
 
   <div class="side">
-    <Inspector {scenario} {selection} {mode} onchange={(s) => (scenario = s)} onSelect={(s) => (selection = s)} />
+    <Inspector {scenario} {selection} onchange={(s) => (scenario = s)} onSelect={(s) => (selection = s)} />
     <button type="button" class="add" onclick={addSection}>+ Añadir tramo al final</button>
   </div>
 
@@ -100,6 +98,7 @@
     margin: 0 auto;
     grid-template-columns: minmax(0, 1fr) 340px;
     grid-template-areas: "top top" "pump pump" "canvas side" "results side";
+    grid-template-rows: auto auto auto 1fr;
   }
   .top { grid-area: top; display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; justify-content: space-between; }
   .top h1 { margin: 0; font-size: 18px; }

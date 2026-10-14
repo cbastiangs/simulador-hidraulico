@@ -34,14 +34,18 @@
   scale never changes on its own" and "bounds grow, never shrink"). The
   world is the lay plus margins, recomputed on every edit; the zoom fits
   its width, the canvas takes the height that needs, capped at the window's
-  available height. Below 55 % zoom the constant-size gauges would crowd, so
+  available height. Below 30 % zoom the constant-size gauges would crowd, so
   it stops shrinking and scrolls sideways instead, starting on the nozzle.
+  The height is the lay's own height at that zoom (no sky padding; 200 px at
+  least), animated when it changes; a selected hose keeps it tall enough for
+  its toolbar, which opens upward when there is no room below. Floor labels
+  hide when floors are under 20 px apart.
   During a drag the world and zoom are frozen (refitting under the pointer
   would move the target) and refit on release. − / + set a manual zoom;
   "Ajustar" returns to automatic.
 - **Constant-size overlays.** Gauges, labels, handles and the nozzle keep
   their screen size at any zoom; hoses and the engine scale with the world.
-- **Controls below the drawing,** never over it: drag mode, zoom readout,
+- **Controls below the drawing,** never over it: zoom readout,
   − / + / Ajustar.
 - **Tap vs drag.** A press that moves less than 6 px is a tap: it selects
   (on the nozzle it also works the bale, open/shut). More is a drag.
@@ -49,15 +53,18 @@
   with the hose sizes and −15 / +15 m. Tapping the engine selects the pump:
   its discharge outlet size (1½, 2½, 3″ or "same as the hose"); a different
   outlet size draws an adapter, whose loss is not modelled yet.
-- **Two drag modes** (toggle on the canvas; fixed length is the default):
-  - **Largo fijo (tether):** the hose length is fixed. The coupling moves
-    within the hose's reach and the hose sags if there is slack; dragged
-    beyond reach it stops at the tether; a rise can't exceed the hose length.
-    A taut hose stays taut when its height is edited (it slides along its
-    reach).
-  - **Libre (resize):** the coupling goes where it's dragged and the hose
+- **Length lock, per hose** (owner, 2026-10-14; replaces the global
+  "Largo fijo / Libre" toggle under the canvas). Each hose has its own lock,
+  a button on its on-canvas toolbar, with a 🔒/🔓 on its label. Locked is the
+  default (scenario `lengthFree` absent) and is stored with the hose. Dragging
+  a coupling applies the lock of the hose that ends at it:
+  - **Locked (tether):** the hose length is fixed. The coupling moves within
+    the hose's reach and the hose sags if there is slack; dragged beyond
+    reach it stops at the tether; a rise can't exceed the hose length. A taut
+    hose stays taut when its height is edited (it slides along its reach).
+  - **Unlocked (free):** the coupling goes where it's dragged and the hose
     resizes to span the gap, taut (length rounded up to 0.5 m).
-  In both, everything downstream moves with the dragged coupling (later
+  Either way, everything downstream moves with the dragged coupling (later
   sections keep their own run and rise). Snaps: run 0.5 m, height 0.5 m,
   magnetic to floor lines. A live label shows the values while dragging;
   drags start only on handles; dragging empty canvas pans. The horizontal
