@@ -8,7 +8,11 @@ here untouched; the screen and station-data integration are still open (see
 ## Layout
 
 - `src/hydraulics/` — the engine: plain TypeScript, no framework, no app
-  imports. The seed of the future `fire-calc` package.
+  imports. The seed of the future `fire-calc` package. `series.ts` is the
+  solver the app uses; `line.ts` is the closed-form oracle it is tested
+  against.
+- `src/routes/`, `src/lib/` — the app: SvelteKit, prerendered to static files
+  (`adapter-static`). Imports the engine through the `$hydraulics` alias.
 - `tests/` — `node --test`, checked against published tables (Colorado DFPC
   chart, CGBVP 2019 manual, metric cross-check). `boundaries.test.mjs`
   enforces the engine's import rule below.
@@ -33,6 +37,18 @@ here untouched; the screen and station-data integration are still open (see
 - Invalid input is a caller's bug (`assertValidLine` throws `RangeError`), not
   a hydraulic state.
 
+## App rules
+
+- **Svelte 5 runes only** (`$state`, `$derived`, `$effect`, `$props`). Never
+  Svelte 4 syntax: no `export let`, no `$:` statements, no stores for
+  component state, no `on:click` (use `onclick`). See
+  https://svelte.dev/llms.txt.
+- Versions are pinned exactly in `package.json`; SvelteKit stays on 2.x until
+  a deliberate upgrade.
+- The app never computes hydraulics itself: it builds an input, calls the
+  engine, and formats the result.
+- UI text in Spanish, code and docs in English.
+
 ## Design documents over code
 
 The `docs/` documents are the design pass. Before changing the model, the
@@ -45,7 +61,8 @@ truth; maintain the guardrail in `compatibility-vs-physics.md`.
 | Command | Proves |
 |---|---|
 | `pnpm test` | the hydraulic laws against published tables |
-| `pnpm typecheck` | the engine type-checks |
+| `pnpm typecheck` | engine and app type-check (`svelte-check`) |
+| `pnpm build` | the app prerenders to static files in `build/` |
 
-Nothing else is needed: no database, no Docker, no browser. Before handing
-work back, run both.
+No database, no Docker. Before handing work back, run all three. `pnpm dev`
+serves the app locally.
