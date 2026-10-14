@@ -53,10 +53,11 @@
   let viewWidth = $state(0);
   let viewHeight = $state(0);
   let windowHeight = $state(800);
+  let windowWidth = $state(1200);
   let scroller: HTMLDivElement | undefined = $state();
   /** Below this the constant-size gauges crowd each other; the canvas scrolls sideways instead. */
   const MIN_FIT_ZOOM = 0.12;
-  /** Height of the on-canvas hose toolbar: a selected hose keeps the canvas tall enough to show it. */
+  /** Height of the on-canvas hose toolbar, to open it upward when there is no room below. */
   const HOSE_BAR_PX = 180;
   let svg: SVGSVGElement | undefined = $state();
 
@@ -85,17 +86,16 @@
   });
 
   const fitted = $derived(fitBounds(scenario.sections, floorM));
-  // Fit the width, then take the height that needs, capped at the space the window has.
-  const maxHeight = $derived(Math.max(320, windowHeight - 200));
+  // The canvas takes the height the window has (UX.md §2): the lay sits on the
+  // ground at the bottom and the rest is building above it, so a rising hose
+  // can be dragged up. Side by side, the page above the canvas is about 240 px.
+  const canvasHeight = $derived(Math.max(260, windowWidth >= 1024 ? windowHeight - 240 : windowHeight * 0.55));
   const fitZoom = $derived.by(() => {
     if (viewWidth === 0) return 1;
     const w = (fitted.maxX - fitted.minX) * PX_PER_M;
     const h = (fitted.maxY - fitted.minY) * PX_PER_M;
-    return Math.min(2.2, Math.max(MIN_FIT_ZOOM, Math.min(viewWidth / w, maxHeight / h)));
+    return Math.min(2.2, Math.max(MIN_FIT_ZOOM, Math.min(viewWidth / w, canvasHeight / h)));
   });
-  const canvasHeight = $derived(
-    Math.min(maxHeight, Math.max(selection.kind === "section" ? HOSE_BAR_PX + 80 : 240, ((frozen?.bounds ?? fitted).maxY - (frozen?.bounds ?? fitted).minY) * PX_PER_M * (frozen?.zoom ?? manualZoom ?? fitZoom) + 80)),
-  );
   const bounds = $derived(frozen?.bounds ?? fitted);
   const zoom = $derived(frozen?.zoom ?? manualZoom ?? fitZoom);
   /** Multiply screen-size things by k so they stay the same size at any zoom. */
@@ -103,13 +103,14 @@
   /** Floor labels are constant-size: below this they would overlap, so they hide. */
   const showFloorLabels = $derived(floorM * PX_PER_M * zoom >= 20);
 
+  const filled = $derived(fillViewport(bounds, viewWidth, viewHeight, zoom));
   const layout = $derived(
     layoutWorld(
       scenario.sections,
       result.nodes.map((n) => n.pressurePsi),
-      fillViewport(bounds, viewWidth, viewHeight, zoom),
+      filled,
       floorM,
-      bounds.maxY,
+      filled.maxY,
     ),
   );
   const last = $derived(layout.nodes.length - 1);
@@ -142,7 +143,7 @@
     const i = dragging - 1;
     const p = worldPoint(event);
     const run = Math.max(0, Math.round((layout.distanceAt(p.x) - layout.nodes[i].distanceM) * 2) / 2);
-    const height = snapHeightM(Math.min(bounds.maxY, Math.max(bounds.minY, layout.elevationAt(p.y))), floorM);
+    const height = snapHeightM(Math.min(layout.elevationAt(0), Math.max(bounds.minY, layout.elevationAt(p.y))), floorM);
     const node = layout.nodes[dragging];
     if (run !== Math.round((node.distanceM - layout.nodes[i].distanceM) * 2) / 2 || height !== node.elevationM) {
       onMove(i, run, height);
@@ -200,7 +201,7 @@
   const selectedHose = $derived(selection.kind === "section" ? layout.hoses[selection.index] : undefined);
 </script>
 
-<svelte:window bind:innerHeight={windowHeight} />
+<svelte:window bind:innerHeight={windowHeight} bind:innerWidth={windowWidth} />
 
 <div class="canvas" style:--k={k}>
   <div class="scroller" style:height={`${canvasHeight}px`} bind:this={scroller} bind:clientWidth={viewWidth} bind:clientHeight={viewHeight}>
