@@ -261,6 +261,19 @@ paño, bifurca, desnivel).
 | **M6 Aerial** | §8 | Tipping margin vs load chart |
 | Later | Two pumps (7.7), hydrant and drafting, station data from fd-app, lessons as annotated presets | |
 
+## 10b. Course correction (owner, 2026-10-15)
+
+The first side view was a viewer of a fixed scenario; the owner's test
+found it barebones (fiddly drag, no typed pressure, a checkbox for the
+nozzle, nothing to add). M1 now leads with **editing**: an inspector for
+the tapped element with typed fields and ± steps, add/remove sections,
+hose size and length, nozzle model and rating, heights by floor, a pump
+panel, and the nozzle's bale worked by tapping it. Deferred, additive
+later: **routes** (stairs, window hoist; hydraulically only height and
+length matter, so a route is drawing data plus the length it implies),
+dragging pieces from a toolbar, and a visual-only **line-charging**
+animation (a water front at the solved velocity; not a transient model).
+
 ## 11. Decisions (owner, 2026-10-14)
 
 1. **Kinks:** out of scope (§7.5).
