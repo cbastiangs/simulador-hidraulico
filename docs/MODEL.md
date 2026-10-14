@@ -188,7 +188,7 @@ grows with Q². What a coupling does limit is **what can be connected**
   (UX.md §6).
 - A hose's coupling size is its diameter, except 1¾″ (1½″ couplings) and 3″
   (2½″ or 3″, already two rows in §3.1). Basis: `convention`, `verify`
-  against the station's hose; `hoseCouplingIn` in `catalog.ts`. **Confirmed by
+  against the station's hose; `couplingIn` on each `HOSE_SIZES` row. **Confirmed by
   the owner (2026-10-14):** most stations run 1¾″ hose on 1½″ couplings and
   3″ hose on 2½″ couplings.
 - **Effect on the friction law:** none of its own. The coupling is already

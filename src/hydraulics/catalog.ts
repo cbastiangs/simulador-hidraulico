@@ -42,20 +42,9 @@ const GENERIC_INLET: Provenance = {
   note: "generic: 1-1/2\" inlet for nozzles up to 150 gpm, 2-1/2\" above; replace with the datasheet value",
 };
 
-/**
- * Coupling size of a hose, inches. Convention: the hose's own diameter, except
- * 1-3/4\" (1-1/2\" couplings) and 3\" (2-1/2\" or 3\" per its row). `verify`
- * against the station's hose (MODEL.md §3.4c).
- */
-export function hoseCouplingIn(hose: HoseSize): number {
-  if (hose.id === "1-3/4") return 1.5;
-  if (hose.id === "3/2-1/2") return 2.5;
-  return hose.nominalDiameterIn;
-}
-
 /** "direct" if the nozzle screws on; "adapter" if it needs one (drawn, not costed). */
 export function couplingFit(nozzleInletIn: number, hose: HoseSize): "direct" | "adapter" {
-  return nozzleInletIn === hoseCouplingIn(hose) ? "direct" : "adapter";
+  return nozzleInletIn === hose.couplingIn ? "direct" : "adapter";
 }
 
 const FOG_PRESSURE: Provenance = {
