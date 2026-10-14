@@ -30,16 +30,19 @@
   (owner, 2026-10-16; replaces "horizontal = distance along the hose").
 - **One uniform scale, no exaggeration.** 14 px per metre at zoom 1 in both
   directions, so lengths look like lengths.
-- **The canvas sizes itself to the lay** (owner, 2026-10-16; replaces "the
+- **The canvas fits the lay** (owner, 2026-10-16; replaces "the
   scale never changes on its own" and "bounds grow, never shrink"). The
   world is the lay plus margins, recomputed on every edit; the zoom fits
-  its width, the canvas takes the height that needs, capped at the window's
-  available height. Auto-fit goes down to 12 % so a long lay always fits without
+  its width (or its height, if that is smaller). Auto-fit goes down to 12 % so a long lay always fits without
   a scrollbar; − / + range 10 %–300 % (owner, 2026-10-14: zooming out must
   be possible).
-  The height is the lay's own height at that zoom (no sky padding; 200 px at
-  least, plus room for the top gauge), animated when it changes; a selected hose keeps it tall enough for
-  its toolbar, which opens upward when there is no room below. Floor labels
+  The canvas takes the height the window has (owner, 2026-10-14: "height was
+  my gripe"; replaces sizing it to the lay): the window height minus about
+  240 px of page above it when side by side, 55 % of the window on a phone, 260 px
+  at least. The lay sits on the ground at the bottom and the rest is
+  building: floor bands continue up, and a coupling or the nozzle can be
+  dragged to any visible floor. The height does not change with the lay, so
+  nothing jumps when editing. Floor labels
   hide when floors are under 20 px apart.
 - **Slack is always visible.** A hose in the air sags; slack on the floor
   (it cannot hang) is drawn piled in arches along the chord, taller when the
