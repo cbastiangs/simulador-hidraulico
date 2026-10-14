@@ -34,12 +34,16 @@
   scale never changes on its own" and "bounds grow, never shrink"). The
   world is the lay plus margins, recomputed on every edit; the zoom fits
   its width, the canvas takes the height that needs, capped at the window's
-  available height. Below 30 % zoom the constant-size gauges would crowd, so
-  it stops shrinking and scrolls sideways instead, starting on the nozzle.
+  available height. Auto-fit goes down to 12 % so a long lay always fits without
+  a scrollbar; − / + range 10 %–300 % (owner, 2026-10-14: zooming out must
+  be possible).
   The height is the lay's own height at that zoom (no sky padding; 200 px at
-  least), animated when it changes; a selected hose keeps it tall enough for
+  least, plus room for the top gauge), animated when it changes; a selected hose keeps it tall enough for
   its toolbar, which opens upward when there is no room below. Floor labels
   hide when floors are under 20 px apart.
+- **Slack is always visible.** A hose in the air sags; slack on the floor
+  (it cannot hang) is drawn piled in arches along the chord, taller when the
+  chord is short. Drawing only; the label says "holgura x m".
   During a drag the world and zoom are frozen (refitting under the pointer
   would move the target) and refit on release. − / + set a manual zoom;
   "Ajustar" returns to automatic.

@@ -55,7 +55,7 @@
   let windowHeight = $state(800);
   let scroller: HTMLDivElement | undefined = $state();
   /** Below this the constant-size gauges crowd each other; the canvas scrolls sideways instead. */
-  const MIN_FIT_ZOOM = 0.3;
+  const MIN_FIT_ZOOM = 0.12;
   /** Height of the on-canvas hose toolbar: a selected hose keeps the canvas tall enough to show it. */
   const HOSE_BAR_PX = 180;
   let svg: SVGSVGElement | undefined = $state();
@@ -89,7 +89,7 @@
     return Math.min(1.6, Math.max(MIN_FIT_ZOOM, Math.min(viewWidth / w, maxHeight / h)));
   });
   const canvasHeight = $derived(
-    Math.min(maxHeight, Math.max(selection.kind === "section" ? HOSE_BAR_PX + 80 : 200, ((frozen?.bounds ?? fitted).maxY - (frozen?.bounds ?? fitted).minY) * PX_PER_M * (frozen?.zoom ?? manualZoom ?? fitZoom) + 24)),
+    Math.min(maxHeight, Math.max(selection.kind === "section" ? HOSE_BAR_PX + 80 : 240, ((frozen?.bounds ?? fitted).maxY - (frozen?.bounds ?? fitted).minY) * PX_PER_M * (frozen?.zoom ?? manualZoom ?? fitZoom) + 80)),
   );
   const bounds = $derived(frozen?.bounds ?? fitted);
   const zoom = $derived(frozen?.zoom ?? manualZoom ?? fitZoom);
@@ -113,7 +113,7 @@
   const adapter = $derived(outletIn !== undefined && outletIn !== scenario.sections[0].diameterIn);
 
   function setManualZoom(z: number) {
-    manualZoom = Math.min(2.5, Math.max(0.3, z));
+    manualZoom = Math.min(3, Math.max(0.1, z));
   }
 
   function worldPoint(event: PointerEvent) {

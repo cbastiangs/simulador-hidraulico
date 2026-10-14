@@ -128,6 +128,32 @@ function lowestY(y0: number, yc: number, y2: number) {
   return Math.max(y0, y2, t > 0 && t < 1 ? at(t) : -Infinity);
 }
 
+/**
+ * A hose lying on the floor with slack, drawn piled in arches along the chord
+ * (visual only). Small slack: semicircles (π/2 times their chord, so 0.571 of
+ * it is extra hose) from the start, then straight. More than the chord can
+ * hold: arches fill the chord and grow taller (semi-ellipse, ≤ 4 m) to take
+ * the length. Arches are at most 3 m across.
+ */
+function pileOfArches(a: { x: number; y: number }, b: { x: number; y: number }, chordPx: number, slackPx: number) {
+  const saturated = slackPx / (Math.PI / 2 - 1) > chordPx;
+  const covered = saturated ? chordPx : slackPx / (Math.PI / 2 - 1);
+  const n = Math.max(1, Math.ceil(covered / (3 * PX_PER_M)));
+  const d = covered / n;
+  const rx = d / 2;
+  // Semi-ellipse perimeter ≈ π·√((rx² + ry²)/2); solve for the length one arch must take.
+  const target = d + (saturated ? slackPx / n : (d * (Math.PI / 2 - 1)));
+  const ry = saturated ? Math.min(4 * PX_PER_M, Math.sqrt(Math.max(rx * rx, 2 * (target / Math.PI) ** 2 - rx * rx))) : rx;
+  const ux = (b.x - a.x) / chordPx;
+  const uy = (b.y - a.y) / chordPx;
+  const rot = (Math.atan2(uy, ux) * 180) / Math.PI;
+  let path = `M ${a.x} ${a.y}`;
+  for (let i = 1; i <= n; i++) {
+    path += ` A ${rx} ${ry} ${rot} 0 1 ${a.x + ux * d * i} ${a.y + uy * d * i}`;
+  }
+  return `${path} L ${b.x} ${b.y}`;
+}
+
 export function layoutWorld(
   sections: readonly Section[],
   pressuresPsi: readonly number[],
@@ -161,14 +187,21 @@ export function layoutWorld(
     for (let k = 0; k < 30 && sag > 0 && lowestY(a.y, (a.y + b.y) / 2 + 2 * sag, b.y) > floorY; k++) sag *= 0.85;
     const mx = (a.x + b.x) / 2;
     const my = (a.y + b.y) / 2;
+    const slackM = Math.max(0, s.lengthM - chord);
+    // Slack on the floor can't hang, so it is drawn piled up in arches.
+    const piled = slackM >= 0.5 && sag < 0.25 * PX_PER_M;
     return {
       // Quadratic Bézier: control point twice the sag below the midpoint puts the curve's middle at the sag.
-      d: sag > 0 ? `M ${a.x} ${a.y} Q ${mx} ${my + 2 * sag} ${b.x} ${b.y}` : `M ${a.x} ${a.y} L ${b.x} ${b.y}`,
+      d: piled
+        ? pileOfArches(a, b, chord * PX_PER_M, slackM * PX_PER_M)
+        : sag > 0
+          ? `M ${a.x} ${a.y} Q ${mx} ${my + 2 * sag} ${b.x} ${b.y}`
+          : `M ${a.x} ${a.y} L ${b.x} ${b.y}`,
       labelX: mx,
       labelY: my + sag,
       angle: (Math.atan2(b.y - a.y, b.x - a.x) * 180) / Math.PI,
       thicknessPx: Math.max(3, s.diameterIn * PX_PER_INCH),
-      slackM: Math.max(0, s.lengthM - chord),
+      slackM,
       index: i,
     };
   });
