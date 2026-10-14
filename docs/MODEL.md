@@ -180,9 +180,15 @@ grows with Q². What a coupling does limit is **what can be connected**
   goes on a hose whose coupling matches, or through an **adapter** that is
   drawn and named; adapter loss is not modelled until fittings exist
   (§3.10).
+- **The inlet is data, not a function of gpm** (owner, 2026-10-14): the
+  inlet size is read from the datasheet or plate and constrains the flow
+  class, never the other way. The built-in generic nozzles declare it
+  explicitly (1½″ up to 150 gpm, 2½″ for 250 gpm, marked generic); a real
+  catalog row (`inlet_size_in`) overrides it. The picker groups by fit
+  (UX.md §6).
 - A hose's coupling size is its diameter, except 1¾″ (1½″ couplings) and 3″
   (2½″ or 3″, already two rows in §3.1). Basis: `convention`, `verify`
-  against the station's hose.
+  against the station's hose; `hoseCouplingIn` in `catalog.ts`.
 - A "maximum practical flow" per hose size is a training rule of thumb, not
   a law; it enters only with a published source (§9).
 
