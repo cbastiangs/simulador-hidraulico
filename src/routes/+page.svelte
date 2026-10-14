@@ -94,7 +94,7 @@
     display: grid;
     gap: var(--gap);
     padding: var(--gap);
-    max-width: 1440px;
+    max-width: 2000px;
     margin: 0 auto;
     grid-template-columns: minmax(0, 1fr) 340px;
     grid-template-areas: "top top" "pump pump" "canvas side" "results side";
