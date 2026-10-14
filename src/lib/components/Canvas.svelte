@@ -14,6 +14,7 @@
   import type { Selection } from "$lib/selection.ts";
   import Gauge from "./Gauge.svelte";
   import NozzleDrawing from "./NozzleDrawing.svelte";
+  import { hoseVelocityMps } from "$hydraulics/velocity.ts";
 
   // The canvas (UX.md §2): one uniform scale, the lay auto-fitted to the
   // space available; gauges, labels, handles and the nozzle keep their screen
@@ -180,6 +181,15 @@
   /** 3" hoses come with two coupling sizes: "3″ (2½″)" names the coupling. */
   const chipLabel = (h: (typeof HOSE_SIZES)[number]) =>
     h.couplings ? `${fraction(h.diameter)} (${fraction(h.couplings)})` : fraction(h.diameter);
+  // Water particles (MODEL.md §3.7): one per GALLONS_PER_PARTICLE, moving at
+  // the real mean velocity v = Q/A. Their spacing, gallons / A, doesn't depend
+  // on Q: a narrow hose shows faster, sparser particles for the same flow.
+  const GALLONS_PER_PARTICLE = 1.25;
+  const particles = (diameterIn: number) => {
+    const seconds = (60 * GALLONS_PER_PARTICLE) / result.flowGpm;
+    return { gapPx: hoseVelocityMps(result.flowGpm, diameterIn) * seconds * PX_PER_M, seconds };
+  };
+
   const selectedHose = $derived(selection.kind === "section" ? layout.hoses[selection.index] : undefined);
 </script>
 
@@ -242,6 +252,10 @@
           {@const s = scenario.sections[h.index]}
           {@const width = Math.max(h.thicknessPx, 3 * k)}
           <path class="hose" d={h.d} stroke-width={width} />
+          {#if result.flowGpm > 0.5}
+            {@const p = particles(s.diameterIn)}
+            <path class="particles" d={h.d} stroke-width={Math.max(2, width * 0.3)} style:--gap={`${p.gapPx}px`} style:--period={`${p.seconds}s`} />
+          {/if}
           {#if isSection(h.index)}<path class="hose-selected" d={h.d} stroke-width={width + 6 * k} />{/if}
           <path
             class="hit"
@@ -365,6 +379,9 @@
   .wheel { fill: var(--ink); }
   .outlet, .coupling { fill: var(--steel); }
   .hose { stroke: var(--hose); stroke-linecap: butt; fill: none; }
+  .particles { fill: none; stroke: #fff; stroke-opacity: 0.85; stroke-linecap: round; stroke-dasharray: 0 var(--gap); animation: water var(--period) linear infinite; pointer-events: none; }
+  @keyframes water { to { stroke-dashoffset: calc(-1 * var(--gap)); } }
+  @media (prefers-reduced-motion: reduce) { .particles { animation: none; } }
   .hose-selected { fill: none; stroke: var(--accent); stroke-opacity: 0.35; stroke-linecap: round; pointer-events: none; }
   .hit { fill: none; stroke: transparent; cursor: pointer; outline: none; }
   .hit:focus-visible { stroke: var(--accent); stroke-opacity: 0.2; }

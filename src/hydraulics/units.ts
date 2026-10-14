@@ -14,6 +14,9 @@
 /** The international foot (1959). */
 export const METERS_PER_FOOT = 0.3048;
 
+/** The international inch (1959). */
+export const METERS_PER_INCH = 0.0254;
+
 /** The US liquid gallon: 231 in³. */
 export const LITERS_PER_US_GALLON = 3.785411784;
 
