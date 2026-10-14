@@ -51,6 +51,12 @@ export type ScenarioSection = {
    * than that means the hose has slack and is drawn sagging.
    */
   runM?: number;
+  /**
+   * Whether dragging a coupling may resize this hose (UX.md §2). Absent or
+   * false: the length is locked (a real hose does not stretch). Drawing and
+   * editing only; the hydraulics are unaffected.
+   */
+  lengthFree?: boolean;
 };
 
 /**
@@ -121,6 +127,11 @@ function oneOf<T extends string>(value: unknown, path: string, allowed: readonly
  * Any id string, known or not: ids are provenance only, and a row the
  * catalog drops later must not make old documents unreadable.
  */
+function boolFlag(value: unknown, path: string): boolean {
+  if (typeof value !== "boolean") throw new ScenarioError(path, "must be true or false");
+  return value;
+}
+
 function idOrNull(value: unknown, path: string) {
   if (value === null) return null;
   if (typeof value !== "string" || value.length > 100) throw new ScenarioError(path, "must be an id or null");
@@ -179,6 +190,7 @@ export function parseScenario(value: unknown): Scenario {
         frictionCoefficient: number(section.frictionCoefficient, `${path}.frictionCoefficient`, "zero or more"),
         lengthM: number(section.lengthM, `${path}.lengthM`, "zero or more"),
         endElevationM: number(section.endElevationM, `${path}.endElevationM`, "finite"),
+        ...(section.lengthFree === undefined ? {} : { lengthFree: boolFlag(section.lengthFree, `${path}.lengthFree`) }),
         ...(section.runM === undefined ? {} : { runM: number(section.runM, `${path}.runM`, "zero or more") }),
       };
     }),
