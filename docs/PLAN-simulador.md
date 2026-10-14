@@ -1,8 +1,8 @@
 # Hydraulics simulator
 
 > **2026-10-11, after extraction from fd-app:** `ROADMAP.md` now sets what
-> the simulator is for and the order of work. This document still governs
-> the model, constants and sources (§2–§4, §6). §1, §5 and §8 describe the
+> the simulator is for and the order of work. The model, constants and
+> sources now live in `MODEL.md`; this document keeps §4 and §6. §1, §5 and §8 describe the
 > fd-app integration as it was; the files they cite (`BACKLOG.md`,
 > `eslint.config.mjs`, `scripts/dev/smoke.mjs`, `data/catalog/`) are not in
 > this repo. §9's wye milestone moves after nozzles and trucks (ROADMAP §10). The
@@ -56,77 +56,21 @@ licence, code is "all rights reserved" by default. What bears on the choice:
 
 ## 2. The model
 
-Each element has one pressure law, and the line is those laws solved
-together:
+Moved to **`MODEL.md`** (2026-10-14): every law, its constants, units,
+sources, validity and status, the methods, the manual errors never encoded,
+and what must be verified before each law is implemented. Two principles
+from this section stay here as history:
 
-| Element | Law | Parameters |
-|---|---|---|
-| hose | FL = C · (Q/100)² · (L/100) | length, C |
-| fixed-orifice nozzle | NP = NPr · (Q/Qr)² | rated flow and pressure |
-| height | EP = k · h | nozzle height above the pump; k from the method (§3) |
-| line | PDP = NP + FL + EP | pump discharge pressure |
-
-**Flow is the solution, never an input.** The exploratory lab took GPM as a
-free input next to pump pressure, so it could show 150 GPM through a nozzle
-receiving 20 PSI. Here a nozzle delivers its rated flow only at its rated
-pressure.
-
-**No "training mode" vs "simulation mode".** The classic calculation (what
-PDP does this nozzle need?) and the simulation (what does this PDP deliver?)
-are the same equations read in opposite directions. The screen always
-simulates, and shows the classic answer beside it with one tap to apply it.
-
-**A method swaps constants, never laws.** "Manual CGBVP 2019" and
-"Hidrostática" differ only in k. Both are solved by the same code, so every
-answer the screen gives is consistent under either.
-
-**Units.** Internally the station's units (owner, 2026-10-14; replaces
-psi/gpm/feet): metres for length and height, inches for diameters, psi,
-US gpm. Published constants defined in feet (C per 100 ft, 0.434 psi/ft)
-are converted once, inside the law that uses them, with the exact factor
-in `src/hydraulics/units.ts`; CGBVP's 1.5 psi/m is now its native value.
-The choice has no numerical effect (exact factors, error ~1e-16 against
-2–3-figure constants): it is for readable documents and tests. EPANET,
-when used as an oracle, accepts SI input and converts internally. Other
-display units (bar, L/min, ft) are converted at the screen's edge, and a
-displayed rounding never writes back into the model.
-
-**Position is not hydraulics, yet.** The drawing is a plan view, and
-dragging only arranges it. §7 proposes making the drag meaningful.
+- **No "training mode" vs "simulation mode".** The classic calculation (what
+  pressure does this nozzle need?) and the simulation (what does this
+  pressure deliver?) are the same equations read in opposite directions.
+- **Position is not hydraulics.** Dragging arranges the drawing; only heights
+  and lengths, which are data, change the solution.
 
 ## 3. Sources
 
-The CGBVP manual has been reviewed: CGBVP / DIGEFA, *Curso de Hidráulica
-aplicada a la lucha contra incendios*, 4th version, August 2019. The
-summaries are in `docs/manual-summaries/hydraulics/`: technical review,
-numerical reference, validation cases, open questions.
-
-| Constant | Value | Source | How it is checked |
-|---|---|---|---|
-| C by hose size | 24 (1-1/2"), 15.5 (1-3/4"), 2 (2-1/2"), 0.8 (3"), 0.2 (4") | **CGBVP manual p. 39**, identical to IFSTA | tests: manual cases VC-01..03 and 28 cells of the Colorado chart |
-| C, IFSTA only | 0.677 (3" with 3" couplings), 0.08 (5") | Colorado DFPC, *Driver/Operator Pumper chart* (Jan 2020) | chart cells |
-| metric C | 38 for 38 mm, in kPa · (100 L/min)⁻² · (100 m)⁻¹ | bomberos.info, "Cálculo de pérdidas de presión por fricción" | cross-checks the unit layer within 0.3 % |
-| elevation, method `cgbvp-2019` (default) | 1.5 psi/m; 10 m = 15 psi | CGBVP manual p. 44 | test VC-04 |
-| elevation, method `physical` | 0.434 psi/ft = 1.42 psi/m | hydrostatics | test VC-04 (14.22 psi for 10 m) |
-| nozzle | Q ∝ √P | the orifice law; Freeman's smooth-bore formula is one case of it | test VC-06 |
-
-**Where CGBVP and physics part ways:**
-
-- **Elevation** (built as the method choice). The manual rounds up by 5.5 %,
-  under 1 PSI per 10 m. The same page also mentions 1.4 psi/m.
-- **Tables read 30 m as 100 ft.** Exact conversion gives about 1.6 % less
-  friction. Not reproduced: the simulator converts exactly, and VC-02 records
-  the difference.
-- **Fixed appliance losses** (p. 45): valves, wyes and reducers 5 psi,
-  siamese 10, monitor 10–25, eductor 40. These join the method once lines
-  branch (§9).
-- **Default nozzle pressures** (p. 72): 50 handline smooth bore, 80 master
-  stream, 100 fog. Suitable as defaults, never as laws.
-
-**Errors in the manual not to encode** (review §17.6): density in the flow
-equation (p. 18); 10 m = 14.7 psi (p. 31); Bernoulli missing ρ (p. 35); +22 %
-for 50→80 psi on a fixed orifice, where the law gives +26.5 % (p. 71, test
-VC-06); relay figures that contradict the manual's own C (p. 82).
+Moved to `MODEL.md` (constants and their basis) and `references.ts`
+(machine-readable sources).
 
 ## 4. Unknowns
 
