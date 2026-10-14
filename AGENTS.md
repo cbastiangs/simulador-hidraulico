@@ -19,9 +19,12 @@ here untouched; the screen and station-data integration are still open (see
 - `docs/ROADMAP.md` — what the simulator is (a playground of lays), the
   stack, the scenario document, trucks, and the milestone order. Read it
   first.
-- `docs/PLAN-simulador.md` — the design authority: model, constants and their
-  sources, the open licence/placement question, solver roadmap. Where its
-  sequencing or fd-app plumbing disagrees with `ROADMAP.md`, the roadmap wins.
+- `docs/MODEL.md` — every law and constant: formula, units, source, status,
+  and what to verify before implementing. Code, tests and on-screen formulas
+  follow it.
+- `docs/PLAN-simulador.md` — history and open questions: the licence and
+  placement question, solver roadmap, station data. Where its sequencing or
+  fd-app plumbing disagrees with `ROADMAP.md`, the roadmap wins.
 - `docs/manual-summaries/hydraulics/` — the CGBVP 2019 review that grounds the
   physical model.
 
@@ -54,9 +57,10 @@ here untouched; the screen and station-data integration are still open (see
 ## Design documents over code
 
 The `docs/` documents are the design pass. Before changing the model, the
-constants, or the element laws, re-read `PLAN-simulador.md` and the summaries
-they name. The manual is a training/compatibility reference, not physical
-truth; maintain the guardrail in `compatibility-vs-physics.md`.
+constants, or the element laws, re-read `MODEL.md` and the summaries it
+names; a new law enters `MODEL.md` first, with its basis, before code. The
+manual is a training/compatibility reference, not physical truth; maintain
+the guardrail in `compatibility-vs-physics.md`.
 
 ## Verification
 
@@ -65,6 +69,11 @@ truth; maintain the guardrail in `compatibility-vs-physics.md`.
 | `pnpm test` | the hydraulic laws against published tables |
 | `pnpm typecheck` | engine and app type-check (`svelte-check`) |
 | `pnpm build` | the app prerenders to static files in `build/` |
+
+**Test budget:** tests exist to catch wrong numbers that look right. One
+test per law per source, against published tables or hand arithmetic. No
+tests for UI, geometry or crashes (those are visible); no test repeating
+what another proves.
 
 No database, no Docker. Before handing work back, run all three. `pnpm dev`
 serves the app locally.
