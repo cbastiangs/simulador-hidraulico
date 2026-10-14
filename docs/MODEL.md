@@ -137,6 +137,22 @@ psi.
 - Default NP: 50 psi handline, 80 psi master stream (`convention`, CGBVP
   p. 72).
 
+### 3.4b Two independent properties of a nozzle
+
+A nozzle has a **design** and a **flow control**, chosen independently:
+
+- **Design (stream):** smooth bore (solid stream, no pattern) or
+  combination/fog (pattern from straight stream to wide fog). It decides
+  stream shape, reach and reaction (§3.6), not the pressure–flow law.
+- **Flow control:** single gallonage (one rating), selectable gallonage (a
+  ring of settings, each a fixed orifice) or automatic (holds a pressure
+  across a flow range). It decides the pressure–flow law.
+
+A combination nozzle can have any of the three flow controls; a smooth bore
+is single per tip. The scenario's `nozzle.kind` is the flow control; the
+design is a separate attribute (catalog and data template:
+`data/templates/nozzles-template.csv`).
+
 ### 3.5 Fog nozzles
 
 **Fixed gallonage:** `nozzle.fixed-orifice` (§3.3), default NP 100 psi
