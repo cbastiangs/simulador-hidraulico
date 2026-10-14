@@ -74,25 +74,44 @@ export function setNozzleSpec(scenario: Scenario, specId: string): Scenario {
       ...scenario.nozzle,
       kind: spec.kind,
       specId: spec.id,
+      settingsGpm: [...spec.settingsGpm],
       ratedFlowGpm: spec.ratedFlowGpm,
       ratedPressurePsi: spec.ratedPressurePsi,
     },
   };
 }
 
-/** A hand-entered rating: the values are the user's, so the catalog id no longer applies. */
+/**
+ * A hand-entered rating: the values are the user's, so the catalog id no
+ * longer applies. A typed flow makes it a single-rating nozzle; a typed
+ * pressure keeps a gallonage ring (all its settings share the pressure).
+ */
 export function setNozzleRating(
   scenario: Scenario,
   rating: { ratedFlowGpm?: number; ratedPressurePsi?: number },
 ): Scenario {
   const { nozzle } = scenario;
+  const typedFlow = rating.ratedFlowGpm !== undefined;
   return {
     ...scenario,
     nozzle: {
       ...nozzle,
       specId: null,
+      kind: typedFlow ? "fixed-orifice" : nozzle.kind,
+      settingsGpm: typedFlow ? [] : nozzle.settingsGpm,
       ratedFlowGpm: within(rating.ratedFlowGpm ?? nozzle.ratedFlowGpm, LIMITS.ratedFlowGpm),
       ratedPressurePsi: within(rating.ratedPressurePsi ?? nozzle.ratedPressurePsi, LIMITS.ratedPressurePsi),
     },
   };
+}
+
+/** Turns the gallonage ring to one of its settings. */
+export function setNozzleSetting(scenario: Scenario, flowGpm: number): Scenario {
+  if (!scenario.nozzle.settingsGpm.includes(flowGpm)) return scenario;
+  return { ...scenario, nozzle: { ...scenario.nozzle, ratedFlowGpm: flowGpm } };
+}
+
+/** 0 straight stream … 1 wide fog: drawing only. */
+export function setNozzlePattern(scenario: Scenario, pattern: number): Scenario {
+  return { ...scenario, nozzle: { ...scenario.nozzle, pattern: clamp(pattern, 0, 1) } };
 }

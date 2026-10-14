@@ -1,0 +1,40 @@
+{
+  "schema": "simulador-hidraulico/scenario",
+  "version": 1,
+  "name": "Ataque al 2.º piso: 2-1/2\" + 1-1/2\", pitón combinado",
+  "methodId": "physical",
+  "source": {
+    "kind": "fixed-pressure",
+    "pressurePsi": 132
+  },
+  "sections": [
+    {
+      "hoseSizeId": "2-1/2",
+      "diameterIn": 2.5,
+      "frictionCoefficient": 2,
+      "lengthM": 30,
+      "endElevationM": 0
+    },
+    {
+      "hoseSizeId": "1-1/2",
+      "diameterIn": 1.5,
+      "frictionCoefficient": 24,
+      "lengthM": 30,
+      "endElevationM": 6
+    }
+  ],
+  "nozzle": {
+    "kind": "selectable",
+    "specId": "combination-selectable",
+    "settingsGpm": [
+      30,
+      60,
+      95,
+      125
+    ],
+    "ratedFlowGpm": 95,
+    "ratedPressurePsi": 100,
+    "pattern": 0.25,
+    "open": true
+  }
+}

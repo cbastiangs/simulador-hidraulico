@@ -19,8 +19,10 @@
   "nozzle": {
     "kind": "fixed-orifice",
     "specId": "fog-100",
+    "settingsGpm": [],
     "ratedFlowGpm": 100,
     "ratedPressurePsi": 100,
+    "pattern": 0.25,
     "open": true
   }
 }
