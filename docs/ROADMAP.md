@@ -84,8 +84,11 @@ never changes the hydraulics.
 documents parse unchanged; a change of meaning bumps `version` and adds one
 migration function from the previous version, so old links keep opening.
 Until the first document is shared, the format can still change freely.
-Data-collection CSVs (`data/templates/`) are not this schema: their columns
-can be added at any time.
+Data-collection CSV templates (`data/templates/`) and sourced equipment
+reference CSVs (`data/catalog/`) are not this schema: their columns can be
+added at any time. Catalog rows retain their manufacturer source and may be
+incomplete where a published spec is missing; they are reference material,
+not runtime simulator inputs yet.
 
 ## 5. Views and drawing rules
 
@@ -247,6 +250,7 @@ src/
                    Gauge), canvas particles, scenario store, units display
   routes/          SvelteKit pages
 data/
+  catalog/         sourced nozzle and monitor reference CSVs
   apparatus/       truck files
   presets/         scenario documents
 tests/
