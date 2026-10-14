@@ -99,6 +99,10 @@ Drawing rules:
 - **Pump × system curve** chart: the operating point where the pump's
   capacity meets the lay's demand. One picture for flow, friction,
   elevation, nozzle type and capacity.
+- **Geometry in plain TypeScript.** Positions, scales and paths are pure
+  functions in `src/lib/geometry/`; components only render their output.
+  This keeps the logic testable under `node --test` and a framework switch
+  limited to the components.
 - **Performance:** SVG for the lay (tens of elements, crisp, touchable,
   accessible); one canvas layer for particles, animated outside the
   framework, with the count adapted to the device. Particles are off under
@@ -153,6 +157,30 @@ Envelope, outlets, discharge valves, governor modes, tank.
 Wyes, siamese, reducers and couplings. Under `cgbvp-2019`, fixed losses (p.
 45: 5/10/25/40 psi). Under `physical`, a K or manufacturer curve once a
 source is chosen.
+
+### 7.4b Standpipes
+
+Fit the series and tree solvers in levels:
+
+1. **Outlet as the source** (with M2): the fire-floor outlet is a
+   fixed-pressure source; heights are measured from it. Needs nothing new.
+   Showcase preset: **high-rise, smooth bore vs fog** — at the outlet
+   pressure a standpipe gives, a 50 psi smooth bore reaches its flow and a
+   100 psi fog nozzle falls short of its rating; turning a selectable fog
+   down trades away the flow. Include low-pressure fog (50/75 psi) so the
+   comparison is fair. Stream reach and coherence: manufacturer data or a
+   labelled qualitative comparison, never a ballistic claim (review §14).
+2. **Whole system** (with M4): engine → supply → FDC (appliance loss) →
+   riser (a section with a large rise and a steel-pipe law, Hazen–Williams,
+   as NFPA 13/14 use) → outlet → hose → nozzle.
+3. **Pressure-reducing valves** (with M4): downstream pressure =
+   min(set-point, incoming − loss). Depends on upstream pressure, so the
+   solver walks the line forward; still monotone in Q, so bisection holds.
+4. **Several sources** (with §7.7): two engines on the FDC, a building
+   fire pump boosted by an engine.
+
+Outlet design pressures (NFPA 14, by edition) and any fire-service
+standpipe allowances are cited before they are used, never from memory.
 
 ### 7.5 Kinks: out of scope
 
@@ -224,7 +252,7 @@ paño, bifurca, desnivel).
 | | Delivers | Shows |
 |---|---|---|
 | **M0** ✅ | Roadmap; import-boundary test; Node pin | — |
-| **M1 Foundation** | SvelteKit static app; scenario document v1; element laws + solver (7.1); one truck outlet → hose → nozzle; top-down and side views; gauges; particles; pressure budget; units; share link. **Test on the oldest tablet at the station.** | Flow vs pressure, friction, elevation |
+| **M1 Foundation** | SvelteKit static app; scenario document v1; element laws + solver (7.1); one truck outlet → hose → nozzle; top-down and side views; gauges; particles; pressure budget; units; share link. **Test on the oldest tablet at the station; this is also the checkpoint for keeping Svelte or switching to React.** | Flow vs pressure, friction, elevation |
 | **M2 Nozzles** | Nozzle kinds and reaction; A/B compare | Smooth bore vs fog |
 | **M3 Trucks** | Truck files, capacity envelope, several outlets with valves, governor, tank; pump × system chart | Pump capacity |
 | **M4 Branching** | Wyes, appliances, couplings; presets from station maniobras | Diameter and couplings in real lays |
