@@ -79,6 +79,14 @@ The document stores hydraulic facts (lengths, diameters, heights) and
 separately a layout (where things are drawn). Moving something on screen
 never changes the hydraulics.
 
+**Evolving the format.** Strict on purpose, because documents leave the app
+(links, files). Additions are new optional fields with defaults, so old
+documents parse unchanged; a change of meaning bumps `version` and adds one
+migration function from the previous version, so old links keep opening.
+Until the first document is shared, the format can still change freely.
+Data-collection CSVs (`data/templates/`) are not this schema: their columns
+can be added at any time.
+
 ## 5. Views and drawing rules
 
 - **Top-down view = the editor.** Connections, not geography: hose length is
