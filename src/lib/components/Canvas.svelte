@@ -3,16 +3,15 @@
   import type { Scenario } from "$hydraulics/scenario.ts";
   import type { SeriesResult } from "$hydraulics/series.ts";
   import {
-    VERTICAL_EXAGGERATION,
-    SCALE,
+    PX_PER_M,
     fillViewport,
     fitBounds,
     growBounds,
     layoutWorld,
     snapHeightM,
-    snapLengthM,
     type Bounds,
   } from "$lib/geometry/world.ts";
+  import type { LengthMode } from "$lib/edit.ts";
   import type { Selection } from "$lib/selection.ts";
   import Gauge from "./Gauge.svelte";
   import NozzleDrawing from "./NozzleDrawing.svelte";
@@ -27,8 +26,9 @@
     floorM = 3,
     resetKey,
     onSelect,
-    onLength,
-    onElevation,
+    mode,
+    onModeChange,
+    onMove,
     onToggleNozzle,
   }: {
     scenario: Scenario;
@@ -38,8 +38,10 @@
     /** Changes when a new lay is loaded: the world is refitted to it. */
     resetKey: string;
     onSelect: (s: Selection) => void;
-    onLength: (sectionIndex: number, lengthM: number) => void;
-    onElevation: (sectionIndex: number, elevationM: number) => void;
+    mode: LengthMode;
+    onModeChange: (mode: LengthMode) => void;
+    /** Move the coupling at the end of a section to a horizontal run and height (edit.moveCoupling). */
+    onMove: (sectionIndex: number, runM: number, elevationM: number) => void;
     onToggleNozzle: () => void;
   } = $props();
 
@@ -73,6 +75,7 @@
       result.nodes.map((n) => n.pressurePsi),
       fillViewport(bounds, viewWidth, viewHeight, zoom),
       floorM,
+      bounds.maxY,
     ),
   );
   const last = $derived(layout.nodes.length - 1);
@@ -82,10 +85,31 @@
     zoom = Math.min(2.5, Math.max(0.4, z));
   }
 
+  /**
+   * Refits the world to the lay, zooms so it fits the width (never below 60 %,
+   * so text stays readable), and scrolls the selected element into view. Runs
+   * on loading a lay and on "Ajustar"; otherwise the scale never changes on
+   * its own (UX.md §2).
+   */
   function fit() {
-    bounds = fitBounds(scenario.sections, floorM);
-    if (scroller) setZoom(Math.min(1, Math.max(0.6, scroller.clientWidth / layout.widthPx)));
+    const fitted = fitBounds(scenario.sections, floorM);
+    bounds = fitted;
+    if (viewWidth > 0) setZoom(Math.min(1, Math.max(0.6, viewWidth / ((fitted.maxX - fitted.minX) * PX_PER_M))));
+    requestAnimationFrame(() => {
+      if (!scroller) return;
+      const node = selection.kind === "nozzle" ? layout.nodes[last] : layout.nodes[selection.index + 1];
+      scroller.scrollLeft = Math.max(0, node.x * zoom - viewWidth * 0.6);
+    });
   }
+
+  // Fit once the canvas has a size, and again whenever a new lay is loaded.
+  let fittedFor: string | null = null;
+  $effect(() => {
+    if (viewWidth > 0 && resetKey !== fittedFor) {
+      fittedFor = resetKey;
+      untrack(fit);
+    }
+  });
 
   function worldPoint(event: PointerEvent) {
     const rect = svg!.getBoundingClientRect();
@@ -102,11 +126,12 @@
     if (dragging === null) return;
     const i = dragging - 1;
     const p = worldPoint(event);
-    const start = layout.nodes[i].distanceM;
-    const length = snapLengthM(layout.distanceAt(p.x) - start);
+    const run = Math.max(0, Math.round((layout.distanceAt(p.x) - layout.nodes[i].distanceM) * 2) / 2);
     const height = snapHeightM(Math.min(bounds.maxY, Math.max(bounds.minY, layout.elevationAt(p.y))), floorM);
-    if (length !== scenario.sections[i].lengthM) onLength(i, length);
-    if (height !== scenario.sections[i].endElevationM) onElevation(i, height);
+    const node = layout.nodes[dragging];
+    if (run !== Math.round((node.distanceM - layout.nodes[i].distanceM) * 2) / 2 || height !== node.elevationM) {
+      onMove(i, run, height);
+    }
   }
 
   function endDrag() {
@@ -115,21 +140,21 @@
 
   function keyMove(event: KeyboardEvent, node: number) {
     const i = node - 1;
-    const s = scenario.sections[i];
-    const moves: Record<string, () => void> = {
-      ArrowUp: () => onElevation(i, s.endElevationM + 0.5),
-      ArrowDown: () => onElevation(i, s.endElevationM - 0.5),
-      ArrowRight: () => onLength(i, s.lengthM + 1),
-      ArrowLeft: () => onLength(i, Math.max(1, s.lengthM - 1)),
+    const run = layout.nodes[node].distanceM - layout.nodes[i].distanceM;
+    const height = layout.nodes[node].elevationM;
+    const moves: Record<string, [number, number]> = {
+      ArrowUp: [run, height + 0.5],
+      ArrowDown: [run, height - 0.5],
+      ArrowRight: [run + 1, height],
+      ArrowLeft: [Math.max(0, run - 1), height],
     };
-    if (moves[event.key]) {
+    const move = moves[event.key];
+    if (move) {
       event.preventDefault();
-      moves[event.key]();
+      onMove(i, move[0], move[1]);
     }
   }
 
-  const angleOf = (h: { x1: number; y1: number; x2: number; y2: number }) =>
-    (Math.atan2(h.y2 - h.y1, h.x2 - h.x1) * 180) / Math.PI;
   const sizeLabel = (d: number) => `${d.toString().replace(".5", "½").replace(".75", "¾")}″`;
 </script>
 
@@ -156,7 +181,7 @@
       <!-- Floors: bands, lines, labels -->
       {#each layout.floors as f (f.elevationM)}
         {#if f.number > 0 && f.number % 2 === 1}
-          <rect class="band" x="0" y={f.y} width={layout.widthPx} height={floorM * SCALE.yPxPerM} />
+          <rect class="band" x="0" y={f.y} width={layout.widthPx} height={floorM * PX_PER_M} />
         {/if}
       {/each}
       <rect class="ground" x="0" y={layout.groundY} width={layout.widthPx} height={layout.heightPx - layout.groundY} />
@@ -171,10 +196,10 @@
 
       <!-- Scale bar: 10 m -->
       <g transform={`translate(16 ${layout.heightPx - 16})`}>
-        <line class="scale" x1="0" x2={10 * SCALE.xPxPerM} y1="0" y2="0" />
+        <line class="scale" x1="0" x2={10 * PX_PER_M} y1="0" y2="0" />
         <line class="scale" x1="0" x2="0" y1="-4" y2="4" />
-        <line class="scale" x1={10 * SCALE.xPxPerM} x2={10 * SCALE.xPxPerM} y1="-4" y2="4" />
-        <text class="floor-label" x={10 * SCALE.xPxPerM + 8} y="4">10 m</text>
+        <line class="scale" x1={10 * PX_PER_M} x2={10 * PX_PER_M} y1="-4" y2="4" />
+        <text class="floor-label" x={10 * PX_PER_M + 8} y="4">10 m</text>
       </g>
 
       <!-- Engine -->
@@ -184,30 +209,26 @@
         <circle class="wheel" cx="12" cy="40" r="6" /><circle class="wheel" cx="46" cy="40" r="6" />
         <rect class="outlet" x="58" y="26" width={layout.nodes[0].x - layout.xAt(-9.5) - 58} height="7" />
       </g>
-      <text class="tag" x={layout.xAt(-5)} y={layout.groundY + 22}>Bomba</text>
+      <text class="tag" x={layout.xAt(-5)} y={layout.groundY - 54}>Bomba</text>
 
       <!-- Hoses -->
       {#each layout.hoses as h (h.index)}
         {@const s = scenario.sections[h.index]}
-        {@const mid = { x: (h.x1 + h.x2) / 2, y: (h.y1 + h.y2) / 2 }}
-        <line class="hose" x1={h.x1} y1={h.y1} x2={h.x2} y2={h.y2} stroke-width={h.thicknessPx} />
+        <path class="hose" d={h.d} stroke-width={h.thicknessPx} />
         {#if isSection(h.index)}
-          <line class="hose-selected" x1={h.x1} y1={h.y1} x2={h.x2} y2={h.y2} stroke-width={h.thicknessPx + 6} />
+          <path class="hose-selected" d={h.d} stroke-width={h.thicknessPx + 6} />
         {/if}
-        <line
+        <path
           class="hit"
-          x1={h.x1}
-          y1={h.y1}
-          x2={h.x2}
-          y2={h.y2}
+          d={h.d}
           role="button"
           tabindex="0"
           aria-label={`Tramo ${h.index + 1}: ${s.lengthM} m de ${sizeLabel(s.diameterIn)}`}
           onclick={() => onSelect({ kind: "section", index: h.index })}
           onkeydown={(e) => e.key === "Enter" && onSelect({ kind: "section", index: h.index })}
         />
-        <text class="tag" transform={`translate(${mid.x} ${mid.y + 22}) rotate(${angleOf(h)})`}>
-          {s.lengthM} m · {sizeLabel(s.diameterIn)}
+        <text class="tag" transform={`translate(${h.labelX} ${h.labelY + 22}) rotate(${Math.abs(h.angle) > 60 ? 0 : h.angle})`}>
+          {s.lengthM} m · {sizeLabel(s.diameterIn)}{h.slackM >= 0.5 ? ` · holgura ${h.slackM.toFixed(1)} m` : ""}
         </text>
       {/each}
 
@@ -258,7 +279,11 @@
       {/each}
     </svg>
   </div>
-  <span class="badge">Escala vertical ×{VERTICAL_EXAGGERATION} · {Math.round(zoom * 100)} %</span>
+  <span class="badge">Escala 1:1 · {Math.round(zoom * 100)} %</span>
+  <div class="mode" role="radiogroup" aria-label="Arrastre de acoples">
+    <button type="button" role="radio" aria-checked={mode === "tether"} class:on={mode === "tether"} onclick={() => onModeChange("tether")}>Largo fijo</button>
+    <button type="button" role="radio" aria-checked={mode === "free"} class:on={mode === "free"} onclick={() => onModeChange("free")}>Libre</button>
+  </div>
   <div class="zoom">
     <button type="button" aria-label="Alejar" onclick={() => setZoom(zoom / 1.25)}>−</button>
     <button type="button" aria-label="Acercar" onclick={() => setZoom(zoom * 1.25)}>+</button>
@@ -281,14 +306,17 @@
   .window { fill: #f8d7d3; }
   .wheel { fill: var(--ink); }
   .outlet, .coupling { fill: var(--steel); }
-  .hose { stroke: var(--hose); stroke-linecap: butt; }
-  .hose-selected { stroke: var(--accent); stroke-opacity: 0.35; stroke-linecap: round; pointer-events: none; }
-  .hit { stroke: transparent; stroke-width: 30; cursor: pointer; outline: none; }
+  .hose { stroke: var(--hose); stroke-linecap: butt; fill: none; }
+  .hose-selected { fill: none; stroke: var(--accent); stroke-opacity: 0.35; stroke-linecap: round; pointer-events: none; }
+  .hit { fill: none; stroke: transparent; stroke-width: 30; cursor: pointer; outline: none; }
   .hit:focus-visible { stroke: var(--accent); stroke-opacity: 0.2; }
   .handle { fill: transparent; stroke: var(--ink); stroke-opacity: 0.3; stroke-width: 1.5; stroke-dasharray: 3 3; cursor: grab; touch-action: none; outline: none; }
   .handle.active, .handle:focus-visible { stroke: var(--accent); stroke-opacity: 1; stroke-width: 2; cursor: grabbing; }
   .drag-label { font-size: 13px; font-weight: 700; text-anchor: middle; fill: var(--accent); }
   .badge { position: absolute; right: 10px; top: 10px; font-size: 12px; color: var(--muted); background: var(--band); border-radius: 6px; padding: 4px 8px; pointer-events: none; }
+  .mode { position: absolute; left: 10px; top: 10px; display: flex; background: var(--band); border-radius: 10px; padding: 3px; }
+  .mode button { min-height: 40px; padding: 0 12px; border: 0; border-radius: 8px; background: transparent; color: var(--muted); font-weight: 600; cursor: pointer; }
+  .mode .on { background: var(--surface); color: var(--ink); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15); }
   .zoom { position: absolute; right: 10px; bottom: 10px; display: flex; gap: 4px; }
   .zoom button { min-width: 44px; height: 44px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); cursor: pointer; }
 </style>

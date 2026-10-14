@@ -3,6 +3,7 @@
   import { HOSE_SIZES } from "$hydraulics/references.ts";
   import type { Scenario } from "$hydraulics/scenario.ts";
   import * as edit from "$lib/edit.ts";
+  import { runsOf } from "$lib/geometry/world.ts";
   import type { Selection } from "$lib/selection.ts";
   import NumberField from "./NumberField.svelte";
 
@@ -12,12 +13,14 @@
     scenario,
     selection,
     floorM = 3,
+    mode,
     onchange,
     onSelect,
   }: {
     scenario: Scenario;
     selection: Selection;
     floorM?: number;
+    mode: edit.LengthMode;
     onchange: (s: Scenario) => void;
     onSelect: (s: Selection) => void;
   } = $props();
@@ -81,7 +84,7 @@
       unit="m"
       step={0.5}
       bigStep={{ size: floorM, label: "piso" }}
-      onchange={(m) => onchange(edit.setEndElevation(scenario, last, m))}
+      onchange={(m) => onchange(edit.setEndElevation(scenario, last, m, mode))}
     />
     <p class="note">{floorOf(scenario.sections[last].endElevationM)} · arrastra el pitón para moverlo</p>
 
@@ -112,8 +115,18 @@
       </select>
     </label>
     <NumberField label="Largo" value={s.lengthM} unit="m" step={1} bigStep={{ size: 15, label: "15" }} digits={0} onchange={(m) => onchange(edit.setSectionLength(scenario, i, m))} />
-    <NumberField label="Altura al final" value={s.endElevationM} unit="m" step={0.5} bigStep={{ size: floorM, label: "piso" }} onchange={(m) => onchange(edit.setEndElevation(scenario, i, m))} />
-    <p class="note">{floorOf(s.endElevationM)} · arrastra el acople: a los lados cambia el largo, arriba y abajo la altura</p>
+    <NumberField label="Altura al final" value={s.endElevationM} unit="m" step={0.5} bigStep={{ size: floorM, label: "piso" }} onchange={(m) => onchange(edit.setEndElevation(scenario, i, m, mode))} />
+    {@const run = runsOf(scenario.sections)[i]}
+    {@const rise = s.endElevationM - (i === 0 ? 0 : scenario.sections[i - 1].endElevationM)}
+    {@const slack = s.lengthM - Math.hypot(run, rise)}
+    <p class="note">
+      {floorOf(s.endElevationM)} · recorrido horizontal {run.toFixed(1)} m{slack >= 0.5 ? ` · holgura ${slack.toFixed(1)} m` : " · tenso"}
+    </p>
+    <p class="note">
+      {mode === "tether"
+        ? "Largo fijo: arrastra el acople dentro del alcance de la manguera; la altura no puede superar su largo."
+        : "Libre: arrastra el acople y la manguera se ajusta al largo necesario."}
+    </p>
     <button
       type="button"
       class="secondary"

@@ -72,6 +72,7 @@ test("a bad document is rejected with the path of the first bad field", () => {
     [(d) => (d.nozzle.kind = "automatic"), "nozzle.kind"],
     [(d) => ((d.nozzle.kind = "selectable"), (d.nozzle.settingsGpm = [30, 60])), "nozzle.settingsGpm"],
     [(d) => (d.nozzle.pattern = 2), "nozzle.pattern"],
+    [(d) => (d.sections[0].runM = -1), "sections[0].runM"],
   ];
   for (const [spoil, path] of cases) {
     const doc = preset("linea-basica.json");

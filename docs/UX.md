@@ -23,24 +23,37 @@
 
 ## 2. The canvas
 
-- **World coordinates in metres.** Horizontal is distance along the hose;
-  vertical is height.
-- **Fixed scales.** At zoom 1: 8 px per metre horizontally, 24 px per metre
-  vertically. The vertical exaggeration (×3) is fixed and shown on the
-  canvas, because floors would otherwise be a few pixels tall. Content never
-  changes the scale.
+- **World coordinates in metres.** Horizontal is real horizontal distance;
+  vertical is height. A hose is drawn at its true length: a section spans
+  its horizontal run and its rise, and if the hose is longer than the
+  straight line between its couplings, the slack is drawn as a sag
+  (owner, 2026-10-16; replaces "horizontal = distance along the hose").
+- **One uniform scale, no exaggeration.** 14 px per metre at zoom 1 in both
+  directions, so a 3 m floor is 42 px and lengths look like lengths. Content
+  never changes the scale.
 - **Bounds expand, never shrink, while editing.** The world is at least the
   initial size (80 m × 4 floors, one floor below ground) and grows to keep a
   margin (15 m, one floor) around the content. It shrinks only on loading a
   preset or pressing "Ajustar".
 - **Viewport.** The canvas fills its area and scrolls/pans over the world.
-  Zoom with pinch, wheel + Ctrl, or the − / + / Ajustar buttons. Zoom is the
-  only thing that changes pixels per metre.
-- **Dragging a coupling:** sideways changes the length of the section that
-  ends there (snap 1 m), and everything downstream moves with it; up/down
-  changes its height (snap 0.5 m, magnetic to floor lines). A live label
-  shows the value while dragging. Drags start only on handles; dragging
-  empty canvas pans.
+  Zoom with pinch, wheel + Ctrl, or the − / + / Ajustar buttons. On loading
+  a lay and on "Ajustar" it fits the lay to the width (never below 60 %) and
+  scrolls the selected element into view; otherwise only the person changes
+  the zoom.
+- **Two drag modes** (toggle on the canvas; fixed length is the default):
+  - **Largo fijo (tether):** the hose length is fixed. The coupling moves
+    within the hose's reach and the hose sags if there is slack; dragged
+    beyond reach it stops at the tether; a rise can't exceed the hose length.
+    A taut hose stays taut when its height is edited (it slides along its
+    reach).
+  - **Libre (resize):** the coupling goes where it's dragged and the hose
+    resizes to span the gap, taut (length rounded up to 0.5 m).
+  In both, everything downstream moves with the dragged coupling (later
+  sections keep their own run and rise). Snaps: run 0.5 m, height 0.5 m,
+  magnetic to floor lines. A live label shows the values while dragging;
+  drags start only on handles; dragging empty canvas pans. The horizontal
+  run is drawing data only: the hydraulics use length and height (MODEL.md
+  §3.2).
 - **Floors** are bands labelled "Piso 1, 2…" with their height in metres.
   Floor height defaults to 3 m and is editable.
 
