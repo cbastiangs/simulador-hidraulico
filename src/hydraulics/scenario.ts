@@ -26,7 +26,16 @@ export const SCENARIO_SCHEMA = "simulador-hidraulico/scenario";
  * Where the line starts: a pump outlet, or a standpipe outlet on the fire
  * floor. Either way a set pressure; heights are measured from it.
  */
-export type ScenarioSource = { kind: "fixed-pressure"; pressurePsi: number };
+export type ScenarioSource = {
+  kind: "fixed-pressure";
+  pressurePsi: number;
+  /**
+   * Discharge outlet size, inches. Drawing and information only: an adapter
+   * to a different hose size is drawn, its loss is not modelled yet
+   * (appliances, MODEL.md §3.10).
+   */
+  outletSizeIn?: number;
+};
 
 export type ScenarioSection = {
   /** Catalog row (references.ts HOSE_SIZES) the values came from; null when entered by hand. */
@@ -157,6 +166,9 @@ export function parseScenario(value: unknown): Scenario {
     source: {
       kind: oneOf(source.kind, "source.kind", ["fixed-pressure"] as const),
       pressurePsi: number(source.pressurePsi, "source.pressurePsi", "zero or more"),
+      ...(source.outletSizeIn === undefined
+        ? {}
+        : { outletSizeIn: number(source.outletSizeIn, "source.outletSizeIn", "greater than zero") }),
     },
     sections: doc.sections.map((raw: unknown, i) => {
       const path = `sections[${i}]`;

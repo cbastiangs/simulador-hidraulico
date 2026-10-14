@@ -27,6 +27,12 @@ function withSection(scenario: Scenario, index: number, change: (s: ScenarioSect
   return { ...scenario, sections: scenario.sections.map((s, i) => (i === index ? change(s) : s)) };
 }
 
+/** Discharge outlet size (inches), or undefined for "same as the hose". Drawing only. */
+export function setOutletSize(scenario: Scenario, outletSizeIn: number | undefined): Scenario {
+  const { outletSizeIn: _, ...source } = scenario.source;
+  return { ...scenario, source: outletSizeIn === undefined ? source : { ...source, outletSizeIn } };
+}
+
 export function setSourcePressure(scenario: Scenario, pressurePsi: number): Scenario {
   return { ...scenario, source: { ...scenario.source, pressurePsi: within(pressurePsi, LIMITS.pressurePsi) } };
 }
