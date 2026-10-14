@@ -23,12 +23,25 @@
       <div class="friction" style:width={pct(parts.friction)}>Fricción {f(parts.friction)}</div>
       {#if parts.elevation > 0}<div class="elevation" style:width={pct(parts.elevation)}>{f(parts.elevation)}</div>{/if}
     </div>
-    <div class="row small">
-      <span>
-        Desnivel {f(parts.elevation)} psi{parts.elevation < 0 ? " (bajada: se gana presión)" : ""} · CGBVP:
-        {f(reference.elevationPressurePsi)}
-      </span>
-    </div>
+    <ul class="legend">
+      <li>
+        <span class="swatch nozzle"></span>
+        <span><b>Pitón {f(parts.nozzle)} psi</b> · la presión que llega al pitón y forma el chorro</span>
+      </li>
+      <li>
+        <span class="swatch friction"></span>
+        <span><b>Fricción {f(parts.friction)} psi</b> · lo que se pierde por rozamiento en las mangueras</span>
+      </li>
+      <li>
+        <span class="swatch elevation"></span>
+        <span>
+          <b>Desnivel {f(parts.elevation)} psi</b> ·
+          {parts.elevation < 0
+            ? "la bajada devuelve presión (no ocupa barra)"
+            : "lo que cuesta subir el agua"} · CGBVP: {f(reference.elevationPressurePsi)}
+        </span>
+      </li>
+    </ul>
   {:else}
     <p class="small">Sin caudal no hay fricción: la bomba solo sostiene el desnivel ({f(parts.elevation)} psi).</p>
   {/if}
@@ -41,6 +54,10 @@
   .small { font-size: 13px; color: var(--muted); margin: 0; }
   .bar { display: flex; height: 28px; border-radius: 6px; overflow: hidden; font-size: 12px; font-weight: 700; color: #fff; background: var(--band); }
   .bar div { display: flex; align-items: center; padding: 0 8px; white-space: nowrap; overflow: hidden; transition: width 250ms; }
+  .legend { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 13px; color: var(--muted); }
+  .legend li { display: flex; gap: 8px; align-items: baseline; }
+  .legend b { color: var(--ink); }
+  .swatch { flex: none; width: 12px; height: 12px; border-radius: 3px; transform: translateY(1px); }
   .nozzle { background: var(--water); }
   .friction { background: var(--friction); }
   .elevation { background: var(--elevation); }
