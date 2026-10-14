@@ -1,5 +1,6 @@
-id,make,model,design,flow_control,inlet_size_in,rated_pressure_psi,flows_gpm,default_flow_gpm,flow_min_gpm,flow_max_gpm,tip_diameters_in,pattern_changes_flow,reaction_lbf,reach_m,carried_on,quantity,source,source_type,notes
-EXAMPLE-1,Marca,Modelo X,combination,selectable,1.5,100,30;60;95;125,95,,,,no,,,M11-1,2,https://fabricante.com/ficha.pdf p.3,manufacturer-spec,FILA DE EJEMPLO: borrar
-EXAMPLE-2,Marca,Modelo Z,combination,automatic,1.5,100,,,70,200,,,,,M11-1,1,https://fabricante.com/ficha.pdf p.2,manufacturer-spec,FILA DE EJEMPLO: borrar (rango de presión seleccionable o modo baja presión: anotarlo aquí)
-EXAMPLE-3,Marca,Modelo W,combination,single,1.5,75,150,,,,,,,,M11-5,1,placa del pitón (foto),plate,FILA DE EJEMPLO: borrar
-EXAMPLE-4,Marca,Modelo Y,smooth-bore,single,2.5,50,,,,,7/8;15/16;1-1/8,,,,M11-5,1,placa del pitón (foto),plate,FILA DE EJEMPLO: borrar
+id,make,model,use,design,flow_control,inlet_size_in,rated_pressure_psi,flows_gpm,default_flow_gpm,flow_min_gpm,flow_max_gpm,tip_diameters_in,pattern_changes_flow,reaction_lbf,reach_m,carried_on,quantity,source,source_type,notes
+EXAMPLE-1,Marca,Modelo X,handline,combination,selectable,1.5,100,30;60;95;125,95,,,,no,,,M11-1,2,https://fabricante.com/ficha.pdf p.3,manufacturer-spec,FILA DE EJEMPLO: borrar
+EXAMPLE-2,Marca,Modelo Z,handline,combination,automatic,1.5,100,,,70,200,,,,,M11-1,1,https://fabricante.com/ficha.pdf p.2,manufacturer-spec,FILA DE EJEMPLO: borrar (rango de presión seleccionable o modo baja presión: anotarlo aquí)
+EXAMPLE-3,Marca,Modelo W,handline,combination,single,1.5,75,150,,,,,,,,M11-5,1,placa del pitón (foto),plate,FILA DE EJEMPLO: borrar
+EXAMPLE-4,Marca,Modelo Y,handline,smooth-bore,single,2.5,50,,,,,7/8;15/16;1-1/8,,,,M11-5,1,placa del pitón (foto),plate,FILA DE EJEMPLO: borrar
+EXAMPLE-5,master,Marca,Modelo M,smooth-bore,single,2.5,80,,,,,1-3/8;1-1/2;1-3/4;2,,,,M11-1,1,ficha del fabricante p.4,manufacturer-spec,FILA DE EJEMPLO: borrar (puntas apiladas de monitor)

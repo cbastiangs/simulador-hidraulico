@@ -1,0 +1,3 @@
+id,make,model,kind,inlets,inlet_size_in,outlet_size_in,max_flow_gpm,loss_psi_at_flow,carried_on,source,source_type,notes
+EXAMPLE-deck,Marca,Modelo D,deck-gun,1,3,2.5,1250,15@1000;24@1250,M11-1,https://fabricante.com/ficha.pdf p.5,manufacturer-spec,FILA DE EJEMPLO: borrar (pérdida del monitor a varios caudales: psi@gpm separados por ;)
+EXAMPLE-portable,Marca,Modelo P,portable,2,2.5,2.5,1000,,M11-5,placa (foto),plate,FILA DE EJEMPLO: borrar (anotar si tiene anclaje o límite de ángulo)
