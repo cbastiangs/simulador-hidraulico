@@ -6,7 +6,9 @@ import {
   type FixedOrificeNozzle,
   type HoseLay,
 } from "./line.ts";
+import type { Term } from "./laws.ts";
 import { METHODS, type Method } from "./references.ts";
+import { metersToFeet } from "./units.ts";
 
 /**
  * A line of several hose sections in series: pump → section → section → …
@@ -61,6 +63,12 @@ export type SeriesResult = {
   elevationPressurePsi: number;
   /** The pump pressure at which the nozzle gets its rated flow at its rated pressure. */
   requiredPumpPressurePsi: number;
+  /**
+   * The laws applied, one term each (laws.ts), for the on-screen formulas.
+   * While flowing, their values add up to the pump pressure. With no flow
+   * there is no friction and no nozzle term, only elevation.
+   */
+  terms: Term[];
 };
 
 function totalFrictionPsi(sections: readonly Section[], flowGpm: number) {
@@ -138,6 +146,25 @@ export function solveSeriesLine(line: SeriesLine, method: Method = METHODS.physi
     });
   });
 
+  const terms: Term[] = sections.map(({ hose }, sectionIndex) => ({
+    lawId: "hose.friction",
+    sectionIndex,
+    inputs: { frictionCoefficient: hose.frictionCoefficient, flowGpm, lengthFt: metersToFeet(hose.lengthM) },
+    valuePsi: frictionLossPsi(hose, flowGpm),
+  }));
+  terms.push({
+    lawId: "elevation",
+    inputs: { psiPerMeter: method.psiPerMeterOfHeight, heightM: nozzleElevationM },
+    valuePsi: elevation,
+  });
+  if (flowing) {
+    terms.push({
+      lawId: "nozzle.fixed-orifice",
+      inputs: { ratedPressurePsi: nozzle.ratedPressurePsi, ratedFlowGpm: nozzle.ratedFlowGpm, flowGpm },
+      valuePsi: nozzlePressureAt(nozzle, flowGpm),
+    });
+  }
+
   return {
     state: flowing ? "flowing" : headAtHighestPoint <= 0 ? "no-pressure" : "nozzle-closed",
     flowGpm,
@@ -146,5 +173,6 @@ export function solveSeriesLine(line: SeriesLine, method: Method = METHODS.physi
     frictionLossPsi: totalFrictionPsi(sections, flowGpm),
     elevationPressurePsi: elevation,
     requiredPumpPressurePsi,
+    terms,
   };
 }
