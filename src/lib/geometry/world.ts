@@ -13,7 +13,10 @@
 export const PX_PER_M = 14;
 
 /** Space kept around the content: room for the truck, the stream and a floor above and below. */
-const MARGIN_M = { before: 12, after: 15 };
+const MARGIN_M = { before: 12, after: 16 };
+
+/** A world never narrower than this (a bare lay still has room to grow into). */
+const MIN_WIDTH_M = 50;
 
 export type Bounds = { minX: number; maxX: number; minY: number; maxY: number };
 
@@ -46,7 +49,7 @@ export function fitBounds(sections: readonly Section[], floorM: number): Bounds 
   const total = runsOf(sections).reduce((a, b) => a + b, 0);
   return {
     minX: start.minX,
-    maxX: Math.max(start.maxX, Math.ceil((total + MARGIN_M.after) / 10) * 10),
+    maxX: Math.max(MIN_WIDTH_M, Math.ceil((total + MARGIN_M.after) / 5) * 5),
     minY: Math.min(start.minY, Math.floor(Math.min(...elevations) / floorM - 1) * floorM),
     // 1.5 floors above the highest point: room for its gauge.
     maxY: Math.max(start.maxY, Math.ceil(Math.max(...elevations) / floorM + 1.5) * floorM),

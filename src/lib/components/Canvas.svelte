@@ -67,6 +67,11 @@
   /** Set by − / +; null means auto-fit. */
   let manualZoom = $state<number | null>(null);
 
+  // Server-rendered markup and bind:clientWidth start at 0: measure on mount so the first fit is right.
+  $effect(() => {
+    if (scroller && viewWidth === 0) viewWidth = scroller.clientWidth;
+  });
+
   let fittedFor = "";
   $effect(() => {
     if (resetKey !== fittedFor) {
@@ -86,7 +91,7 @@
     if (viewWidth === 0) return 1;
     const w = (fitted.maxX - fitted.minX) * PX_PER_M;
     const h = (fitted.maxY - fitted.minY) * PX_PER_M;
-    return Math.min(1.6, Math.max(MIN_FIT_ZOOM, Math.min(viewWidth / w, maxHeight / h)));
+    return Math.min(2.2, Math.max(MIN_FIT_ZOOM, Math.min(viewWidth / w, maxHeight / h)));
   });
   const canvasHeight = $derived(
     Math.min(maxHeight, Math.max(selection.kind === "section" ? HOSE_BAR_PX + 80 : 240, ((frozen?.bounds ?? fitted).maxY - (frozen?.bounds ?? fitted).minY) * PX_PER_M * (frozen?.zoom ?? manualZoom ?? fitZoom) + 80)),

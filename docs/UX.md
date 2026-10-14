@@ -47,6 +47,11 @@
   During a drag the world and zoom are frozen (refitting under the pointer
   would move the target) and refit on release. − / + set a manual zoom;
   "Ajustar" returns to automatic.
+- **Use the screen.** The page grows to 2000 px wide (the canvas takes the
+  width the side column leaves); the fit zoom goes up to 220 %; the world is
+  the lay plus margins (12 m before the truck, 16 m after the nozzle for its
+  stream), 50 m wide at least. The first fit is measured on mount, not
+  assumed.
 - **Constant-size overlays.** Gauges, labels, handles and the nozzle keep
   their screen size at any zoom; hoses and the engine scale with the world.
 - **Controls below the drawing,** never over it: zoom readout,
