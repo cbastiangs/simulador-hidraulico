@@ -2,19 +2,28 @@
   import type { Scenario } from "$hydraulics/scenario.ts";
   import type { SeriesResult } from "$hydraulics/series.ts";
   import { layoutProfile, snapM, type ElevationRange } from "$lib/geometry/profile.ts";
+  import type { Selection } from "$lib/selection.ts";
   import Gauge from "./Gauge.svelte";
 
   let {
     scenario,
     result,
     floorHeightM = 3,
+    selection,
+    onSelect,
     onElevationChange,
+    onToggleNozzle,
   }: {
     scenario: Scenario;
     result: SeriesResult;
     floorHeightM?: number;
+    selection: Selection;
+    onSelect: (selection: Selection) => void;
     onElevationChange: (sectionIndex: number, endElevationM: number) => void;
+    onToggleNozzle: () => void;
   } = $props();
+
+  const isSelectedSection = (i: number) => selection.kind === "section" && selection.index === i;
 
   const height = 340;
   let width = $state(640);
@@ -42,6 +51,7 @@
   }
 
   function start(event: PointerEvent, node: number) {
+    onSelect(node === layout.nodes.length - 1 ? { kind: "nozzle" } : { kind: "section", index: node - 1 });
     dragging = node;
     frozenRange = layout.range;
     (event.currentTarget as Element).setPointerCapture(event.pointerId);
@@ -76,7 +86,37 @@
     {/each}
 
     {#each layout.hoses as hose (hose.sectionIndex)}
-      <line class="hose" x1={hose.x1} y1={hose.y1} x2={hose.x2} y2={hose.y2} stroke-width={hose.strokePx} />
+      {@const i = hose.sectionIndex}
+      <line
+        class="hose"
+        class:selected={isSelectedSection(i)}
+        x1={hose.x1}
+        y1={hose.y1}
+        x2={hose.x2}
+        y2={hose.y2}
+        stroke-width={hose.strokePx}
+      />
+      <!-- A wide invisible stroke makes the hose easy to tap. -->
+      <line
+        class="hit"
+        x1={hose.x1}
+        y1={hose.y1}
+        x2={hose.x2}
+        y2={hose.y2}
+        role="button"
+        tabindex="0"
+        aria-label={`Tramo ${i + 1}`}
+        onclick={() => onSelect({ kind: "section", index: i })}
+        onkeydown={(e) => e.key === "Enter" && onSelect({ kind: "section", index: i })}
+      />
+      <text class="tag" x={(hose.x1 + hose.x2) / 2} y={(hose.y1 + hose.y2) / 2 + 22}>
+        {scenario.sections[i].lengthM} m · {scenario.sections[i].hoseSizeId ?? `${scenario.sections[i].diameterIn}"`}
+      </text>
+      {#if i > 0 && scenario.sections[i].diameterIn !== scenario.sections[i - 1].diameterIn}
+        <rect class="reducer" x={hose.x1 - 6} y={hose.y1 - 10} width="12" height="20" rx="2">
+          <title>Reducción</title>
+        </rect>
+      {/if}
     {/each}
 
     {#each layout.nodes as node, i (i)}
@@ -87,9 +127,10 @@
         <circle
           class="handle"
           class:active={dragging === i}
+          class:selected={i === layout.nodes.length - 1 ? selection.kind === "nozzle" : isSelectedSection(i - 1)}
           cx={node.x}
           cy={node.y}
-          r="9"
+          r="12"
           role="slider"
           tabindex="0"
           aria-label={i === layout.nodes.length - 1 ? "Altura del pitón" : `Altura del acople ${i}`}
@@ -102,7 +143,27 @@
           onkeydown={(e) => keyStep(e, i)}
         />
         {#if i === layout.nodes.length - 1}
-          <text class="tag" x={node.x} y={node.y + 30}>Pitón</text>
+          {@const open = scenario.nozzle.open}
+          <!-- Tapping the nozzle works its bale: open or shut. -->
+          <g
+            class="nozzle"
+            class:open
+            role="switch"
+            tabindex="0"
+            aria-checked={open}
+            aria-label="Pitón: tocar para abrir o cerrar"
+            onclick={onToggleNozzle}
+            onkeydown={(e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), onToggleNozzle())}
+          >
+            <rect class="nozzle-hit" x={node.x + 8} y={node.y - 18} width="56" height="36" />
+            <path class="nozzle-body" d={`M ${node.x + 10} ${node.y - 7} L ${node.x + 30} ${node.y - 4} L ${node.x + 30} ${node.y + 4} L ${node.x + 10} ${node.y + 7} Z`} />
+            {#if open}
+              {#each [-12, -6, 0, 6, 12] as spread (spread)}
+                <line class="spray" x1={node.x + 32} y1={node.y} x2={node.x + 58} y2={node.y + spread} />
+              {/each}
+            {/if}
+          </g>
+          <text class="tag" x={node.x + 20} y={node.y + 30}>{open ? "Pitón abierto" : "Pitón cerrado"}</text>
         {/if}
       {/if}
       <Gauge psi={node.pressurePsi} x={node.x} y={node.y - 40} />
@@ -117,8 +178,18 @@
   .floor.ground { stroke: var(--ink); stroke-dasharray: none; }
   .floor-label { font-size: 10px; fill: var(--muted); }
   .hose { stroke: var(--hose); stroke-linecap: round; }
+  .hose.selected { stroke: var(--accent); }
+  .hit { stroke: transparent; stroke-width: 28; cursor: pointer; }
+  .hit:focus-visible { stroke: var(--accent); stroke-opacity: 0.25; outline: none; }
+  .reducer { fill: var(--ink); }
+  .nozzle { cursor: pointer; }
+  .nozzle:focus-visible { outline: none; }
+  .nozzle:focus-visible .nozzle-body { stroke: var(--accent); stroke-width: 3; }
+  .nozzle-hit { fill: transparent; }
+  .nozzle-body { fill: var(--ink); }
+  .spray { stroke: var(--water); stroke-width: 2; stroke-linecap: round; }
   .pump { fill: var(--pump); }
   .handle { fill: var(--surface); stroke: var(--ink); stroke-width: 2; cursor: ns-resize; }
-  .handle.active, .handle:focus-visible { stroke: var(--accent); stroke-width: 3; outline: none; }
+  .handle.active, .handle.selected, .handle:focus-visible { stroke: var(--accent); stroke-width: 3; outline: none; }
   .tag { font-size: 11px; text-anchor: middle; fill: var(--muted); }
 </style>
