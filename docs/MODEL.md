@@ -169,6 +169,23 @@ by two or more lines through a siamese inlet needs branching (M4). Reaction
 design is a separate attribute (catalog and data template:
 `data/templates/nozzles-template.csv`).
 
+### 3.4c Couplings limit what connects, not how much flows
+
+A coupling has no maximum flow of its own: flow through it is limited by the
+pressure available against the line's losses (§2), and friction already
+grows with Q². What a coupling does limit is **what can be connected**
+(owner, 2026-10-14: a 250 gpm nozzle on a 1½″ line must not just work):
+
+- A nozzle has an **inlet size** (`inlet_size_in` in the data template). It
+  goes on a hose whose coupling matches, or through an **adapter** that is
+  drawn and named; adapter loss is not modelled until fittings exist
+  (§3.10).
+- A hose's coupling size is its diameter, except 1¾″ (1½″ couplings) and 3″
+  (2½″ or 3″, already two rows in §3.1). Basis: `convention`, `verify`
+  against the station's hose.
+- A "maximum practical flow" per hose size is a training rule of thumb, not
+  a law; it enters only with a published source (§9).
+
 ### 3.5 Fog nozzles
 
 **Fixed gallonage:** `nozzle.fixed-orifice` (§3.3), default NP 100 psi
@@ -204,7 +221,7 @@ expected.
 Teaching point: at the same flow, a smooth bore at 50 psi pushes back less
 than a fog nozzle at 100 psi (185 gpm: 69 vs 93 lbf).
 
-### 3.7 Velocity: `flow.velocity` ⏳ M1 (drawing)
+### 3.7 Velocity: `flow.velocity` ✅ hose (drawing)
 
 - **In a hose:** v = 0.4085 · Q / d² (ft/s, gpm, in). `physics`:
   Q = A·v, with 1 gpm = 0.002228 ft³/s.
@@ -214,6 +231,9 @@ than a fog nozzle at 100 psi (185 gpm: 69 vs 93 lbf).
   particles enter at a rate ∝ Q. A narrower hose shows faster, more spread-out
   particles carrying the same flow: **continuity**, A₁v₁ = A₂v₂, as the
   manual teaches (pp. 33–34).
+- **As built** (`velocity.ts`, canvas): real time, unscaled; one particle
+  per 1.25 gal, so the spacing is 1.25 gal / A and doesn't depend on Q
+  (≈ 1.5 m in 2½″, 4.2 m in 1½″). Nozzle-exit velocity is not used yet.
 
 ### 3.8 Pump: `pump.*` ⏳ M3
 

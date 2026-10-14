@@ -114,6 +114,12 @@ renders `design/main-screen-desktop.png`, `design/main-screen-phone.png`.
 The app is built to it; departures need a revised, approved mock-up. Its
 nozzle settings (30/60/95/125 gpm) are generic placeholders.
 
+**Awaiting approval (2026-10-14):** `design/nozzle-stream-menu.html` and
+its renders: nozzle panel with a model card and a picker list (no
+drop-down) grouped by coupling fit; an aimable stream drawn in metres with
+a labelled illustrative reach; a context menu on long press (touch, 0.5 s)
+or right click for hoses, couplings and the nozzle (insert, split, remove).
+
 ## 7. Process
 
 - **New screens and major visual changes start as a static mock-up**

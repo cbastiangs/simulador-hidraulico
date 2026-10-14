@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mock: pitón, chorro y menú del lienzo</title>
+<style>
+  :root {
+    --bg: #eef0ee; --surface: #ffffff; --band: #f6f7f5; --line: #d5dadf; --ground: #e9ece8;
+    --ink: #1b2128; --muted: #5f6b76; --hose: #c2412d; --steel: #6b747d;
+    --water: #1c7ed6; --water-soft: #a5d8ff; --accent: #1f6feb; --accent-soft: #e7f0ff; --warn: #c62828;
+    --r: 10px;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.35 system-ui, sans-serif; font-variant-numeric: tabular-nums; padding: 16px; }
+  h1 { font-size: 18px; margin: 0 0 4px; }
+  .lead { color: var(--muted); margin: 0 0 16px; font-size: 13px; max-width: 70ch; }
+  .frames { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+  @media (max-width: 760px) { .frames { grid-template-columns: 1fr; } }
+  .frame { display: grid; gap: 8px; min-width: 0; }
+  .cap { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+  .card { background: var(--surface); border-radius: var(--r); padding: 14px; min-width: 0; }
+  .canvas { padding: 0; position: relative; overflow: hidden; }
+  .canvas svg { display: block; width: 100%; height: auto; }
+  .toolbar { display: flex; gap: 6px; padding: 8px; border-top: 1px solid var(--line); flex-wrap: wrap; align-items: center; font-size: 13px; color: var(--muted); }
+  .toolbar .seg { margin-right: auto; }
+  /* Context menu */
+  .menu { position: absolute; left: 14%; top: 3%; background: var(--surface); border-radius: 12px; box-shadow: 0 8px 28px rgba(0,0,0,.22); min-width: 210px; padding: 6px; display: grid; }
+  @media (max-width: 760px) { .menu { position: static; box-shadow: none; border-top: 1px solid var(--line); border-radius: 0; } .menu::before { content: 'En el teléfono: hoja inferior'; font-size: 11px; color: var(--muted); padding: 6px 10px 0; } }
+  .menu .title { font-size: 12px; color: var(--muted); padding: 6px 10px 4px; font-weight: 600; }
+  .menu button { all: unset; display: flex; gap: 10px; align-items: center; min-height: 44px; padding: 0 10px; border-radius: 8px; font-size: 14px; cursor: pointer; }
+  .menu button:hover { background: var(--band); }
+  .menu button.danger { color: var(--warn); }
+  .menu button[disabled] { color: var(--muted); cursor: default; }
+  .menu small { margin-left: auto; color: var(--muted); font-size: 11px; }
+  .menu hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; }
+  /* Nozzle sheet */
+  .sheet { display: grid; gap: 14px; }
+  .model { display: flex; gap: 12px; align-items: center; border: 1px solid var(--line); border-radius: var(--r); padding: 10px 12px; }
+  .model .name { font-weight: 700; }
+  .model .meta { font-size: 12px; color: var(--muted); }
+  .model button { margin-left: auto; }
+  .btn { min-height: 40px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); font: inherit; font-weight: 600; }
+  .label { font-size: 12px; color: var(--muted); font-weight: 600; margin-bottom: 6px; display: flex; justify-content: space-between; }
+  .seg { display: flex; background: var(--band); border-radius: 9px; padding: 3px; gap: 3px; }
+  .seg button { flex: 1; min-height: 44px; border: 0; border-radius: 7px; background: transparent; font: inherit; font-weight: 600; color: var(--muted); }
+  .seg button.on { background: var(--surface); color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,.15); }
+  .seg.big button { min-height: 52px; font-size: 16px; }
+  .seg.big button.open.on { background: var(--water); color: #fff; }
+  .seg.small button { min-height: 36px; font-size: 13px; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .stepper { display: flex; align-items: center; gap: 4px; }
+  .stepper button { min-width: 44px; height: 44px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); font: inherit; font-weight: 700; }
+  .stepper .val { flex: 1; height: 44px; border-radius: 8px; border: 1px solid var(--line); display: flex; align-items: center; justify-content: center; font-weight: 700; }
+  .note { font-size: 12px; color: var(--muted); margin: 0; }
+  .tag { font-size: 11px; font-weight: 700; border-radius: 999px; padding: 2px 8px; background: var(--band); color: var(--muted); }
+  /* Picker */
+  .picker { display: grid; gap: 8px; }
+  .picker h4 { margin: 6px 0 0; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+  .opt { display: grid; grid-template-columns: 40px 1fr auto; gap: 10px; align-items: center; border: 1px solid var(--line); border-radius: var(--r); padding: 10px; min-height: 56px; }
+  .opt.on { border-color: var(--accent); background: var(--accent-soft); }
+  .opt.off { opacity: .55; }
+  .opt .t { font-weight: 700; font-size: 14px; }
+  .opt .s { font-size: 12px; color: var(--muted); }
+  .ico { width: 40px; height: 24px; }
+  .notes { margin-top: 16px; font-size: 13px; color: var(--muted); max-width: 80ch; }
+  .notes li { margin: 4px 0; }
+</style>
+</head>
+<body>
+<h1>Mock-up: pitón, chorro en metros y menú del lienzo</h1>
+<p class="lead">Estático, para aprobar antes de construir (UX.md §7). Ataque al segundo piso: 2½″ 30 m en el suelo, 1½″ 30 m hasta 6 m, pitón combinado a 95 gpm.</p>
+
+<div class="frames">
+  <div class="frame">
+    <div class="cap">1 · Lienzo: partículas, chorro con arco, menú por pulsación larga</div>
+    <div class="card canvas">
+      <svg viewBox="0 0 760 330" role="img" aria-label="Tendido con chorro en arco">
+        <defs>
+          <pattern id="grid" width="70" height="70" patternUnits="userSpaceOnUse"><path d="M70 0H0V70" fill="none" stroke="#eef0f2" /></pattern>
+        </defs>
+        <rect width="760" height="330" fill="url(#grid)" />
+        <!-- Floors: 14 px/m × 0.5 zoom = 7 px/m; 3 m = 21 px... drawn at 10 px/m for legibility -->
+        <rect x="0" y="270" width="760" height="60" fill="var(--ground)" />
+        <g font-size="10" fill="var(--muted)">
+          <line x1="0" x2="760" y1="240" y2="240" stroke="var(--line)" stroke-dasharray="4 4" /><text x="6" y="236">Piso 2 · 3 m</text>
+          <line x1="0" x2="760" y1="210" y2="210" stroke="var(--line)" stroke-dasharray="4 4" /><text x="6" y="206">Piso 3 · 6 m</text>
+          <line x1="0" x2="760" y1="180" y2="180" stroke="var(--line)" stroke-dasharray="4 4" /><text x="6" y="176">Piso 4 · 9 m</text>
+        </g>
+        <!-- Engine -->
+        <rect x="14" y="238" width="62" height="32" rx="4" fill="var(--hose)" /><circle cx="28" cy="272" r="7" fill="var(--ink)" /><circle cx="62" cy="272" r="7" fill="var(--ink)" />
+        <!-- 2½″ hose on the ground -->
+        <line x1="76" y1="262" x2="300" y2="262" stroke="var(--hose)" stroke-width="10" stroke-linecap="round" />
+        <!-- Particles: slow and dense in 2½″ -->
+        <g fill="#fff" opacity=".9">
+          <circle cx="96" cy="262" r="2" /><circle cx="118" cy="262" r="2" /><circle cx="140" cy="262" r="2" /><circle cx="162" cy="262" r="2" /><circle cx="184" cy="262" r="2" /><circle cx="206" cy="262" r="2" /><circle cx="228" cy="262" r="2" /><circle cx="250" cy="262" r="2" /><circle cx="272" cy="262" r="2" />
+        </g>
+        <!-- 1½″ hose climbing -->
+        <path d="M300 262 Q 340 262 372 210" fill="none" stroke="var(--hose)" stroke-width="6" stroke-linecap="round" />
+        <!-- Particles: faster, so further apart (same gpm, continuity) -->
+        <g fill="#fff" opacity=".9"><circle cx="318" cy="261" r="1.6" /><circle cx="349" cy="248" r="1.6" /><circle cx="366" cy="224" r="1.6" /></g>
+        <circle cx="300" cy="262" r="7" fill="none" stroke="var(--steel)" stroke-width="3" />
+        <circle cx="300" cy="262" r="15" fill="none" stroke="var(--accent)" stroke-width="2" stroke-dasharray="4 3" />
+        <!-- Nozzle at 6 m -->
+        <g transform="translate(372 210) rotate(-14)">
+          <path d="M0 -6 L18 -7 L18 7 L0 6 Z" fill="var(--ink)" /><rect x="18" y="-9" width="8" height="18" rx="2" fill="var(--steel)" /><rect x="26" y="-10" width="14" height="20" rx="3" fill="var(--water)" />
+        </g>
+        <!-- Stream arc in world metres: ~22 m reach labelled illustrative -->
+        <path d="M410 200 Q 520 150 640 240" fill="none" stroke="var(--water-soft)" stroke-width="14" stroke-linecap="round" opacity=".8" />
+        <path d="M410 200 Q 520 150 640 240" fill="none" stroke="var(--water)" stroke-width="4" stroke-linecap="round" opacity=".75" />
+        <g fill="var(--water)" opacity=".5"><circle cx="646" cy="248" r="3" /><circle cx="636" cy="252" r="2" /><circle cx="652" cy="242" r="2" /></g>
+        <!-- Aim handle at the tip -->
+        <circle cx="410" cy="200" r="11" fill="var(--surface)" stroke="var(--accent)" stroke-width="2" />
+        <path d="M405 200 h10 M410 195 v10" stroke="var(--accent)" stroke-width="2" />
+        <path d="M410 200 L 470 185" stroke="var(--accent)" stroke-width="1.5" stroke-dasharray="3 3" />
+        <text x="476" y="182" font-size="11" fill="var(--accent)" font-weight="700">+14°</text>
+        <!-- Reach ruler -->
+        <line x1="410" x2="640" y1="300" y2="300" stroke="var(--muted)" /><line x1="410" x2="410" y1="295" y2="305" stroke="var(--muted)" /><line x1="640" x2="640" y1="295" y2="305" stroke="var(--muted)" />
+        <text x="525" y="318" font-size="11" text-anchor="middle" fill="var(--muted)">alcance ≈ 23 m · ilustrativo (genérico)</text>
+      </svg>
+      <div class="menu" role="menu" aria-label="Acople 1">
+        <div class="title">Acople 1 · 2½″ → 1½″ (reducción)</div>
+        <button>Insertar tramo aquí</button>
+        <button>Agregar bifurca <small>M4</small></button>
+        <hr />
+        <button class="danger">Quitar tramo siguiente (1½″ 30 m)</button>
+        <button class="danger">Quitar tramo anterior (2½″ 30 m)</button>
+      </div>
+      <div class="toolbar">
+        <div class="seg small" style="max-width:220px"><button class="on">Largo fijo</button><button>Libre</button></div>
+        <span>50 %</span><button class="btn">−</button><button class="btn">+</button><button class="btn">Ajustar</button>
+      </div>
+    </div>
+    <p class="note">Mantener presionado (táctil, 0,5 s) o clic derecho abre el menú del elemento. Toque corto: selecciona (en el pitón, abre/cierra la manija). Arrastrar el círculo de la punta apunta el chorro.</p>
+  </div>
+
+  <div class="frame">
+    <div class="cap">2 · Panel del pitón</div>
+    <div class="card sheet">
+      <div class="model">
+        <svg class="ico" viewBox="0 0 40 24"><path d="M2 8 L20 7 L20 17 L2 16 Z" fill="var(--ink)" /><rect x="20" y="5" width="6" height="14" rx="1" fill="var(--steel)" /><rect x="26" y="4" width="10" height="16" rx="2" fill="var(--water)" /></svg>
+        <div>
+          <div class="name">Combinado, selector</div>
+          <div class="meta">Entrada 1½″ · 100 psi · genérico</div>
+        </div>
+        <button class="btn">Cambiar</button>
+      </div>
+
+      <div>
+        <div class="label"><span>Manija</span><span>toque el pitón en el lienzo</span></div>
+        <div class="seg big"><button>Cerrada</button><button class="open on">Abierta</button></div>
+      </div>
+
+      <div>
+        <div class="label"><span>Caudal (anillo)</span><span>gpm</span></div>
+        <div class="seg"><button>30</button><button>60</button><button class="on">95</button><button>125</button></div>
+      </div>
+
+      <div>
+        <div class="label"><span>Patrón</span><span>solo dibujo</span></div>
+        <div class="seg small"><button class="on">Directo</button><button>Niebla 30°</button><button>Niebla 60°</button><button>Amplia</button></div>
+      </div>
+
+      <div class="row">
+        <div>
+          <div class="label"><span>Altura</span><span>piso 3</span></div>
+          <div class="stepper"><button>−</button><div class="val">6 m</div><button>+</button></div>
+        </div>
+        <div>
+          <div class="label"><span>Ángulo</span><span>chorro</span></div>
+          <div class="stepper"><button>−</button><div class="val">+14°</div><button>+</button></div>
+        </div>
+      </div>
+      <p class="note">Valores propios (caudal y presión nominal) en «Cambiar → Personalizado».</p>
+    </div>
+
+    <div class="cap">3 · «Cambiar»: lista, no desplegable</div>
+    <div class="card picker">
+      <h4>Encaja en acople 1½″</h4>
+      <div class="opt on"><svg class="ico" viewBox="0 0 40 24"><path d="M2 8 L20 7 L20 17 L2 16 Z" fill="var(--ink)" /><rect x="20" y="5" width="6" height="14" rx="1" fill="var(--steel)" /><rect x="26" y="4" width="10" height="16" rx="2" fill="var(--water)" /></svg><div><div class="t">Combinado, selector</div><div class="s">30 / 60 / 95 / 125 gpm @ 100 psi</div></div><span class="tag">genérico</span></div>
+      <div class="opt"><svg class="ico" viewBox="0 0 40 24"><path d="M2 8 L20 7 L20 17 L2 16 Z" fill="var(--ink)" /><rect x="20" y="4" width="16" height="16" rx="2" fill="var(--water)" /></svg><div><div class="t">Combinado, caudal único</div><div class="s">100 gpm @ 100 psi</div></div><span class="tag">genérico</span></div>
+      <div class="opt"><svg class="ico" viewBox="0 0 40 24"><path d="M2 8 L20 7 L20 17 L2 16 Z" fill="var(--ink)" /><rect x="20" y="4" width="16" height="16" rx="2" fill="var(--water)" /></svg><div><div class="t">Combinado, caudal único</div><div class="s">150 gpm @ 100 psi</div></div><span class="tag">genérico</span></div>
+      <h4>Requiere acople 2½″</h4>
+      <div class="opt off"><svg class="ico" viewBox="0 0 40 24"><path d="M2 6 L20 5 L20 19 L2 18 Z" fill="var(--ink)" /><rect x="20" y="3" width="16" height="18" rx="2" fill="var(--water)" /></svg><div><div class="t">Combinado, caudal único</div><div class="s">250 gpm @ 100 psi · entrada 2½″</div></div><button class="btn">Con adaptador</button></div>
+      <div class="opt"><svg class="ico" viewBox="0 0 40 24"><rect x="2" y="9" width="34" height="6" fill="var(--steel)" /></svg><div><div class="t">Personalizado</div><div class="s">caudal y presión nominal a mano</div></div><span class="tag">editar</span></div>
+    </div>
+  </div>
+</div>
+
+<ul class="notes">
+  <li><b>Partículas:</b> velocidad real v = 0,4085·Q/d² (MODEL.md §3.7), una partícula cada tantos galones: en 1½″ van más rápido y más separadas que en 2½″ con el mismo caudal (continuidad).</li>
+  <li><b>Chorro:</b> dibujado en metros del mundo, apuntable; su alcance a 0° y la caída de la niebla son ilustrativos y lo dicen, hasta tener <code>reach_m</code> del fabricante.</li>
+  <li><b>Acople:</b> el pitón se ofrece según el acople de la última manguera. Uno de otra medida solo entra «con adaptador» (dibujado, su pérdida no se modela aún).</li>
+  <li><b>Menú del lienzo:</b> pulsación larga / clic derecho en manguera, acople o pitón. Manguera: dividir en dos, quitar. Pitón: quitar (punta abierta, llega con M3).</li>
+</ul>
+</body>
+</html>

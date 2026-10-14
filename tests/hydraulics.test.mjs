@@ -230,3 +230,8 @@ test("a method changes the elevation constant, never the laws", () => {
     near(result.nozzlePressurePsi + result.frictionLossPsi + result.elevationPressurePsi, pumpPressurePsi, 1e-6);
   }
 });
+
+test("flow.velocity: 95 gpm in 1½″ is 0.4085·95/1.5² = 17.25 ft/s (MODEL.md §3.7)", async () => {
+  const { hoseVelocityMps } = await import("../src/hydraulics/velocity.ts");
+  assert.ok(Math.abs(hoseVelocityMps(95, 1.5) / 0.3048 - 17.25) < 0.01);
+});
