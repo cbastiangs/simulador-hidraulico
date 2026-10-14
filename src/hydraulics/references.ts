@@ -48,6 +48,8 @@ export type HoseSize = {
   id: string;
   diameter: string;
   couplings?: string;
+  /** Nominal inside diameter, inches: what the drawing scales a hose's thickness by. */
+  nominalDiameterIn: number;
   frictionCoefficient: number;
   sources: readonly SourceId[];
 };
@@ -56,13 +58,13 @@ const BOTH: readonly SourceId[] = ["cgbvpManual2019", "coloradoPumperChart"];
 const IFSTA_ONLY: readonly SourceId[] = ["coloradoPumperChart"];
 
 export const HOSE_SIZES: readonly HoseSize[] = [
-  { id: "1-1/2", diameter: '1-1/2"', frictionCoefficient: 24, sources: BOTH },
-  { id: "1-3/4", diameter: '1-3/4"', frictionCoefficient: 15.5, sources: BOTH },
-  { id: "2-1/2", diameter: '2-1/2"', frictionCoefficient: 2, sources: BOTH },
-  { id: "3/2-1/2", diameter: '3"', couplings: '2-1/2"', frictionCoefficient: 0.8, sources: BOTH },
-  { id: "3/3", diameter: '3"', couplings: '3"', frictionCoefficient: 0.677, sources: IFSTA_ONLY },
-  { id: "4", diameter: '4"', frictionCoefficient: 0.2, sources: BOTH },
-  { id: "5", diameter: '5"', frictionCoefficient: 0.08, sources: IFSTA_ONLY },
+  { id: "1-1/2", diameter: '1-1/2"', nominalDiameterIn: 1.5, frictionCoefficient: 24, sources: BOTH },
+  { id: "1-3/4", diameter: '1-3/4"', nominalDiameterIn: 1.75, frictionCoefficient: 15.5, sources: BOTH },
+  { id: "2-1/2", diameter: '2-1/2"', nominalDiameterIn: 2.5, frictionCoefficient: 2, sources: BOTH },
+  { id: "3/2-1/2", diameter: '3"', couplings: '2-1/2"', nominalDiameterIn: 3, frictionCoefficient: 0.8, sources: BOTH },
+  { id: "3/3", diameter: '3"', couplings: '3"', nominalDiameterIn: 3, frictionCoefficient: 0.677, sources: IFSTA_ONLY },
+  { id: "4", diameter: '4"', nominalDiameterIn: 4, frictionCoefficient: 0.2, sources: BOTH },
+  { id: "5", diameter: '5"', nominalDiameterIn: 5, frictionCoefficient: 0.08, sources: IFSTA_ONLY },
 ];
 
 export type MethodId = "cgbvp-2019" | "physical";

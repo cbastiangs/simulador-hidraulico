@@ -1,0 +1,33 @@
+{
+  "schema": "simulador-hidraulico/scenario",
+  "version": 1,
+  "name": "Reducción 2-1/2\" a 1-1/2\", un piso arriba",
+  "methodId": "physical",
+  "source": {
+    "kind": "fixed-pressure",
+    "pressurePsi": 135
+  },
+  "sections": [
+    {
+      "hoseSizeId": "2-1/2",
+      "diameterIn": 2.5,
+      "frictionCoefficient": 2,
+      "lengthFt": 98.42519685039369,
+      "endElevationFt": 9.84251968503937
+    },
+    {
+      "hoseSizeId": "1-1/2",
+      "diameterIn": 1.5,
+      "frictionCoefficient": 24,
+      "lengthFt": 98.42519685039369,
+      "endElevationFt": 9.84251968503937
+    }
+  ],
+  "nozzle": {
+    "kind": "fixed-orifice",
+    "specId": "fog-100",
+    "ratedFlowGpm": 100,
+    "ratedPressurePsi": 100,
+    "open": true
+  }
+}
