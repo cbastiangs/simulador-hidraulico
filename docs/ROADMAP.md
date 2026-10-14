@@ -274,6 +274,15 @@ length matter, so a route is drawing data plus the length it implies),
 dragging pieces from a toolbar, and a visual-only **line-charging**
 animation (a water front at the solved velocity; not a transient model).
 
+## 10c. Polish before new laws (owner, 2026-10-16)
+
+Next work polishes the app around the laws already implemented (hose
+friction, elevation, fixed-orifice and selectable nozzles). Deferred until
+then: partial valve openings (nozzle bale part-open, pump push-pull
+discharge valves; a new law `valve.partial`, Q = Cv·f(x)·√ΔP, generic curves
+labelled illustrative unless a manufacturer source is found), pump capacity,
+automatic nozzles, branching.
+
 ## 11. Decisions (owner, 2026-10-14)
 
 1. **Kinks:** out of scope (§7.5).
