@@ -5,6 +5,8 @@
   import * as edit from "$lib/edit.ts";
   import { runsOf } from "$lib/geometry/world.ts";
   import type { Selection } from "$lib/selection.ts";
+  import type { Action, Target } from "$lib/actions.ts";
+  import Actions from "./Actions.svelte";
   import JointControls from "./JointControls.svelte";
   import NumberField from "./NumberField.svelte";
 
@@ -16,7 +18,8 @@
     floorM = 3,
     onchange,
     onSelect,
-    onEdit,
+    requiredPsi,
+    onAction,
     onClose,
   }: {
     scenario: Scenario;
@@ -25,8 +28,9 @@
     floorM?: number;
     onchange: (s: Scenario) => void;
     onSelect: (s: Selection) => void;
-    /** A structural edit (insert, split, join, remove) and what to select after it: its own undo step. */
-    onEdit: (next: Scenario, select?: Selection) => void;
+    requiredPsi: number;
+    /** Run an action from lib/actions.ts: the panel shows every action for the selection. */
+    onAction: (action: Action, target: Target) => void;
     /** The header's ×: clear the selection. */
     onClose: () => void;
   } = $props();
@@ -147,13 +151,6 @@
       <p>{j === 0 ? "Entre la bomba y el tramo 1" : `Entre el tramo ${j} y el tramo ${j + 1}`} · arrastra el acople para moverlo</p>
     </header>
     <JointControls {scenario} joint={j} onToggle={(kind) => onchange(edit.toggleFitting(scenario, j, kind))} />
-    <div class="actions">
-      <button type="button" class="secondary" onclick={() => onEdit(edit.insertSection(scenario, j), { kind: "section", index: j })}>+ Tramo aquí</button>
-      {#if j > 0}
-        <button type="button" class="secondary" onclick={() => onEdit(edit.mergeAtJoint(scenario, j), { kind: "section", index: j - 1 })}>Unir tramos</button>
-        <button type="button" class="secondary" onclick={() => onSelect({ kind: "section", index: j - 1 })}>Editar tramo {j}</button>
-      {/if}
-    </div>
   {:else}
     {@const i = selection.index}
     {@const s = scenario.sections[i]}
@@ -168,7 +165,11 @@
         {#each HOSE_SIZES as size (size.id)}<option value={size.id}>{sizeName(size)}</option>{/each}
       </select>
     </label>
-    <NumberField label="Largo" value={s.lengthM} unit="m" step={1} bigStep={{ size: 15, label: "15" }} digits={0} onchange={(m) => onchange(edit.setSectionLength(scenario, i, m))} />
+    <div class="lock-row">
+      <span class="label">Largo</span>
+      <button type="button" class="secondary" class:on={!s.lengthFree} aria-pressed={!s.lengthFree} onclick={() => onchange(edit.toggleLengthLock(scenario, i))}>{s.lengthFree ? "🔓 Libre" : "🔒 Largo fijo"}</button>
+    </div>
+    <NumberField label="Largo" hideLabel value={s.lengthM} unit="m" step={1} bigStep={{ size: 15, label: "15" }} digits={0} onchange={(m) => onchange(edit.setSectionLength(scenario, i, m))} />
     <NumberField label="Altura al final" value={s.endElevationM} unit="m" step={0.5} bigStep={{ size: floorM, label: "piso" }} onchange={(m) => onchange(edit.setEndElevation(scenario, i, m))} />
     {@const run = runsOf(scenario.sections)[i]}
     {@const rise = s.endElevationM - (i === 0 ? 0 : scenario.sections[i - 1].endElevationM)}
@@ -181,16 +182,9 @@
         ? "Largo fijo: arrastra el acople dentro del alcance de la manguera; la altura no puede superar su largo."
         : "Libre: arrastra el acople y la manguera se ajusta al largo necesario."}
     </p>
-    <div class="actions">
-      <button type="button" class="secondary" onclick={() => onEdit(edit.insertSection(scenario, i + 1), { kind: "section", index: i + 1 })}>+ Tramo</button>
-      <button type="button" class="secondary" disabled={s.lengthM < 2} onclick={() => onEdit(edit.splitSection(scenario, i), { kind: "section", index: i })}>Dividir</button>
-      <button
-        type="button"
-        class="secondary danger"
-        disabled={scenario.sections.length <= 1}
-        onclick={() => onEdit(edit.removeSection(scenario, i), { kind: "section", index: Math.max(0, i - 1) })}>🗑 Quitar tramo</button
-      >
-    </div>
+  {/if}
+  {#if selection}
+    <Actions target={selection} {scenario} {requiredPsi} place="panel" {onAction} />
   {/if}
 </aside>
 
@@ -221,7 +215,8 @@
   details[open] { padding-bottom: 4px; }
   summary { cursor: pointer; color: var(--accent); font-size: 14px; margin-bottom: 10px; }
   .secondary { justify-self: start; min-height: 44px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); cursor: pointer; }
-  .actions { display: flex; flex-wrap: wrap; gap: 6px; }
-  .danger { color: var(--warn); }
+  .lock-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: -8px; }
+  .lock-row .label { margin: 0; }
+  .secondary.on { border-color: var(--accent); color: var(--accent); }
   .secondary:disabled { opacity: 0.5; cursor: default; }
 </style>

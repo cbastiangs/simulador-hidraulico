@@ -12,8 +12,9 @@
     type Bounds,
   } from "$lib/geometry/world.ts";
   import type { Selection } from "$lib/selection.ts";
-  import * as edit from "$lib/edit.ts";
-  import ContextMenu, { type MenuTarget } from "./ContextMenu.svelte";
+    import ContextMenu from "./ContextMenu.svelte";
+  import Actions from "./Actions.svelte";
+  import type { Action, Target } from "$lib/actions.ts";
   import Gauge from "./Gauge.svelte";
   import JointControls from "./JointControls.svelte";
   import NozzleDrawing from "./NozzleDrawing.svelte";
@@ -40,7 +41,8 @@
     onHoseSize,
     onLength,
     onToggleFitting,
-    onEdit,
+    onAction,
+    fitSignal = 0,
     phone = false,
     wide = false,
     coverPx = 0,
@@ -64,8 +66,10 @@
     onLength: (sectionIndex: number, lengthM: number) => void;
     /** Place or remove a fitting at a joint (0 = pump outlet). */
     onToggleFitting: (joint: number, kind: FittingKind) => void;
-    /** A structural edit (insert, split, join, remove), and what to select after it. */
-    onEdit: (next: Scenario, select?: Selection) => void;
+    /** Run an action from lib/actions.ts (toolbars, menu). */
+    onAction: (action: Action, target: Target) => void;
+    /** Changes when "Ajustar vista" runs from the action list: auto-fit is restored. */
+    fitSignal?: number;
     /** Phone layout (UX.md §8): the canvas fills its container and the bottom sheet replaces the floating toolbars. */
     phone?: boolean;
     /** Desktop three-column layout (UX.md §4): the canvas takes the window's height. */
@@ -114,6 +118,14 @@
     }
   });
 
+  let fitSeen = 0;
+  $effect(() => {
+    if (fitSignal !== fitSeen) {
+      fitSeen = fitSignal;
+      manualZoom = null;
+    }
+  });
+
   const fitted = $derived(fitBounds(scenario.sections, floorM));
   // The canvas takes the height the window has (UX.md §2): the lay sits on the
   // ground at the bottom and the rest is building above it, so a rising hose
@@ -157,12 +169,12 @@
 
   // Context menu (UX.md §2): right click, or a press held still for 0.5 s on touch.
   const HOLD_MS = 500;
-  let menu = $state<{ target: MenuTarget; x: number; y: number } | null>(null);
+  let menu = $state<{ target: Target; x: number; y: number } | null>(null);
   let hold: { timer: ReturnType<typeof setTimeout>; x: number; y: number } | null = null;
   /** The press that opened the menu must not also count as a tap when it lifts. */
   let held = false;
 
-  function openMenu(event: MouseEvent, target: MenuTarget) {
+  function openMenu(event: MouseEvent, target: Target) {
     event.preventDefault();
     event.stopPropagation();
     // On touch, browsers that fire contextmenu on a long press beat our timer.
@@ -170,10 +182,10 @@
     cancelHold();
     press = null;
     menu = { target, x: event.clientX, y: event.clientY };
-    if (target.kind !== "empty") onSelect(target);
+    if (target.kind !== "line") onSelect(target);
   }
 
-  function holdStart(event: PointerEvent, target: MenuTarget) {
+  function holdStart(event: PointerEvent, target: Target) {
     if (hold) return;
     held = false;
     if (event.pointerType === "mouse") return;
@@ -188,7 +200,7 @@
         dragging = null;
         frozen = null;
         menu = { target, x, y };
-        if (target.kind !== "empty") onSelect(target);
+        if (target.kind !== "line") onSelect(target);
       }, HOLD_MS),
     };
   }
@@ -480,8 +492,8 @@
         viewBox={`0 0 ${layout.widthPx} ${layout.heightPx}`}
         role="application"
         aria-label="Vista lateral de la línea"
-        oncontextmenu={(e) => openMenu(e, { kind: "empty" })}
-        onpointerdown={(e) => holdStart(e, { kind: "empty" })}
+        oncontextmenu={(e) => openMenu(e, { kind: "line" })}
+        onpointerdown={(e) => holdStart(e, { kind: "line" })}
         onpointermove={holdMove}
         onpointerup={cancelHold}
         onpointercancel={cancelHold}
@@ -667,11 +679,7 @@
             <button type="button" aria-label="Alargar 15 m" onclick={() => onLength(i, s.lengthM + 15)}>+15 m</button>
             <button type="button" class="lock" class:on={!s.lengthFree} aria-pressed={!s.lengthFree} onclick={() => onToggleLock(i)}>{s.lengthFree ? "🔓 Libre" : "🔒 Largo fijo"}</button>
           </div>
-          <div class="chips">
-            <button type="button" onclick={() => onEdit(edit.insertSection(scenario, i + 1), { kind: "section", index: i + 1 })}>+ Tramo</button>
-            <button type="button" disabled={s.lengthM < 2} onclick={() => onEdit(edit.splitSection(scenario, i), { kind: "section", index: i })}>Dividir</button>
-            <button type="button" class="danger" disabled={scenario.sections.length <= 1} onclick={() => onEdit(edit.removeSection(scenario, i), { kind: "section", index: Math.max(0, i - 1) })}>🗑 Quitar</button>
-          </div>
+          <Actions target={{ kind: "section", index: i }} {scenario} requiredPsi={result.requiredPumpPressurePsi} place="quick" {onAction} />
         </div>
       {/if}
 
@@ -680,12 +688,7 @@
         <div class="hose-bar joint-bar" class:up style:left={`${selectedJoint.x * zoom}px`} style:top={`${selectedJoint.y * zoom + (up ? -30 : 30)}px`}>
           <button type="button" class="bar-close" aria-label="Quitar selección (Esc)" title="Quitar selección (Esc)" onclick={onDeselect}>×</button>
           <JointControls {scenario} joint={selection.index} onToggle={(kind) => onToggleFitting(selection.index, kind)} />
-          <div class="chips">
-            <button type="button" onclick={() => onEdit(edit.insertSection(scenario, selection.index), { kind: "section", index: selection.index })}>+ Tramo aquí</button>
-            {#if selection.index > 0}
-              <button type="button" onclick={() => onEdit(edit.mergeAtJoint(scenario, selection.index), { kind: "section", index: selection.index - 1 })}>Unir tramos</button>
-            {/if}
-          </div>
+          <Actions target={selection} {scenario} requiredPsi={result.requiredPumpPressurePsi} place="quick" {onAction} />
         </div>
       {/if}
     </div>
@@ -708,16 +711,7 @@
 </div>
 
 {#if menu}
-  <ContextMenu
-    target={menu.target}
-    x={menu.x}
-    y={menu.y}
-    {scenario}
-    {onEdit}
-    {onSelect}
-    onFit={() => (manualZoom = null)}
-    onClose={() => (menu = null)}
-  />
+  <ContextMenu target={menu.target} x={menu.x} y={menu.y} {scenario} requiredPsi={result.requiredPumpPressurePsi} {onAction} onClose={() => (menu = null)} />
 {/if}
 
 <style>
@@ -764,7 +758,6 @@
   .chips { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; justify-content: center; }
   .chips button { min-height: 36px; min-width: 40px; padding: 0 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); font-weight: 600; font-size: 13px; cursor: pointer; }
   .chips button:disabled { opacity: 0.4; cursor: default; }
-  .chips .danger { color: var(--warn); }
   .hint { font-size: 12px; color: var(--muted); }
   .chips .on { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
   .len { font-weight: 700; min-width: 3.5rem; text-align: center; }

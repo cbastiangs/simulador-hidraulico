@@ -95,16 +95,15 @@
 - **Building the line (owner, 2026-10-15).** Hoses are added, split, joined
   and removed on the canvas; nothing needs the inspector:
   - **Context menu:** right click, or a press held still for 0.5 s on touch,
-    on a hose (insert before / after, split in two, lock or unlock its
-    length, remove), a coupling (insert a hose here, join the two hoses,
-    fittings), the nozzle (add a hose before it, open/shut, change nozzle),
-    the engine or pump outlet (insert at the outlet, outlet fittings, pump),
-    or empty canvas (add at the end, fit the view). The press that opens it
-    is not also a tap.
-  - **Every menu entry has a visible control too,** since nobody discovers a
-    long press: the hose toolbar has "+ Tramo", "Dividir" and "🗑 Quitar";
-    the coupling toolbar "+ Tramo aquí" and "Unir tramos"; a hint under the
-    canvas names the menu.
+    on a hose (insert before / after, split in two, join with the next, lock
+    or unlock its length, remove), a coupling (insert a hose here, join the
+    two hoses), the nozzle (open/shut, add a hose at the end), the engine or
+    pump outlet (insert at the outlet, apply the required pressure), or empty
+    canvas (add at the end, fit the view). The press that opens it already
+    selects, so no entry only selects. The press is not also a tap.
+  - **Every menu entry is in the selection panel too** (§10.5), since nobody
+    discovers a long press; the common ones are also on the floating
+    toolbar. A hint under the canvas names the menu.
   - **Edits keep the drawing still:** an inserted hose copies its neighbour,
     level and taut, so nothing else moves; a split meets halfway up the rise;
     a join takes the upstream hose's size and the combined length; a removed
@@ -343,7 +342,7 @@ A task whose law is not built yet waits for its milestone.
 | 10 | Firefighter | Same flow with a smooth bore vs a fog nozzle | M2 |
 | 11 | Instructor | Swap smooth-bore tips (⅞″, 15/16″, 1″, 1⅛″) and see flow grow with the tip's square and the pump pressure each demands; tips worked like stacked tips, tapped to change | M2: `nozzle.smooth-bore` (Freeman) in MODEL.md first; smooth-bore rows in the catalog |
 
-## 10. Patterns, objects and actions (draft, 2026-10-15, awaiting owner)
+## 10. Patterns, objects and actions (owner, 2026-10-16: approved; the ◻ items are part of the polish)
 
 Built from the top tasks (§9). Every action belongs to one pattern; a new
 feature picks a pattern rather than inventing an interaction. §8 says where
@@ -410,5 +409,32 @@ they know what to do, would they see how, would they understand the result?
    mark on the nozzle gauge.
 3. The rest of ◻: floor height, reset, rename, zoom to selection, true-scale
    toggle, Fuentes, tour.
-4. `src/lib/actions.ts`: one list of actions (id, label, target, enabled,
-   edit) drawn by the menu, the toolbar and the sheet, so they cannot drift.
+4. ✅ `src/lib/actions.ts` (2026-10-16, §10.5).
+
+### 10.5 One list of actions (owner, 2026-10-16)
+
+Every verb on screen is one entry in `src/lib/actions.ts` (the command
+pattern): id, label, a shorter toolbar label, what it applies to (hose,
+coupling, nozzle, pump, the whole line), whether it is on the toolbar or in
+the menu, why it is blocked, and what it does (an edit, what to select
+afterwards, or a view change). The menu, the floating toolbar (the sheet at
+peek) and the selection panel draw from it; the page runs every action the
+same way: one undo step, then the selection it names. Rules:
+
+1. **Selecting never edits.** A tap selects; changing anything takes its
+   own control (the bale, a button).
+2. **One wording per action, everywhere.** The toolbar may shorten it
+   ("+ Tramo" for "Insertar tramo después"), never rename it.
+3. **The panel has everything.** It draws every action for its target; the
+   menu and the toolbar are shortcuts. An action the panel already offers as
+   a field (the bale lever, the length lock, "Aplicar requerida") is not
+   repeated there as a button.
+4. **The toolbar is short:** at most 4 actions per target (a dev-time check).
+5. **Removing is red, last and undoable.**
+6. **A blocked action stays visible,** disabled, with its reason: beside it
+   in the panel, as a second line in the menu, as a tooltip on the toolbar.
+7. **Fields are not actions.** Hose size, length, heights, pressure, nozzle
+   ring and pattern stay controls drawn by their panel.
+
+Joint 0 (the pump outlet) takes the pump's actions. A new feature adds
+entries here rather than buttons in components.

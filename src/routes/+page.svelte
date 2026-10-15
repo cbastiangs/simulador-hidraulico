@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { isAuto, parseScenario, solveScenario, type Scenario } from "$hydraulics/scenario.ts";
+  import { parseScenario, solveScenario, type Scenario } from "$hydraulics/scenario.ts";
   import Breakdown from "$lib/components/Breakdown.svelte";
   import BudgetBar from "$lib/components/BudgetBar.svelte";
   import Canvas from "$lib/components/Canvas.svelte";
@@ -7,6 +7,8 @@
   import Inspector from "$lib/components/Inspector.svelte";
   import PumpPanel from "$lib/components/PumpPanel.svelte";
   import Sheet, { CLOSED_PX, sheetHeights, type SheetState } from "$lib/components/Sheet.svelte";
+  import Actions from "$lib/components/Actions.svelte";
+  import type { Action, Target } from "$lib/actions.ts";
   import * as edit from "$lib/edit.ts";
   import type { Selection } from "$lib/selection.ts";
 
@@ -71,9 +73,17 @@
     sheet = "closed";
   }
 
-  function structural(next: Scenario, then?: Selection) {
-    apply(next);
-    if (then) select(then);
+  // Every action (lib/actions.ts) runs here, whichever surface offered it:
+  // one undo step, then the selection it names.
+  let fitSignal = $state(0);
+  function runAction(action: Action, target: Target) {
+    const c = { scenario, target, requiredPsi: result.requiredPumpPressurePsi };
+    if (action.blocked?.(c)) return;
+    const out = action.run(c);
+    if (out.scenario) apply(out.scenario);
+    if (out.view === "fit") fitSignal += 1;
+    if (out.select === null) deselect();
+    else if (out.select) select(out.select);
   }
 
   // Undo and redo (UX.md §2). Every edit goes through `apply`; a burst of edits
@@ -157,10 +167,6 @@
     future = [];
   }
 
-  function addSection() {
-    apply(edit.addSection(scenario));
-    selection = { kind: "section", index: scenario.sections.length - 1 };
-  }
 </script>
 
 <svelte:head><title>Simulador hidráulico</title></svelte:head>
@@ -168,15 +174,13 @@
 
 {#snippet line()}
   <section class="line-tools" aria-label="Línea">
-    <button type="button" class="add" onclick={addSection}>+ Añadir tramo al final</button>
-    <button type="button" class="add" class:on={isAuto(scenario)} aria-pressed={isAuto(scenario)} onclick={() => apply(edit.setAutoFittings(scenario, !isAuto(scenario)))}>
-      Accesorios automáticos: {isAuto(scenario) ? "sí" : "no"}
-    </button>
+    <h2>Línea</h2>
+    <Actions target={{ kind: "line" }} {scenario} requiredPsi={result.requiredPumpPressurePsi} place="panel" onAction={runAction} />
   </section>
 {/snippet}
 
 {#snippet side()}
-  <Inspector {scenario} {selection} onClose={deselect} onchange={(s) => apply(s, `inspector:${JSON.stringify(selection)}`)} onSelect={select} onEdit={structural} />
+  <Inspector {scenario} {selection} onClose={deselect} onchange={(s) => apply(s, `inspector:${JSON.stringify(selection)}`)} onSelect={select} requiredPsi={result.requiredPumpPressurePsi} onAction={runAction} />
   {#if !wide}{@render line()}{/if}
 {/snippet}
 
@@ -233,7 +237,8 @@
       onLength={(i, m) => apply(edit.setSectionLength(scenario, i, m), `length:${i}`)}
       onToggleFitting={(j, kind) => apply(edit.toggleFitting(scenario, j, kind))}
       onToggleNozzle={() => apply(edit.setNozzleOpen(scenario, !scenario.nozzle.open))}
-      onEdit={structural}
+      onAction={runAction}
+      {fitSignal}
     />
   </div>
 
@@ -287,12 +292,11 @@
   .history button:disabled { opacity: 0.4; cursor: default; }
   .top select { height: 44px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); padding: 0 10px; max-width: 100%; }
   .pump { grid-area: pump; display: grid; gap: var(--gap); align-content: start; }
-  .line-tools { display: grid; gap: 8px; }
-  .add.on { border-color: var(--fitting); color: var(--fitting); }
+  .line-tools { display: grid; gap: 8px; background: var(--surface); border-radius: var(--radius); padding: 12px 14px; }
+  .line-tools h2 { margin: 0; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
   .canvas { grid-area: canvas; min-width: 0; }
   .side { grid-area: side; display: grid; gap: var(--gap); align-content: start; }
   .results { grid-area: results; display: grid; gap: var(--gap); min-width: 0; }
-  .add { min-height: 44px; border-radius: 8px; border: 1px dashed var(--muted); background: transparent; cursor: pointer; font-weight: 600; }
   .card { background: var(--surface); border-radius: var(--radius); padding: 12px 14px; }
   .card summary { cursor: pointer; color: var(--accent); }
   .card[open] summary { margin-bottom: 12px; }

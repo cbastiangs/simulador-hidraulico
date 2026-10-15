@@ -1,92 +1,31 @@
-<script lang="ts" module>
-  /** What a right click or long press landed on (UX.md §2). Joint 0 is the pump outlet. */
-  export type MenuTarget =
-    | { kind: "section"; index: number }
-    | { kind: "joint"; index: number }
-    | { kind: "nozzle" }
-    | { kind: "pump" }
-    | { kind: "empty" };
-</script>
-
 <script lang="ts">
   import type { Scenario } from "$hydraulics/scenario.ts";
-  import * as edit from "$lib/edit.ts";
-  import type { Selection } from "$lib/selection.ts";
+  import { actionsFor, labelOf, type Action, type Target } from "$lib/actions.ts";
 
-  // The canvas's context menu: right click, or a long press on touch. Every
-  // entry is also reachable from a visible control (the hose and coupling
-  // toolbars, the inspector), so nothing lives only here.
+  // The canvas's context menu: right click, or a long press on touch. Its
+  // entries come from lib/actions.ts, where every one is also in the
+  // selection panel, so nothing lives only here.
   let {
     target,
     x,
     y,
     scenario,
-    onEdit,
-    onSelect,
-    onFit,
+    requiredPsi,
+    onAction,
     onClose,
   }: {
-    target: MenuTarget;
+    target: Target;
     /** Where it opened, in window pixels. */
     x: number;
     y: number;
     scenario: Scenario;
-    onEdit: (next: Scenario, select?: Selection) => void;
-    onSelect: (s: Selection) => void;
-    onFit: () => void;
+    requiredPsi: number;
+    onAction: (action: Action, target: Target) => void;
     onClose: () => void;
   } = $props();
 
-  type Item = { label: string; run: () => void; disabled?: boolean; danger?: boolean };
-
-  const n = $derived(scenario.sections.length);
-  const insert = (at: number) => () => onEdit(edit.insertSection(scenario, at), { kind: "section", index: at });
-
-  const items = $derived.by((): Item[] => {
-    switch (target.kind) {
-      case "section": {
-        const i = target.index;
-        const s = scenario.sections[i];
-        return [
-          { label: "Insertar tramo antes", run: insert(i) },
-          { label: "Insertar tramo después", run: insert(i + 1) },
-          { label: "Dividir en dos", run: () => onEdit(edit.splitSection(scenario, i), { kind: "section", index: i }), disabled: s.lengthM < 2 },
-          { label: s.lengthFree ? "Bloquear largo" : "Desbloquear largo", run: () => onEdit(edit.toggleLengthLock(scenario, i)) },
-          { label: "Quitar tramo", run: () => onEdit(edit.removeSection(scenario, i), { kind: "section", index: Math.max(0, i - 1) }), disabled: n <= 1, danger: true },
-        ];
-      }
-      case "joint": {
-        const j = target.index;
-        if (j === 0) return pumpItems();
-        return [
-          { label: "Insertar tramo aquí", run: insert(j) },
-          { label: "Unir los dos tramos", run: () => onEdit(edit.mergeAtJoint(scenario, j), { kind: "section", index: j - 1 }) },
-          { label: "Accesorios…", run: () => onSelect({ kind: "joint", index: j }) },
-        ];
-      }
-      case "nozzle":
-        return [
-          { label: "Añadir tramo antes del pitón", run: insert(n) },
-          { label: scenario.nozzle.open ? "Cerrar pitón" : "Abrir pitón", run: () => onEdit(edit.setNozzleOpen(scenario, !scenario.nozzle.open)) },
-          { label: "Cambiar pitón…", run: () => onSelect({ kind: "nozzle" }) },
-        ];
-      case "pump":
-        return pumpItems();
-      case "empty":
-        return [
-          { label: "Añadir tramo al final", run: insert(n) },
-          { label: "Ajustar vista", run: onFit },
-        ];
-    }
-  });
-
-  function pumpItems(): Item[] {
-    return [
-      { label: "Insertar tramo en la salida", run: insert(0) },
-      { label: "Accesorios de la salida…", run: () => onSelect({ kind: "joint", index: 0 }) },
-      { label: "Bomba…", run: () => onSelect({ kind: "pump" }) },
-    ];
-  }
+  const ctx = $derived({ scenario, target, requiredPsi });
+  const items = $derived(actionsFor(target, "menu").map((a) => ({ a, label: labelOf(a, ctx, "menu"), why: a.blocked?.(ctx) ?? null })));
 
   const title = $derived(
     target.kind === "section" ? `Tramo ${target.index + 1}`
@@ -144,16 +83,16 @@
   oncontextmenu={(e) => e.preventDefault()}
 >
   <p class="title">{title}</p>
-  {#each items as item (item.label)}
+  {#each items as { a, label, why } (a.id)}
     <button
       type="button"
       role="menuitem"
-      class:danger={item.danger}
-      disabled={item.disabled}
+      class:danger={a.danger}
+      disabled={why !== null}
       onclick={() => {
-        item.run();
+        onAction(a, target);
         onClose();
-      }}>{item.label}</button
+      }}>{label}{#if why}<small>{why}</small>{/if}</button
     >
   {/each}
 </div>
@@ -161,8 +100,9 @@
 <style>
   .menu { position: fixed; z-index: 30; min-width: 200px; display: grid; padding: 6px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2); }
   .title { margin: 2px 8px 6px; font-size: 12px; color: var(--muted); font-weight: 600; }
-  button { min-height: 44px; padding: 0 12px; text-align: left; border: 0; border-radius: 6px; background: transparent; color: var(--ink); font-size: 14px; cursor: pointer; }
+  button { min-height: 44px; padding: 4px 12px; display: grid; align-content: center; text-align: left; border: 0; border-radius: 6px; background: transparent; color: var(--ink); font-size: 14px; cursor: pointer; }
   button:hover:not(:disabled), button:focus-visible { background: var(--accent-soft); outline: none; }
   button:disabled { opacity: 0.4; cursor: default; }
   .danger { color: var(--warn); }
+  small { font-size: 11px; color: var(--muted); }
 </style>

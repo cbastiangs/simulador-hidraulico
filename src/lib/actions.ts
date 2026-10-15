@@ -1,0 +1,237 @@
+import { isAuto, type Scenario } from "$hydraulics/scenario.ts";
+import * as edit from "$lib/edit.ts";
+import type { Selection } from "$lib/selection.ts";
+
+/**
+ * Every verb the screen offers, defined once (UX.md §10.5). The context
+ * menu, the floating toolbar (the phone's sheet at peek) and the selection
+ * panel all draw from this list, so a label, an enabled check or what gets
+ * selected afterwards cannot differ between them.
+ *
+ * The panel shows every action for its target: the menu and the toolbar are
+ * shortcuts, never the only way. Values edited directly (hose size, length,
+ * pressure, nozzle ring and pattern) are fields, not actions; an action the
+ * panel already offers as a field is marked `field` and skipped there.
+ */
+
+/** What an action applies to: a selected element, or the whole line (empty canvas, the Línea section). */
+export type Target = Selection | { kind: "line" };
+
+export type ActionContext = {
+  scenario: Scenario;
+  target: Target;
+  /** The pressure the line needs at the pump, for "apply required". */
+  requiredPsi: number;
+};
+
+export type Outcome = {
+  scenario?: Scenario;
+  /** What to select afterwards; null clears the selection; absent keeps it. */
+  select?: Selection | null;
+  /** A view change: no edit, no undo step. */
+  view?: "fit";
+};
+
+export type Action = {
+  id: string;
+  label: string | ((c: ActionContext) => string);
+  /** The toolbar's shorter wording. */
+  short?: string | ((c: ActionContext) => string);
+  on: Target["kind"][];
+  /** In the floating toolbar / sheet at peek: at most QUICK_MAX per target. */
+  quick?: boolean;
+  /** In the right-click / long-press menu. */
+  menu?: boolean;
+  /** The panel offers it as a field (a lever, a switch, a chip): no extra button there. */
+  field?: boolean;
+  /** Removes something: red, last. Undo covers it like every edit. */
+  danger?: boolean;
+  /** Why it can't run now, shown beside it; null when it can. */
+  blocked?: (c: ActionContext) => string | null;
+  run: (c: ActionContext) => Outcome;
+};
+
+export type Place = "quick" | "menu" | "panel";
+
+export const QUICK_MAX = 4;
+
+const index = (t: Target) => ("index" in t ? t.index : 0);
+const count = (c: ActionContext) => c.scenario.sections.length;
+const insertAt = (c: ActionContext, at: number): Outcome => ({
+  scenario: edit.insertSection(c.scenario, at),
+  select: { kind: "section", index: at },
+});
+
+export const ACTIONS: Action[] = [
+  // Hose
+  {
+    id: "hose.insert-before",
+    label: "Insertar tramo antes",
+    on: ["section"],
+    menu: true,
+    run: (c) => insertAt(c, index(c.target)),
+  },
+  {
+    id: "hose.insert-after",
+    label: "Insertar tramo después",
+    short: "+ Tramo",
+    on: ["section"],
+    quick: true,
+    menu: true,
+    run: (c) => insertAt(c, index(c.target) + 1),
+  },
+  {
+    id: "hose.split",
+    label: "Dividir en dos",
+    short: "Dividir",
+    on: ["section"],
+    quick: true,
+    menu: true,
+    blocked: (c) => (c.scenario.sections[index(c.target)].lengthM < 2 ? "Muy corto para dividir (mínimo 2 m)" : null),
+    run: (c) => ({ scenario: edit.splitSection(c.scenario, index(c.target)), select: c.target as Selection }),
+  },
+  {
+    id: "hose.join-next",
+    label: "Unir con el siguiente",
+    on: ["section"],
+    menu: true,
+    blocked: (c) => (index(c.target) >= count(c) - 1 ? "Es el último tramo" : null),
+    run: (c) => ({ scenario: edit.mergeAtJoint(c.scenario, index(c.target) + 1), select: c.target as Selection }),
+  },
+  {
+    id: "hose.lock",
+    label: (c) => (c.scenario.sections[index(c.target)].lengthFree ? "Bloquear largo" : "Desbloquear largo"),
+    on: ["section"],
+    menu: true,
+    field: true,
+    run: (c) => ({ scenario: edit.toggleLengthLock(c.scenario, index(c.target)) }),
+  },
+  {
+    id: "hose.remove",
+    label: "Quitar tramo",
+    short: "🗑 Quitar",
+    on: ["section"],
+    quick: true,
+    menu: true,
+    danger: true,
+    blocked: (c) => (count(c) <= 1 ? "Una línea necesita al menos un tramo" : null),
+    run: (c) => ({
+      scenario: edit.removeSection(c.scenario, index(c.target)),
+      select: { kind: "section", index: Math.max(0, index(c.target) - 1) },
+    }),
+  },
+
+  // Coupling (joint 0, the pump outlet, belongs to the pump)
+  {
+    id: "joint.insert",
+    label: "Insertar tramo aquí",
+    short: "+ Tramo aquí",
+    on: ["joint"],
+    quick: true,
+    menu: true,
+    run: (c) => insertAt(c, index(c.target)),
+  },
+  {
+    id: "joint.join",
+    label: "Unir los dos tramos",
+    short: "Unir tramos",
+    on: ["joint"],
+    quick: true,
+    menu: true,
+    blocked: (c) => (index(c.target) === 0 ? "La salida de la bomba no une tramos" : null),
+    run: (c) => ({
+      scenario: edit.mergeAtJoint(c.scenario, index(c.target)),
+      select: { kind: "section", index: index(c.target) - 1 },
+    }),
+  },
+  {
+    id: "joint.hose-before",
+    label: (c) => `Ver tramo ${index(c.target)}`,
+    on: ["joint"],
+    blocked: (c) => (index(c.target) === 0 ? "No hay tramo antes de la bomba" : null),
+    run: (c) => ({ select: { kind: "section", index: index(c.target) - 1 } }),
+  },
+  {
+    id: "joint.hose-after",
+    label: (c) => `Ver tramo ${index(c.target) + 1}`,
+    on: ["joint"],
+    run: (c) => ({ select: { kind: "section", index: index(c.target) } }),
+  },
+
+  // Nozzle
+  {
+    id: "nozzle.toggle",
+    label: (c) => (c.scenario.nozzle.open ? "Cerrar pitón" : "Abrir pitón"),
+    on: ["nozzle"],
+    menu: true,
+    field: true,
+    run: (c) => ({ scenario: edit.setNozzleOpen(c.scenario, !c.scenario.nozzle.open) }),
+  },
+
+  // Pump
+  {
+    id: "pump.insert-at-outlet",
+    label: "Insertar tramo en la salida",
+    short: "+ Tramo en la salida",
+    on: ["pump"],
+    quick: true,
+    menu: true,
+    run: (c) => insertAt(c, 0),
+  },
+  {
+    id: "pump.apply-required",
+    label: (c) => `Aplicar presión requerida (${c.requiredPsi.toFixed(0)} psi)`,
+    on: ["pump"],
+    menu: true,
+    field: true,
+    run: (c) => ({ scenario: edit.setSourcePressure(c.scenario, c.requiredPsi) }),
+  },
+
+  // The whole line
+  {
+    id: "line.add-end",
+    label: "Añadir tramo al final",
+    short: "+ Tramo al final",
+    on: ["line", "nozzle"],
+    quick: true,
+    menu: true,
+    run: (c) => insertAt(c, count(c)),
+  },
+  {
+    id: "line.auto-fittings",
+    label: (c) => `Accesorios automáticos: ${isAuto(c.scenario) ? "sí" : "no"}`,
+    on: ["line"],
+    run: (c) => ({ scenario: edit.setAutoFittings(c.scenario, !isAuto(c.scenario)) }),
+  },
+  {
+    id: "view.fit",
+    label: "Ajustar vista",
+    on: ["line"],
+    menu: true,
+    field: true,
+    run: () => ({ view: "fit" }),
+  },
+];
+
+/** The actions shown for a target in one place; danger last. */
+export function actionsFor(target: Target, place: Place): Action[] {
+  // The pump outlet's joint is the pump's.
+  const kind = target.kind === "joint" && target.index === 0 ? "pump" : target.kind;
+  return ACTIONS.filter(
+    (a) =>
+      a.on.includes(kind) && (place === "panel" ? !a.field : place === "quick" ? a.quick : a.menu),
+  ).sort((a, b) => Number(!!a.danger) - Number(!!b.danger));
+}
+
+export const labelOf = (a: Action, c: ActionContext, place: Place = "panel") => {
+  const text = place === "quick" && a.short ? a.short : a.label;
+  return typeof text === "function" ? text(c) : text;
+};
+
+// The toolbar stays one short row (UX.md §10.1).
+if (import.meta.env?.DEV) {
+  for (const kind of ["section", "joint", "nozzle", "pump", "line"] as const) {
+    const n = ACTIONS.filter((a) => a.quick && a.on.includes(kind)).length;
+    if (n > QUICK_MAX) console.error(`actions.ts: ${n} quick actions on ${kind}, at most ${QUICK_MAX}`);
+  }
+}
