@@ -313,3 +313,73 @@ A task whose law is not built yet waits for its milestone.
 | 9 | Instructor | Send a lay to a student so they open exactly that line | share link (M1) |
 | 10 | Firefighter | Same flow with a smooth bore vs a fog nozzle | M2 |
 | 11 | Instructor | Swap smooth-bore tips (⅞″, 15/16″, 1″, 1⅛″) and see flow grow with the tip's square and the pump pressure each demands; tips worked like stacked tips, tapped to change | M2: `nozzle.smooth-bore` (Freeman) in MODEL.md first; smooth-bore rows in the catalog |
+
+## 10. Patterns, objects and actions (draft, 2026-10-15, awaiting owner)
+
+Built from the top tasks (§9). Every action belongs to one pattern; a new
+feature picks a pattern rather than inventing an interaction. §8 says where
+each surface lives on desktop and phone.
+
+### 10.1 Patterns
+
+| Pattern | What it is | Rule |
+|---|---|---|
+| **Select** | tap / click an element | shows its controls; never changes the line (exception to remove: §10.3 T2) |
+| **Direct manipulation** | drag a coupling or the nozzle; flick the bale | for geometry and equipment states only; snaps; typed value always available too |
+| **Quick actions** | the selected element's common edits: floating toolbar (desktop, tablet), sheet at peek (phone) | at most one row of choices plus one of actions |
+| **More actions** | right-click / long-press menu | a shortcut, never the only way to an action |
+| **Inspect** | read-only detail of something solved (flow, a gauge, a hose's loss) | never offers an edit for a solved quantity; says why |
+| **View** | how the canvas looks: zoom, fit, gauges shown, hose scale | changes no number; remembered per browser |
+| **Global** | header: preset, undo / redo, help | the same everywhere |
+
+### 10.2 Matrix
+
+✅ built · ◻ missing, polish (§10c) · ⏳ later, with its milestone · ✕ not
+allowed, with the reason.
+
+| Object | Create / add | Edit | Move | Remove | Inspect | Other |
+|---|---|---|---|---|---|---|
+| **Scenario** | preset ✅; blank line ◻ | rename ◻ | — | reset to preset ◻ | — | share link ⏳ (deferred); cloud save ⏳ (paid) |
+| **Method** | clone a built-in ⏳ | edit a clone ⏳; built-ins ✕ (read-only) | — | delete a clone ⏳ | sources ("Fuentes") ◻ | pick "Método" ◻; "Comparar con" toggle ◻ |
+| **Pump** | ✕ (a line needs a source) | pressure ✅, apply required ✅, outlet size ✅; spec ⏳ M3 | ✕ | ✕ | flow, state ✅ | — |
+| **Truck** | ⏳ M3 | discharges open / shut, tank ⏳ M3; partial valves ⏳ (`valve.partial`) | ✕ | ✕ | capacity ⏳ M3 | — |
+| **Hose** | insert, split ✅ | size, length, lock ✅ | its couplings move it | remove, join ✅ | its friction loss ◻ | true-scale thickness (View) ◻ |
+| **Coupling** | with a hose ✅ | fittings ✅ | drag ✅ | join the two hoses ✅ | pressure here, lost before it ◻ (via its gauge) | — |
+| **Fitting** | adapter, valve ✅ | ✕ (a kind has one loss) | moves with its coupling | ✅ | its loss and basis ✅ | auto fittings switch ✅ |
+| **Nozzle** | ✕ (a line ends in one) | bale ✅, model ✅ (buried, ◻ quick), ring ✅, typed rating ✅; smooth-bore tips ⏳ M2 | drag ✅ | ✕ | rating vs actual ◻ (on its gauge) | — |
+| **Stream** | — | pattern ✅; aim ⏳ M2 | — | — | jet speed ✅; reach ⏳ M2 (illustrative) | — |
+| **Water flow** | — | ✕: flow is solved, the app's core lesson; "I want X gpm" is target planning ⏳ | — | — | flow ✅, hose speed ✅, where the pressure went ✅ | — |
+| **Gauge** | — | — | — | hide (View) ◻ | tap: reading, loss before it ◻ | — |
+| **Building** | — | floor height ◻ | — | — | — | obstacles, routes ⏳ (ROADMAP §10b) |
+| **Fire** | ⏳ M5 | fire size ⏳ M5 | — | — | required vs delivered flow ⏳ M5 (NFA first) | — |
+| **Canvas view** | — | pan, zoom, fit ✅; zoom to selection ◻ | — | — | — | — |
+| **History** | — | undo, redo ✅ | — | — | — | — |
+| **Help** | — | — | — | — | tour ◻ (§8.4) | — |
+
+### 10.3 Phone walkthrough of the built tasks
+
+Each task on a 390 px phone, against the current build. At every step: would
+they know what to do, would they see how, would they understand the result?
+
+| Task | Where it breaks | Fix |
+|---|---|---|
+| T1 1½″ vs 2½″ | Tapping a hose opens the sheet at peek, which can hide that hose; comparing means remembering the first number | Pan so the selection stays above the sheet; A/B compare is M2 |
+| T2 gallonage ring | **Tapping the nozzle to select it also works the bale**, so looking at the ring shuts the line (0 gpm) | On the canvas, the bale lever is its own target; tapping the nozzle body only selects |
+| T3 3rd floor | At a fitted zoom floors are 12 px apart and their labels hide; the drag label says "9 m", not the floor | Drag label names the floor ("piso 3"); the typed "± piso" in the sheet stays |
+| T4 build a maniobra | No blank line, so you start from a preset and edit; the nozzle model sits under "Ajustes avanzados" | "Línea nueva" in the header menu; model chips at the top of the nozzle's sheet |
+| T5 nozzle under its rating | The rating vs the actual pressure is only in the Conceptos card (sheet, full) | A rated-pressure mark on the nozzle's gauge, and a one-line note when it falls short |
+| T6 change one thing | Works; each change shows in the strip and the closed sheet's split bar | — |
+| T7 vs CGBVP | Only the table in "Ver cálculo" (sheet, full); no method switch | "Método" / "Comparar con" (§10.2) |
+| T8 remove, undo | Works: sheet "Quitar tramo" or long press; undo in the header | — |
+
+### 10.4 Order (proposal)
+
+1. T2 bale target, T3 floor in the drag label, selection kept above the
+   sheet: the walkthrough's breaks.
+2. Missing ◻ in the matrix that the tasks need: method picker and compare
+   toggle, blank line, nozzle model quick pick, gauge tap and hide, rated
+   mark on the nozzle gauge.
+3. The rest of ◻: floor height, reset, rename, zoom to selection, true-scale
+   toggle, Fuentes, tour.
+4. `src/lib/actions.ts`: one list of actions (id, label, target, enabled,
+   edit) drawn by the menu, the toolbar and the sheet, so they cannot drift.
