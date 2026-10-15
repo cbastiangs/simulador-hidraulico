@@ -82,6 +82,10 @@
   drags start only on handles; dragging empty canvas pans. The horizontal
   run is drawing data only: the hydraulics use length and height (MODEL.md
   §3.2).
+- **The pressure split follows you.** The canvas fills the window, which pushes
+  the "¿En qué se gasta la presión de la bomba?" bar below the fold. While that
+  bar is less than half in view, a slim copy floats at the bottom of the window
+  (pump pressure, the split bar); the full bar with its legend stays below.
 - **Floors** are bands labelled "Piso 1, 2…" with their height in metres.
   Floor height defaults to 3 m and is editable.
 
@@ -139,15 +143,15 @@ drop-down) grouped by coupling fit; an aimable stream drawn in metres with
 a labelled illustrative reach; a context menu on long press (touch, 0.5 s)
 or right click for hoses, couplings and the nozzle (insert, split, remove).
 
-**To mock up (2026-10-15, not yet drawn):** concepts and settings
-comparison. Gauges can show static (nozzle shut) next to flowing pressure and
-the speed; a table and a flow-versus-pressure chart of the ring settings,
-with "calculado" and "clasificación del fabricante" labelled apart (MODEL
-§3.5, §3.13). Built only after the mock-up is approved.
+**Built without a mock-up (owner, 2026-10-15):** a "Conceptos" card below the
+results (static pressure, flowing pressure, exit pressure, flow, hose speed,
+jet speed, the manufacturer's rating, "presión requerida"), each with this
+line's own numbers (MODEL §3.13). A settings comparison table and chart are
+not built yet.
 
 ## 7. Process
 
-- **New screens and major visual changes start as a static mock-up**
-  (rendered and sent to the owner) and are built only once approved.
+- **No mock-ups unless the owner asks for one** (owner, 2026-10-15): build
+  directly and show the result.
 - **Before handing back UI work:** check it in a browser at 390 px and
   1024 px wide, and send a screenshot.

@@ -88,8 +88,8 @@
   const fitted = $derived(fitBounds(scenario.sections, floorM));
   // The canvas takes the height the window has (UX.md §2): the lay sits on the
   // ground at the bottom and the rest is building above it, so a rising hose
-  // can be dragged up. Side by side, the page above the canvas is about 240 px.
-  const canvasHeight = $derived(Math.max(260, windowWidth >= 1024 ? windowHeight - 240 : windowHeight * 0.55));
+  // can be dragged up. Side by side, the page above the canvas is about 240 px and the floating pressure bar (page) 70 px.
+  const canvasHeight = $derived(Math.max(260, windowWidth >= 1024 ? windowHeight - 310 : windowHeight * 0.5));
   const fitZoom = $derived.by(() => {
     if (viewWidth === 0) return 1;
     const w = (fitted.maxX - fitted.minX) * PX_PER_M;

@@ -4,7 +4,7 @@
   // Where the pump's pressure goes (ROADMAP §5): nozzle + friction + elevation,
   // from the engine's terms. A downhill line gains pressure; that shows as a
   // credit next to the bar rather than a negative slice.
-  let { result, reference }: { result: SeriesResult; reference: SeriesResult } = $props();
+  let { result, reference, compact = false }: { result: SeriesResult; reference: SeriesResult; compact?: boolean } = $props();
 
   const parts = $derived.by(() => {
     const sum = (id: string) => result.terms.filter((t) => t.lawId === id).reduce((a, t) => a + t.valuePsi, 0);
@@ -15,15 +15,15 @@
   const f = (n: number) => n.toFixed(1);
 </script>
 
-<section class="budget">
-  <div class="row"><span>¿En qué se gasta la presión de la bomba?</span><b>{f(result.nodes[0].pressurePsi)} psi</b></div>
+<section class="budget" class:compact>
+  <div class="row"><span>{compact ? "Presión de la bomba" : "¿En qué se gasta la presión de la bomba?"}</span><b>{f(result.nodes[0].pressurePsi)} psi</b></div>
   {#if result.state === "flowing"}
     <div class="bar">
       <div class="nozzle" style:width={pct(parts.nozzle)}>Pitón {f(parts.nozzle)}</div>
       <div class="friction" style:width={pct(parts.friction)}>Fricción {f(parts.friction)}</div>
       {#if parts.elevation > 0}<div class="elevation" style:width={pct(parts.elevation)}>{f(parts.elevation)}</div>{/if}
     </div>
-    <ul class="legend">
+    {#if !compact}<ul class="legend">
       <li>
         <span class="swatch nozzle"></span>
         <span><b>Pitón {f(parts.nozzle)} psi</b> · la presión que llega al pitón y forma el chorro</span>
@@ -41,7 +41,7 @@
             : "lo que cuesta subir el agua"} · CGBVP: {f(reference.elevationPressurePsi)}
         </span>
       </li>
-    </ul>
+    </ul>{/if}
   {:else}
     <p class="small">Sin caudal no hay fricción: la bomba solo sostiene el desnivel ({f(parts.elevation)} psi).</p>
   {/if}
@@ -49,6 +49,8 @@
 
 <style>
   .budget { background: var(--surface); border-radius: var(--radius); padding: 12px 14px; display: grid; gap: 8px; }
+  .budget.compact { padding: 6px 12px; gap: 4px; }
+  .budget.compact .bar { height: 24px; }
   .row { display: flex; justify-content: space-between; gap: 12px; color: var(--muted); font-size: 14px; }
   .row b { color: var(--ink); }
   .small { font-size: 13px; color: var(--muted); margin: 0; }

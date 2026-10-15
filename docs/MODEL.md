@@ -282,7 +282,7 @@ than a fog nozzle at 100 psi (185 gpm: 69 vs 93 lbf).
   manual teaches (pp. 33–34).
 - **As built** (`velocity.ts`, canvas): real time, unscaled; one particle
   per 1.25 gal, so the spacing is 1.25 gal / A and doesn't depend on Q
-  (≈ 1.5 m in 2½″, 4.2 m in 1½″). Nozzle-exit velocity is not used yet.
+  (≈ 1.5 m in 2½″, 4.2 m in 1½″). Nozzle-exit velocity (`nozzleExitVelocityMps`) is shown in the Conceptos card, not drawn.
 
 ### 3.8 Pump: `pump.*` ⏳ M3
 

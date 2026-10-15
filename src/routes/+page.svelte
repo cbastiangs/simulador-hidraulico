@@ -3,6 +3,7 @@
   import Breakdown from "$lib/components/Breakdown.svelte";
   import BudgetBar from "$lib/components/BudgetBar.svelte";
   import Canvas from "$lib/components/Canvas.svelte";
+  import Concepts from "$lib/components/Concepts.svelte";
   import Inspector from "$lib/components/Inspector.svelte";
   import PumpPanel from "$lib/components/PumpPanel.svelte";
   import * as edit from "$lib/edit.ts";
@@ -25,6 +26,18 @@
 
   const result = $derived(solveScenario(scenario));
   const reference = $derived(solveScenario(scenario, "cgbvp-2019"));
+
+  // The pressure split lives below the canvas, which now fills the window: while it
+  // is off screen, a slim copy floats at the bottom (UX.md §2).
+  let budgetEl: HTMLDivElement | undefined = $state();
+  let budgetVisible = $state(true);
+  $effect(() => {
+    if (!budgetEl) return;
+    // Half of it in view counts as visible: a sliver at the window's edge is no use.
+    const watcher = new IntersectionObserver(([entry]) => (budgetVisible = entry.intersectionRatio >= 0.5), { threshold: [0, 0.5, 1] });
+    watcher.observe(budgetEl);
+    return () => watcher.disconnect();
+  });
 
   function choosePreset(id: string) {
     presetId = id;
@@ -72,7 +85,7 @@
   </div>
 
   <div class="results">
-    <BudgetBar {result} {reference} />
+    <div bind:this={budgetEl}><BudgetBar {result} {reference} /></div>
     <details class="card">
       <summary>Ver cálculo ({result.terms.length} fórmulas) · física y CGBVP 2019</summary>
       <table>
@@ -85,21 +98,28 @@
       </table>
       <Breakdown terms={result.terms} methodId={scenario.methodId} />
     </details>
+    <Concepts {scenario} {result} />
   </div>
 </div>
+
+{#if !budgetVisible}
+  <div class="dock"><BudgetBar {result} {reference} compact /></div>
+{/if}
 
 <style>
   /* Layout by width: docs/UX.md §4. */
   .app {
     display: grid;
     gap: var(--gap);
-    padding: var(--gap);
+    padding: var(--gap) var(--gap) 90px;
     max-width: 2000px;
     margin: 0 auto;
     grid-template-columns: minmax(0, 1fr) 340px;
     grid-template-areas: "top top" "pump pump" "canvas side" "results side";
     grid-template-rows: auto auto auto 1fr;
   }
+  .dock { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; padding: 8px var(--gap) calc(8px + env(safe-area-inset-bottom)); background: var(--bg); box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.15); }
+  .dock > :global(*) { max-width: 1976px; margin: 0 auto; }
   .top { grid-area: top; display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; justify-content: space-between; }
   .top h1 { margin: 0; font-size: 18px; }
   .top select { height: 44px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); padding: 0 10px; max-width: 100%; }
@@ -120,7 +140,7 @@
     
   }
   @media (max-width: 599px) {
-    .app { padding: 8px; gap: 8px; grid-template-areas: "top" "pump" "canvas" "results" "side"; }
+    .app { padding: 8px 8px 90px; gap: 8px; grid-template-areas: "top" "pump" "canvas" "results" "side"; }
     
     .side :global(.inspector) { border-radius: 16px 16px 0 0; box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.12); }
   }
