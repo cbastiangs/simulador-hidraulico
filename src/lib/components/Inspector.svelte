@@ -2,6 +2,7 @@
   import { NOZZLE_SPECS } from "$hydraulics/catalog.ts";
   import { HOSE_SIZES } from "$hydraulics/references.ts";
   import type { Scenario } from "$hydraulics/scenario.ts";
+  import type { SeriesResult } from "$hydraulics/series.ts";
   import * as edit from "$lib/edit.ts";
   import { runsOf } from "$lib/geometry/world.ts";
   import type { Selection } from "$lib/selection.ts";
@@ -19,6 +20,7 @@
     onchange,
     onSelect,
     requiredPsi,
+    result,
     onAction,
     onClose,
   }: {
@@ -29,6 +31,7 @@
     onchange: (s: Scenario) => void;
     onSelect: (s: Selection) => void;
     requiredPsi: number;
+    result: SeriesResult;
     /** Run an action from lib/actions.ts: the panel shows every action for the selection. */
     onAction: (action: Action, target: Target) => void;
     /** The header's ×: clear the selection. */
@@ -37,10 +40,16 @@
 
   const last = $derived(scenario.sections.length - 1);
   const floorOf = (m: number) => {
-    const n = m / floorM;
+    const n = Math.round((m / floorM) * 1000) / 1000;
     return Number.isInteger(n) ? (n === 0 ? "planta baja" : `piso ${n}`) : `entre pisos (${n.toFixed(1)})`;
   };
   const sizeName = (h: (typeof HOSE_SIZES)[number]) => (h.couplings ? `${h.diameter} (acoples ${h.couplings})` : h.diameter);
+  const specShort = (spec: (typeof NOZZLE_SPECS)[number]) =>
+    spec.kind === "selectable" ? `Selector ${spec.settingsGpm[0]}–${spec.settingsGpm[spec.settingsGpm.length - 1]}` : `${spec.ratedFlowGpm} gpm`;
+  /** Below its rating by more than 5 %: it gives less than its rated flow (MODEL §3.13). */
+  const short = $derived(
+    result.state === "flowing" && result.nozzlePressurePsi < scenario.nozzle.ratedPressurePsi * 0.95,
+  );
   const nozzleKind = $derived(
     scenario.nozzle.kind === "selectable" ? "Selector de caudal" : "Caudal fijo",
   );
@@ -85,6 +94,23 @@
       <h3>{n.kind === "selectable" ? "Pitón combinado" : "Pitón"}</h3>
       <p>{nozzleKind} · {n.ratedPressurePsi} psi nominal{n.specId === null ? " · personalizado" : " · genérico"}</p>
     </header>
+
+    <div>
+      <div class="label">Modelo</div>
+      <div class="seg wrap" role="radiogroup" aria-label="Modelo de pitón">
+        {#each NOZZLE_SPECS as spec (spec.id)}
+          <button type="button" role="radio" aria-checked={n.specId === spec.id} class:on={n.specId === spec.id} title={spec.label} onclick={() => onchange(edit.setNozzleSpec(scenario, spec.id))}>{specShort(spec)}</button>
+        {/each}
+        {#if n.specId === null}<button type="button" role="radio" aria-checked="true" class="on" disabled>Personalizado</button>{/if}
+      </div>
+    </div>
+
+    {#if short}
+      <p class="warn" role="status">
+        ⚠ {result.nozzlePressurePsi.toFixed(0)} psi en el pitón, por debajo de sus {n.ratedPressurePsi} psi nominales: da
+        {result.flowGpm.toFixed(0)} gpm, no {n.ratedFlowGpm}. Sube la presión o usa «Aplicar requerida».
+      </p>
+    {/if}
 
     <div>
       <div class="label">Manija</div>
@@ -132,13 +158,6 @@
 
     <details>
       <summary>Ajustes avanzados</summary>
-      <label class="field">
-        <span class="label">Modelo</span>
-        <select value={n.specId ?? ""} onchange={(e) => onchange(edit.setNozzleSpec(scenario, e.currentTarget.value))}>
-          {#if n.specId === null}<option value="">Personalizado</option>{/if}
-          {#each NOZZLE_SPECS as spec (spec.id)}<option value={spec.id}>{spec.label}</option>{/each}
-        </select>
-      </label>
       <NumberField label="Caudal nominal" value={n.ratedFlowGpm} unit="gpm" step={5} digits={0} onchange={(q) => onchange(edit.setNozzleRating(scenario, { ratedFlowGpm: q }))} />
       <NumberField label="Presión nominal" value={n.ratedPressurePsi} unit="psi" step={5} digits={0} onchange={(p) => onchange(edit.setNozzleRating(scenario, { ratedPressurePsi: p }))} />
     </details>
@@ -174,6 +193,8 @@
     {@const run = runsOf(scenario.sections)[i]}
     {@const rise = s.endElevationM - (i === 0 ? 0 : scenario.sections[i - 1].endElevationM)}
     {@const slack = s.lengthM - Math.hypot(run, rise)}
+    {@const loss = result.terms.find((t) => t.lawId === "hose.friction" && t.sectionIndex === i)}
+    <p class="loss">Fricción en este tramo: <b>{(loss?.valuePsi ?? 0).toFixed(1)} psi</b> a {result.flowGpm.toFixed(0)} gpm</p>
     <p class="note">
       {floorOf(s.endElevationM)} · recorrido horizontal {run.toFixed(1)} m{slack >= 0.5 ? ` · holgura ${slack.toFixed(1)} m` : " · tenso"}
     </p>
@@ -210,6 +231,10 @@
   .seg .on { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
   .pattern { width: 100%; accent-color: var(--water); height: 32px; }
   .ends { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); }
+  .seg.wrap { grid-auto-flow: row; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); }
+  .warn { margin: 0; padding: 8px 10px; border-radius: 8px; background: color-mix(in srgb, var(--warn) 12%, transparent); color: var(--warn); font-size: 13px; }
+  .loss { margin: -4px 0 0; font-size: 14px; color: var(--muted); }
+  .loss b { color: var(--ink); }
   .note { margin: -8px 0 0; font-size: 12px; color: var(--muted); }
   details { display: grid; gap: 10px; }
   details[open] { padding-bottom: 4px; }

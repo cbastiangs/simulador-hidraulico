@@ -96,6 +96,10 @@ added at any time. Catalog rows retain their manufacturer source and may be
 incomplete where a published spec is missing; they are reference material,
 not runtime simulator inputs yet.
 
+
+**Floor height (2026-10-16):** optional `floorHeightM` (absent: 3 m), the
+building's floor-to-floor height: the canvas's floor lines, snapping and
+"piso n" labels. Drawing only; the hydraulics use heights in metres.
 ## 5. Views and drawing rules
 
 - **Top-down view = the editor.** Connections, not geography: hose length is

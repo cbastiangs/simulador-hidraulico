@@ -606,6 +606,13 @@ read-only reference, never a preset"). No method is privileged. Two slots:
   It is a toggle so the second solve can be switched off when solving gets
   heavier (trees, networks).
 
+**Built (2026-10-16):** both slots, in the Línea section, over the two
+methods that run today (`physical` as "Modelo base", `cgbvp-2019`).
+"Método" is stored in the scenario (`methodId`); "Comparar con" is a view
+choice remembered per browser, off when it names the same method. A
+"Fuentes" card lists what each term rests on under the chosen method.
+Clone, `us-training` and the user's own methods are not built.
+
 Every method can go in either slot: `physical`, `cgbvp-2019`,
 `us-training` and the user's own. **Built-ins are read-only,** so a number
 labelled "CGBVP 2019" or "Colorado" always matches its source; **"Clonar"**

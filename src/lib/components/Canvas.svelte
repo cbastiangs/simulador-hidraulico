@@ -118,6 +118,36 @@
     }
   });
 
+  // View (UX.md §10.1): changes no number; remembered per browser.
+  let showGauges = $state(true);
+  let trueScale = $state(false);
+  $effect(() => {
+    try {
+      showGauges = localStorage.getItem("view.gauges") !== "off";
+      trueScale = localStorage.getItem("view.hose-scale") === "true";
+    } catch {}
+  });
+  function setView(key: "gauges" | "scale", on: boolean) {
+    if (key === "gauges") showGauges = on;
+    else trueScale = on;
+    try {
+      localStorage.setItem(key === "gauges" ? "view.gauges" : "view.hose-scale", key === "gauges" ? (on ? "on" : "off") : String(on));
+    } catch {}
+    if (viewMenu) viewMenu.open = false;
+  }
+  let viewMenu: HTMLDetailsElement | undefined = $state();
+  /** Drawn thickness over real thickness: the default exaggerates so a 1½″ hose is visible at a fitted zoom. */
+  const EXAGGERATION = Math.round(4 / (0.0254 * PX_PER_M));
+  const hoseWidth = (thicknessPx: number, diameterIn: number) =>
+    trueScale ? Math.max(diameterIn * 0.0254 * PX_PER_M, k) : Math.max(thicknessPx, 3 * k);
+
+  // A gauge tapped for its reading (Inspect, UX.md §10.1): read-only.
+  let inspected = $state<number | null>(null);
+  $effect(() => {
+    void selection;
+    inspected = null;
+  });
+
   let fitSeen = 0;
   $effect(() => {
     if (fitSignal !== fitSeen) {
@@ -412,7 +442,7 @@
 
   /** "piso 3 · 9 m": the floor first, since its label hides at a fitted zoom (UX.md §10.3 T3). */
   const floorName = (m: number) => {
-    const n = m / floorM;
+    const n = Math.round((m / floorM) * 1000) / 1000;
     if (!Number.isInteger(n)) return m <= 0 ? `${m} m` : n < 1 ? `sobre planta baja · ${m} m` : `sobre piso ${Math.floor(n)} · ${m} m`;
     return n === 0 ? "planta baja · 0 m" : n < 0 ? `${m} m` : `piso ${n} · ${m} m`;
   };
@@ -433,6 +463,32 @@
   const selectedHose = $derived(selection?.kind === "section" ? layout.hoses[selection.index] : undefined);
   // The nozzle joint's fittings are edited in the inspector: its handle works the bale.
   const selectedJoint = $derived(selection?.kind === "joint" && selection.index < last ? layout.nodes[selection.index] : undefined);
+  /** Where a selection is drawn, in world px. */
+  function selectionPoint(sel: Selection) {
+    if (sel.kind === "section") {
+      const h = layout.hoses[sel.index];
+      return h ? { x: h.labelX, y: h.labelY } : null;
+    }
+    if (sel.kind === "joint") return layout.nodes[sel.index] ?? null;
+    if (sel.kind === "nozzle") return { x: layout.nodes[last].x + 40 * k, y: layout.nodes[last].y };
+    return { x: layout.xAt(-5.75), y: layout.groundY - 1.6 * PX_PER_M };
+  }
+
+  /** Scroll so a world point sits in the middle of the visible canvas; only if it is near an edge, unless `always`. */
+  function centreOn(p: { x: number; y: number }, cover: number, always = false) {
+    const el = scroller;
+    if (!el) return;
+    const x = p.x * zoom;
+    const y = p.y * zoom;
+    const visible = el.clientHeight - cover;
+    const margin = 40;
+    const outY = y < el.scrollTop + margin || y > el.scrollTop + visible - margin;
+    const outX = x < el.scrollLeft + margin || x > el.scrollLeft + el.clientWidth - margin;
+    const top = always || outY ? y - visible / 2 : el.scrollTop;
+    const left = always || outX ? x - el.clientWidth / 2 : el.scrollLeft;
+    if (top !== el.scrollTop || left !== el.scrollLeft) el.scrollTo({ top, left, behavior: "smooth" });
+  }
+
   // Keep the selection in sight above the phone's sheet: the stage grows by
   // the covered height so it can scroll up, and a selection under the sheet
   // (or off screen) is scrolled to the middle of what stays visible.
@@ -441,24 +497,30 @@
     const cover = coverPx;
     if (!sel || !scroller) return;
     untrack(() => {
-      const p =
-        sel.kind === "section" ? { x: layout.hoses[sel.index]?.labelX, y: layout.hoses[sel.index]?.labelY }
-        : sel.kind === "joint" ? layout.nodes[sel.index]
-        : sel.kind === "nozzle" ? { x: layout.nodes[last].x + 40 * k, y: layout.nodes[last].y }
-        : { x: layout.xAt(-5.75), y: layout.groundY - 1.6 * PX_PER_M };
-      if (p?.x === undefined || p.y === undefined) return;
-      const x = p.x * zoom;
-      const y = p.y * zoom;
-      const el = scroller!;
-      const visible = el.clientHeight - cover;
-      const margin = 40;
-      requestAnimationFrame(() => {
-        const top = y < el.scrollTop + margin || y > el.scrollTop + visible - margin ? y - visible / 2 : el.scrollTop;
-        const left = x < el.scrollLeft + margin || x > el.scrollLeft + el.clientWidth - margin ? x - el.clientWidth / 2 : el.scrollLeft;
-        if (top !== el.scrollTop || left !== el.scrollLeft) el.scrollTo({ top, left, behavior: "smooth" });
-      });
+      const p = selectionPoint(sel);
+      if (p) requestAnimationFrame(() => centreOn(p, cover));
     });
   });
+
+  /** "Acercar a la selección" (View): about 1.5 times closer than the fit, at least 100 %, centred on it. */
+  async function zoomToSelection() {
+    if (viewMenu) viewMenu.open = false;
+    if (!selection) return;
+    setManualZoom(Math.max(1, fitZoom * 1.5, zoom));
+    await tick();
+    const p = selectionPoint(selection);
+    if (p) centreOn(p, coverPx, true);
+  }
+
+  /** A gauge's centre: above its coupling; the pump's above the truck, its reading clear of the roof (UX.md §8.1). */
+  function gaugeAt(i: number) {
+    const n = layout.nodes[i];
+    const truckTop = layout.groundY - 3.2 * PX_PER_M;
+    return i === 0
+      ? { x: layout.xAt(-1.5), y: Math.min(layout.groundY - 4.6 * PX_PER_M, truckTop - 42 * gaugeK) }
+      : { x: n.x, y: n.y - 72 * gaugeK };
+  }
+  const nodeName = (i: number) => (i === 0 ? "la bomba" : i === last ? "la entrada del pitón" : `el acople ${i}`);
 
   /** Where a joint's fittings are drawn: after the coupling ring, or just before the nozzle. */
   const fittingX = (i: number) => (i === last ? -16 : i === 0 ? -2 : 4);
@@ -536,7 +598,7 @@
         <!-- Hoses -->
         {#each layout.hoses as h (h.index)}
           {@const s = scenario.sections[h.index]}
-          {@const width = Math.max(h.thicknessPx, 3 * k)}
+          {@const width = hoseWidth(h.thicknessPx, s.diameterIn)}
           <path class="hose" d={h.d} stroke-width={width} />
           {#if result.flowGpm > 0.5}
             {@const p = particles(s.diameterIn)}
@@ -640,7 +702,24 @@
           {/if}
         {/each}
 
-        <!-- The nozzle above its handle, so its bale takes the tap -->
+        <!-- Gauges above the line; tap one for its reading. The nozzle comes after, so its bale takes the tap. -->
+        {#if showGauges}
+          {#each layout.nodes as n, i (i)}
+            <g class="gauge" transform={`translate(${gaugeAt(i).x} ${gaugeAt(i).y}) scale(${gaugeK})`}>
+              <Gauge psi={n.pressurePsi} mark={i === last ? scenario.nozzle.ratedPressurePsi : undefined} />
+              <circle
+                class="gauge-hit"
+                r="24"
+                role="button"
+                tabindex="0"
+                aria-label={`Manómetro: ${n.pressurePsi.toFixed(0)} psi, ver lectura`}
+                onclick={tap(() => (inspected = inspected === i ? null : i))}
+                onkeydown={(e) => e.key === "Enter" && (inspected = i)}
+              />
+            </g>
+          {/each}
+        {/if}
+        <!-- The nozzle above its handle and the gauges -->
         <g transform={`translate(${layout.nodes[last].x} ${layout.nodes[last].y}) scale(${k})`}>
           <NozzleDrawing
             nozzle={scenario.nozzle}
@@ -652,14 +731,6 @@
           />
         </g>
 
-        <!-- Gauges last, so they sit above everything -->
-        {#each layout.nodes as n, i (i)}
-          {@const truckTop = layout.groundY - 3.2 * PX_PER_M}
-          <!-- The pump's gauge sits above the truck, its reading clear of the roof (UX.md §8.1). -->
-          <g class="gauge" transform={`translate(${i === 0 ? layout.xAt(-1.5) : n.x} ${i === 0 ? Math.min(layout.groundY - 4.6 * PX_PER_M, truckTop - 42 * gaugeK) : n.y - 72 * gaugeK}) scale(${gaugeK})`}>
-            <Gauge psi={n.pressurePsi} />
-          </g>
-        {/each}
       </svg>
 
       {#if selectedHose && dragging === null && !phone}
@@ -691,6 +762,21 @@
           <Actions target={selection} {scenario} requiredPsi={result.requiredPumpPressurePsi} place="quick" {onAction} />
         </div>
       {/if}
+      {#if inspected !== null && showGauges && inspected < layout.nodes.length}
+        {@const i = inspected}
+        {@const g = gaugeAt(i)}
+        {@const friction = result.terms.find((t) => t.lawId === "hose.friction" && t.sectionIndex === i - 1)}
+        <div class="reading" role="status" style:left={`${g.x * zoom}px`} style:top={`${(g.y - 30 * gaugeK) * zoom}px`}>
+          <button type="button" class="bar-close" aria-label="Cerrar lectura" onclick={() => (inspected = null)}>×</button>
+          <span>Presión en {nodeName(i)}</span>
+          <b>{result.nodes[i].pressurePsi.toFixed(1)} psi</b>
+          {#if i > 0}
+            <span>{(result.nodes[i - 1].pressurePsi - result.nodes[i].pressurePsi).toFixed(1)} psi menos que en {nodeName(i - 1)}</span>
+            {#if friction}<span>Fricción del tramo {i}: {friction.valuePsi.toFixed(1)} psi; el resto, desnivel y accesorios</span>{/if}
+          {/if}
+          {#if i === last}<span>Nominal del pitón: {scenario.nozzle.ratedPressurePsi} psi (marca en el dial)</span>{/if}
+        </div>
+      {/if}
     </div>
   </div>
   <!-- Controls live below the drawing, never over it. -->
@@ -701,11 +787,19 @@
     </button>
   {/if}
   {#if !phone}<span class="hint">Clic derecho o mantener pulsado: más opciones</span>{/if}
-  <span class="badge">1:1 · {Math.round(zoom * 100)} %{manualZoom === null ? " · auto" : ""}</span>
+  <span class="badge">{Math.round(zoom * 100)} %{manualZoom === null ? " · auto" : ""}{trueScale ? "" : ` · grosor ×${EXAGGERATION}`}</span>
   <div class="zoom">
     <button type="button" aria-label="Alejar" onclick={() => setManualZoom(zoom / 1.25)}>−</button>
     <button type="button" aria-label="Acercar" onclick={() => setManualZoom(zoom * 1.25)}>+</button>
     <button type="button" onclick={() => (manualZoom = null)}>Ajustar</button>
+    <details class="view" bind:this={viewMenu}>
+      <summary aria-label="Vista" title="Vista">Vista</summary>
+      <div class="view-menu">
+        <button type="button" disabled={!selection} onclick={zoomToSelection}>Acercar a la selección</button>
+        <button type="button" role="menuitemcheckbox" aria-checked={showGauges} onclick={() => setView("gauges", !showGauges)}>{showGauges ? "☑" : "☐"} Manómetros</button>
+        <button type="button" role="menuitemcheckbox" aria-checked={trueScale} onclick={() => setView("scale", !trueScale)}>{trueScale ? "☑" : "☐"} Grosor real de la manguera</button>
+      </div>
+    </details>
   </div>
   </div>
 </div>
@@ -736,6 +830,17 @@
   .wheel { fill: var(--ink); }
   .outlet, .coupling { fill: var(--steel); }
   .fittings, .gauge { pointer-events: none; }
+  .gauge-hit { fill: transparent; pointer-events: auto; cursor: pointer; outline: none; }
+  .gauge-hit:focus-visible { stroke: var(--accent); stroke-width: 2; }
+  .reading { position: absolute; transform: translate(-50%, -100%); z-index: 3; min-width: 200px; max-width: 260px; display: grid; gap: 2px; padding: 8px 34px 8px 10px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15); font-size: 13px; color: var(--muted); }
+  .reading b { color: var(--ink); font-size: 15px; }
+  .view { position: relative; }
+  .view summary { list-style: none; display: grid; place-items: center; min-width: 44px; height: 44px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); cursor: pointer; font-size: 14px; }
+  .view summary::-webkit-details-marker { display: none; }
+  .view-menu { position: absolute; right: 0; bottom: 50px; z-index: 30; min-width: 220px; display: grid; padding: 6px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2); }
+  .view-menu button { min-height: 44px; padding: 0 12px; text-align: left; border: 0; border-radius: 6px; background: transparent; color: var(--ink); font-size: 14px; cursor: pointer; }
+  .view-menu button:hover:not(:disabled) { background: var(--accent-soft); }
+  .view-menu button:disabled { opacity: 0.4; cursor: default; }
   .fittings title { pointer-events: auto; }
   .adapter { fill: var(--fitting); stroke: var(--fitting); stroke-width: 1; }
   .adapter.auto { fill: color-mix(in srgb, var(--fitting) 55%, transparent); stroke-dasharray: 2 2; }

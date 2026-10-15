@@ -4,7 +4,13 @@
   // Where the pump's pressure goes (ROADMAP §5): nozzle + friction + elevation,
   // from the engine's terms. A downhill line gains pressure; that shows as a
   // credit next to the bar rather than a negative slice.
-  let { result, reference, compact = false }: { result: SeriesResult; reference: SeriesResult; compact?: boolean } = $props();
+  // `reference`: the "Comparar con" method's solve, or null when comparing is off.
+  let {
+    result,
+    reference = null,
+    referenceLabel = "",
+    compact = false,
+  }: { result: SeriesResult; reference?: SeriesResult | null; referenceLabel?: string; compact?: boolean } = $props();
 
   const parts = $derived.by(() => {
     const sum = (id: string) => result.terms.filter((t) => t.lawId === id).reduce((a, t) => a + t.valuePsi, 0);
@@ -46,7 +52,7 @@
           <span>
             <b>Accesorios {noData ? "sin dato" : `${f(parts.fittings)} psi`}</b> ·
             {fittingCount} {fittingCount === 1 ? "accesorio" : "accesorios"} (adaptadores, válvulas){noData ? ": el modelo base no tiene un valor publicado, cuenta 0" : ""}
-            · CGBVP: {f(reference.fittingLossPsi)}
+            {#if reference}· {referenceLabel}: {f(reference.fittingLossPsi)}{/if}
           </span>
         </li>
       {/if}
@@ -56,7 +62,7 @@
           <b>Desnivel {f(parts.elevation)} psi</b> ·
           {parts.elevation < 0
             ? "la bajada devuelve presión (no ocupa barra)"
-            : "lo que cuesta subir el agua"} · CGBVP: {f(reference.elevationPressurePsi)}
+            : "lo que cuesta subir el agua"}{#if reference} · {referenceLabel}: {f(reference.elevationPressurePsi)}{/if}
         </span>
       </li>
     </ul>{/if}

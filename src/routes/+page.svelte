@@ -6,10 +6,14 @@
   import Concepts from "$lib/components/Concepts.svelte";
   import Inspector from "$lib/components/Inspector.svelte";
   import PumpPanel from "$lib/components/PumpPanel.svelte";
+  import Sources from "$lib/components/Sources.svelte";
   import Sheet, { CLOSED_PX, sheetHeights, type SheetState } from "$lib/components/Sheet.svelte";
   import Actions from "$lib/components/Actions.svelte";
   import type { Action, Target } from "$lib/actions.ts";
   import * as edit from "$lib/edit.ts";
+  import { METHOD_IDS, METHOD_LABELS } from "$lib/methods.ts";
+  import type { MethodId } from "$hydraulics/references.ts";
+  import NumberField from "$lib/components/NumberField.svelte";
   import type { Selection } from "$lib/selection.ts";
 
   // Built to docs/design/main-screen.html (UX.md §6).
@@ -144,7 +148,25 @@
   }
 
   const result = $derived(solveScenario(scenario));
-  const reference = $derived(solveScenario(scenario, "cgbvp-2019"));
+  // "Comparar con" (MODEL.md §4): a second method solved beside the first, or
+  // none; a view choice, remembered per browser, off when it equals "Método".
+  let compareId = $state<MethodId | null>("cgbvp-2019");
+  $effect(() => {
+    try {
+      const stored = localStorage.getItem("view.compare");
+      if (stored !== null) compareId = stored === "none" ? null : METHOD_IDS.includes(stored as MethodId) ? (stored as MethodId) : compareId;
+    } catch {}
+  });
+  function chooseCompare(id: MethodId | null) {
+    compareId = id;
+    try {
+      localStorage.setItem("view.compare", id ?? "none");
+    } catch {}
+  }
+  const comparing = $derived(compareId !== null && compareId !== scenario.methodId ? compareId : null);
+  const reference = $derived(comparing ? solveScenario(scenario, comparing) : null);
+  const methodName = $derived(METHOD_LABELS[scenario.methodId]);
+  const refName = $derived(comparing ? METHOD_LABELS[comparing] : "");
 
   // The pressure split lives below the canvas, which now fills the window: while it
   // is off screen, a slim copy floats at the bottom (UX.md §2).
@@ -167,6 +189,20 @@
     future = [];
   }
 
+  // Global (UX.md §10.1): both are undoable and refit the canvas.
+  let fileMenu: HTMLDetailsElement | undefined = $state();
+  function newLine() {
+    apply(edit.blankLine(scenario));
+    loads += 1;
+    deselect();
+    if (fileMenu) fileMenu.open = false;
+  }
+  function resetPreset() {
+    apply(presets.find((p) => p.id === presetId)!.scenario);
+    loads += 1;
+    deselect();
+    if (fileMenu) fileMenu.open = false;
+  }
 </script>
 
 <svelte:head><title>Simulador hidráulico</title></svelte:head>
@@ -175,30 +211,53 @@
 {#snippet line()}
   <section class="line-tools" aria-label="Línea">
     <h2>Línea</h2>
+    <label class="field">
+      <span>Nombre</span>
+      <input type="text" value={scenario.name} maxlength="80" oninput={(e) => apply(edit.setName(scenario, e.currentTarget.value), "name")} />
+    </label>
+    <div class="field">
+      <span>Método</span>
+      <div class="seg" role="radiogroup" aria-label="Método">
+        {#each METHOD_IDS as id (id)}
+          <button type="button" role="radio" aria-checked={scenario.methodId === id} class:on={scenario.methodId === id} onclick={() => apply(edit.setMethod(scenario, id))}>{METHOD_LABELS[id]}</button>
+        {/each}
+      </div>
+    </div>
+    <div class="field">
+      <span>Comparar con</span>
+      <div class="seg" role="radiogroup" aria-label="Comparar con">
+        <button type="button" role="radio" aria-checked={comparing === null} class:on={comparing === null} onclick={() => chooseCompare(null)}>Nada</button>
+        {#each METHOD_IDS.filter((id) => id !== scenario.methodId) as id (id)}
+          <button type="button" role="radio" aria-checked={comparing === id} class:on={comparing === id} onclick={() => chooseCompare(id)}>{METHOD_LABELS[id]}</button>
+        {/each}
+      </div>
+    </div>
+    <NumberField label="Altura de piso" value={edit.floorOf(scenario)} unit="m" step={0.1} onchange={(m) => apply(edit.setFloorHeight(scenario, m), "floor")} />
     <Actions target={{ kind: "line" }} {scenario} requiredPsi={result.requiredPumpPressurePsi} place="panel" onAction={runAction} />
   </section>
 {/snippet}
 
 {#snippet side()}
-  <Inspector {scenario} {selection} onClose={deselect} onchange={(s) => apply(s, `inspector:${JSON.stringify(selection)}`)} onSelect={select} requiredPsi={result.requiredPumpPressurePsi} onAction={runAction} />
+  <Inspector {scenario} {selection} floorM={edit.floorOf(scenario)} onClose={deselect} onchange={(s) => apply(s, `inspector:${JSON.stringify(selection)}`)} onSelect={select} requiredPsi={result.requiredPumpPressurePsi} {result} onAction={runAction} />
   {#if !wide}{@render line()}{/if}
 {/snippet}
 
 {#snippet results()}
-  <div bind:this={budgetEl}><BudgetBar {result} {reference} /></div>
+  <div bind:this={budgetEl}><BudgetBar {result} {reference} referenceLabel={refName} /></div>
   <details class="card">
-    <summary>Ver cálculo ({result.terms.length} fórmulas) · modelo base y CGBVP 2019</summary>
+    <summary>Ver cálculo ({result.terms.length} fórmulas) · {methodName}{comparing ? ` y ${refName}` : ""}</summary>
     <table>
-      <thead><tr><th></th><th>Modelo base</th><th>CGBVP 2019 (ref.)</th></tr></thead>
+      <thead><tr><th></th><th>{methodName}</th>{#if reference}<th>{refName} (comparación)</th>{/if}</tr></thead>
       <tbody>
-        <tr><td>Caudal</td><td>{result.flowGpm.toFixed(1)} gpm</td><td>{reference.flowGpm.toFixed(1)} gpm</td></tr>
-        <tr><td>Accesorios</td><td>{result.terms.some((t) => t.lawId === "appliance.fixed" && t.inputs.lossPsi === null) ? "sin dato" : `${result.fittingLossPsi.toFixed(1)} psi`}</td><td>{reference.fittingLossPsi.toFixed(1)} psi</td></tr>
-        <tr><td>Presión en pitón</td><td>{result.nozzlePressurePsi.toFixed(1)} psi</td><td>{reference.nozzlePressurePsi.toFixed(1)} psi</td></tr>
-        <tr><td>Presión requerida</td><td>{result.requiredPumpPressurePsi.toFixed(1)} psi</td><td>{reference.requiredPumpPressurePsi.toFixed(1)} psi</td></tr>
+        <tr><td>Caudal</td><td>{result.flowGpm.toFixed(1)} gpm</td>{#if reference}<td>{reference.flowGpm.toFixed(1)} gpm</td>{/if}</tr>
+        <tr><td>Accesorios</td><td>{result.terms.some((t) => t.lawId === "appliance.fixed" && t.inputs.lossPsi === null) ? "sin dato" : `${result.fittingLossPsi.toFixed(1)} psi`}</td>{#if reference}<td>{reference.terms.some((t) => t.lawId === "appliance.fixed" && t.inputs.lossPsi === null) ? "sin dato" : `${reference.fittingLossPsi.toFixed(1)} psi`}</td>{/if}</tr>
+        <tr><td>Presión en pitón</td><td>{result.nozzlePressurePsi.toFixed(1)} psi</td>{#if reference}<td>{reference.nozzlePressurePsi.toFixed(1)} psi</td>{/if}</tr>
+        <tr><td>Presión requerida</td><td>{result.requiredPumpPressurePsi.toFixed(1)} psi</td>{#if reference}<td>{reference.requiredPumpPressurePsi.toFixed(1)} psi</td>{/if}</tr>
       </tbody>
     </table>
     <Breakdown terms={result.terms} methodId={scenario.methodId} />
   </details>
+  <Sources methodId={scenario.methodId} />
   <Concepts {scenario} {result} />
 {/snippet}
 
@@ -212,6 +271,13 @@
     <select value={presetId} onchange={(e) => choosePreset(e.currentTarget.value)} aria-label="Escenario inicial">
       {#each presets as p (p.id)}<option value={p.id}>{p.scenario.name}</option>{/each}
     </select>
+    <details class="file" bind:this={fileMenu}>
+      <summary aria-label="Más: línea nueva, reiniciar" title="Línea nueva, reiniciar">⋯</summary>
+      <div class="file-menu">
+        <button type="button" onclick={newLine}>Línea nueva</button>
+        <button type="button" onclick={resetPreset}>Reiniciar escenario</button>
+      </div>
+    </details>
   </header>
 
   <div class="pump">
@@ -227,6 +293,7 @@
       {phone}
       {wide}
       {coverPx}
+      floorM={edit.floorOf(scenario)}
       resetKey={`${presetId}#${loads}`}
       onSelect={select}
       onTapEmpty={deselect}
@@ -250,7 +317,7 @@
 
 {#if phone}
   <Sheet {sheet} onSheet={(s) => (sheet = s)}>
-    {#snippet summary()}<BudgetBar {result} {reference} compact />{/snippet}
+    {#snippet summary()}<BudgetBar {result} {reference} referenceLabel={refName} compact />{/snippet}
     {#if selection?.kind === "pump"}
       <!-- The phone's pump strip is a summary; the whole panel opens here (UX.md §8.2). -->
       <PumpPanel {scenario} {result} onchange={(s) => apply(s, "pump")} column onClose={deselect} />
@@ -261,7 +328,7 @@
     {@render results()}
   </Sheet>
 {:else if !budgetVisible}
-  <div class="dock"><BudgetBar {result} {reference} compact /></div>
+  <div class="dock"><BudgetBar {result} {reference} referenceLabel={refName} compact /></div>
 {/if}
 
 <style>
@@ -291,8 +358,19 @@
   .history button { height: 44px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); font-weight: 600; cursor: pointer; }
   .history button:disabled { opacity: 0.4; cursor: default; }
   .top select { height: 44px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); padding: 0 10px; max-width: 100%; }
+  .file { position: relative; }
+  .file summary { list-style: none; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); font-size: 20px; font-weight: 700; cursor: pointer; }
+  .file summary::-webkit-details-marker { display: none; }
+  .file-menu { position: absolute; right: 0; top: 50px; z-index: 30; min-width: 200px; display: grid; padding: 6px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2); }
+  .file-menu button { min-height: 44px; padding: 0 12px; text-align: left; border: 0; border-radius: 6px; background: transparent; color: var(--ink); font-size: 14px; cursor: pointer; }
+  .file-menu button:hover { background: var(--accent-soft); }
   .pump { grid-area: pump; display: grid; gap: var(--gap); align-content: start; }
   .line-tools { display: grid; gap: 8px; background: var(--surface); border-radius: var(--radius); padding: 12px 14px; }
+  .field { display: grid; gap: 6px; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+  .field input { height: 44px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); padding: 0 10px; font-size: 15px; color: var(--ink); text-transform: none; letter-spacing: 0; }
+  .seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 4px; }
+  .seg button { min-height: 40px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); font-weight: 600; font-size: 13px; cursor: pointer; text-transform: none; letter-spacing: 0; color: var(--ink); }
+  .seg .on { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
   .line-tools h2 { margin: 0; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
   .canvas { grid-area: canvas; min-width: 0; }
   .side { grid-area: side; display: grid; gap: var(--gap); align-content: start; }
@@ -319,5 +397,6 @@
   .app.phone .history { order: 2; margin-left: 0; }
   .app.phone .history button { min-width: 44px; padding: 0; font-size: 20px; }
   .app.phone .top select { flex: 1; min-width: 0; }
+  .app.phone .file { order: 3; }
   .app.phone .canvas { min-height: 0; }
 </style>

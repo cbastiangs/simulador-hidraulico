@@ -367,20 +367,20 @@ allowed, with the reason.
 
 | Object | Create / add | Edit | Move | Remove | Inspect | Other |
 |---|---|---|---|---|---|---|
-| **Scenario** | preset ✅; blank line ◻ | rename ◻ | — | reset to preset ◻ | — | share link ⏳ (deferred); cloud save ⏳ (paid) |
-| **Method** | clone a built-in ⏳ | edit a clone ⏳; built-ins ✕ (read-only) | — | delete a clone ⏳ | sources ("Fuentes") ◻ | pick "Método" ◻; "Comparar con" toggle ◻ |
+| **Scenario** | preset ✅; blank line ✅ ("Línea nueva", header ⋯) | rename ✅ (Línea) | — | reset to preset ✅ (header ⋯, undoable) | — | share link ⏳ (deferred); cloud save ⏳ (paid) |
+| **Method** | clone a built-in ⏳ | edit a clone ⏳; built-ins ✕ (read-only) | — | delete a clone ⏳ | sources ✅ ("Fuentes" card) | pick "Método" ✅; "Comparar con" ✅ (Línea; per browser, off when equal to Método) |
 | **Pump** | ✕ (a line needs a source) | pressure ✅, apply required ✅, outlet size ✅; spec ⏳ M3 | ✕ | ✕ | flow, state ✅ | — |
 | **Truck** | ⏳ M3 | discharges open / shut, tank ⏳ M3; partial valves ⏳ (`valve.partial`) | ✕ | ✕ | capacity ⏳ M3 | — |
-| **Hose** | insert, split ✅ | size, length, lock ✅ | its couplings move it | remove, join ✅ | its friction loss ◻ | true-scale thickness (View) ◻ |
-| **Coupling** | with a hose ✅ | fittings ✅ | drag ✅ | join the two hoses ✅ | pressure here, lost before it ◻ (via its gauge) | — |
+| **Hose** | insert, split ✅ | size, length, lock ✅ | its couplings move it | remove, join ✅ | its friction loss ✅ (panel) | true-scale thickness ✅ (Vista; default exaggerated, badge "grosor ×11") |
+| **Coupling** | with a hose ✅ | fittings ✅ | drag ✅ | join the two hoses ✅ | pressure here, lost before it ✅ (tap its gauge) | — |
 | **Fitting** | adapter, valve ✅ | ✕ (a kind has one loss) | moves with its coupling | ✅ | its loss and basis ✅ | auto fittings switch ✅ |
-| **Nozzle** | ✕ (a line ends in one) | bale ✅, model ✅ (buried, ◻ quick), ring ✅, typed rating ✅; smooth-bore tips ⏳ M2 | drag ✅ | ✕ | rating vs actual ◻ (on its gauge) | — |
+| **Nozzle** | ✕ (a line ends in one) | bale ✅, model ✅ (chips at the top of its panel), ring ✅, typed rating ✅; smooth-bore tips ⏳ M2 | drag ✅ | ✕ | rating vs actual ✅ (mark on its gauge, warning in its panel under 95 %) | — |
 | **Stream** | — | pattern ✅; aim ⏳ M2 | — | — | jet speed ✅; reach ⏳ M2 (illustrative) | — |
 | **Water flow** | — | ✕: flow is solved, the app's core lesson; "I want X gpm" is target planning ⏳ | — | — | flow ✅, hose speed ✅, where the pressure went ✅ | — |
-| **Gauge** | — | — | — | hide (View) ◻ | tap: reading, loss before it ◻ | — |
-| **Building** | — | floor height ◻ | — | — | — | obstacles, routes ⏳ (ROADMAP §10b) |
+| **Gauge** | — | — | — | hide ✅ (Vista) | tap: reading, loss before it ✅ | — |
+| **Building** | — | floor height ✅ (Línea, 2–6 m) | — | — | — | obstacles, routes ⏳ (ROADMAP §10b) |
 | **Fire** | ⏳ M5 | fire size ⏳ M5 | — | — | required vs delivered flow ⏳ M5 (NFA first) | — |
-| **Canvas view** | — | pan, zoom, fit ✅; zoom to selection ◻ | — | — | — | — |
+| **Canvas view** | — | pan, zoom, fit ✅; zoom to selection ✅ (Vista) | — | — | — | — |
 | **History** | — | undo, redo ✅ | — | — | — | — |
 | **Help** | — | — | — | — | tour ◻ (§8.4) | — |
 
@@ -404,11 +404,21 @@ they know what to do, would they see how, would they understand the result?
 
 1. ✅ T2 bale target, T3 floor in the drag label, selection kept above the
    sheet: the walkthrough's breaks (2026-10-16).
-2. Missing ◻ in the matrix that the tasks need: method picker and compare
+2. ✅ Missing ◻ in the matrix that the tasks need: method picker and compare
    toggle, blank line, nozzle model quick pick, gauge tap and hide, rated
-   mark on the nozzle gauge.
-3. The rest of ◻: floor height, reset, rename, zoom to selection, true-scale
-   toggle, Fuentes, tour.
+   mark on the nozzle gauge (2026-10-16).
+3. ✅ The rest of ◻: floor height, reset, rename, zoom to selection,
+   true-scale toggle, Fuentes (2026-10-16). Left: the welcome tour (§8.4),
+   after the polish.
+
+**Where the new controls live (2026-10-16).** Global (header ⋯): "Línea
+nueva", "Reiniciar escenario". Línea section: name, Método, Comparar con,
+floor height, add a hose at the end, automatic fittings. View ("Vista" under
+the canvas): zoom to the selection, gauges on/off, true hose thickness;
+remembered per browser. Inspect: tap a gauge for its reading (pressure here,
+the drop from the previous gauge, that hose's friction; the nozzle's rating),
+× or a new selection closes it; the gauges sit under the nozzle so the bale
+keeps its tap.
 4. ✅ `src/lib/actions.ts` (2026-10-16, §10.5).
 
 ### 10.5 One list of actions (owner, 2026-10-16)

@@ -10,7 +10,17 @@
     r = 20,
     dark = false,
     label = true,
-  }: { psi: number; x?: number; y?: number; r?: number; dark?: boolean; label?: boolean } = $props();
+    mark,
+  }: {
+    psi: number;
+    x?: number;
+    y?: number;
+    r?: number;
+    dark?: boolean;
+    label?: boolean;
+    /** A pressure to mark on the dial: the nozzle's rating (UX.md §10.3 T5). */
+    mark?: number;
+  } = $props();
 
   const MAX = 300;
   const shown = Tween.of(() => psi, { duration: 250 });
@@ -23,6 +33,9 @@
   {#each ticks as t (t)}
     <line class="tick" x1="0" y1={-(r - 3)} x2="0" y2={-(r - 7)} transform={`rotate(${t})`} />
   {/each}
+  {#if mark !== undefined}
+    <path class="mark" d={`M 0 ${-(r + 1)} L -3 ${-(r + 6)} L 3 ${-(r + 6)} Z`} transform={`rotate(${-135 + (Math.min(Math.max(mark, 0), MAX) / MAX) * 270})`}><title>Nominal {mark} psi</title></path>
+  {/if}
   <line class="needle" x1="0" y1="0" x2="0" y2={-(r - 6)} transform={`rotate(${angle})`} />
   <circle class="hub" r={r / 8} />
   {#if label}<text class="value" y={r + 16}>{psi.toFixed(0)} psi</text>{/if}
@@ -39,4 +52,5 @@
   .dark .hub { fill: var(--panel-ink); }
   .negative .face { stroke: var(--warn); }
   .negative .value { fill: var(--warn); }
+  .mark { fill: var(--accent); }
 </style>

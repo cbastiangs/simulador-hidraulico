@@ -1,6 +1,7 @@
 import { NOZZLE_SPECS } from "$hydraulics/catalog.ts";
 import { HOSE_SIZES, type FittingKind } from "$hydraulics/references.ts";
 import { joints, type Scenario, type ScenarioSection } from "$hydraulics/scenario.ts";
+import type { MethodId } from "$hydraulics/references.ts";
 import { runsOf, tautRunM } from "$lib/geometry/world.ts";
 
 /**
@@ -19,6 +20,7 @@ export const LIMITS = {
   elevationM: { min: -100, max: 300 },
   ratedFlowGpm: { min: 1, max: 2000 },
   ratedPressurePsi: { min: 1, max: 200 },
+  floorHeightM: { min: 2, max: 6 },
 } as const;
 
 const within = (value: number, limit: { min: number; max: number }) => clamp(value, limit.min, limit.max);
@@ -322,4 +324,40 @@ export function setNozzleSetting(scenario: Scenario, flowGpm: number): Scenario 
 /** 0 straight stream … 1 wide fog: drawing only. */
 export function setNozzlePattern(scenario: Scenario, pattern: number): Scenario {
   return { ...scenario, nozzle: { ...scenario.nozzle, pattern: clamp(pattern, 0, 1) } };
+}
+
+/** The method the line is calculated with ("Método", MODEL.md §4). */
+export function setMethod(scenario: Scenario, methodId: MethodId): Scenario {
+  return { ...scenario, methodId };
+}
+
+export function setName(scenario: Scenario, name: string): Scenario {
+  return { ...scenario, name: name.slice(0, 80) };
+}
+
+/** Floor-to-floor height, metres: drawing and snapping only. */
+export function setFloorHeight(scenario: Scenario, floorHeightM: number): Scenario {
+  return { ...scenario, floorHeightM: Math.round(within(floorHeightM, LIMITS.floorHeightM) * 10) / 10 };
+}
+
+export const floorOf = (scenario: Scenario) => scenario.floorHeightM ?? 3;
+
+/**
+ * "Línea nueva": one flat 15 m length of 1½″ and a 100 gpm fog nozzle, the
+ * pump at 100 psi, keeping the current method; built from the catalog.
+ */
+export function blankLine(scenario: Scenario): Scenario {
+  const hose = HOSE_SIZES.find((h) => h.id === "1-1/2")!;
+  const blank: Scenario = {
+    schema: scenario.schema,
+    version: scenario.version,
+    name: "Línea nueva",
+    methodId: scenario.methodId,
+    source: { kind: "fixed-pressure", pressurePsi: 100 },
+    sections: [
+      { hoseSizeId: hose.id, diameterIn: hose.nominalDiameterIn, frictionCoefficient: hose.frictionCoefficient, lengthM: 15, endElevationM: 0 },
+    ],
+    nozzle: { kind: "fixed-orifice", specId: null, settingsGpm: [], ratedFlowGpm: 100, ratedPressurePsi: 100, pattern: 0.25, open: true },
+  };
+  return setNozzleSpec(blank, "fog-100");
 }

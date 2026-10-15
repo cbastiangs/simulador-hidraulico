@@ -215,7 +215,7 @@ export function layoutWorld(
   // Floor lines sit on whole floors even when the bounds don't (fillViewport).
   const floors: WorldFloor[] = [];
   for (let h = Math.ceil(bounds.minY / floorM - 1e-9) * floorM; h <= Math.min(bounds.maxY, floorTopM) + 1e-9; h += floorM) {
-    floors.push({ y: yAt(h), elevationM: h, number: Math.round(h / floorM) });
+    floors.push({ y: yAt(h), elevationM: Math.round(h * 100) / 100, number: Math.round(h / floorM) });
   }
 
   return {
@@ -234,6 +234,7 @@ export function layoutWorld(
 
 /** Heights snap to 0.5 m, and to a floor line when within 0.4 m of it. */
 export function snapHeightM(meters: number, floorM: number) {
-  const floor = Math.round(meters / floorM) * floorM;
+  // Rounded to the centimetre: a 3.1 m floor height would leave float noise (6.2000000001).
+  const floor = Math.round(Math.round(meters / floorM) * floorM * 100) / 100;
   return Math.abs(meters - floor) <= 0.4 ? floor : Math.round(meters * 2) / 2;
 }

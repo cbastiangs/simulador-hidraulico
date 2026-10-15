@@ -17,7 +17,7 @@
     if (term.lawId === "nozzle.fixed-orifice") return "Ley del orificio (física): Q ∝ √P";
     if (term.lawId === "appliance.fixed") {
       return term.inputs.lossPsi === null
-        ? "Sin dato publicado para el método físico (MODEL.md §3.10)"
+        ? "Sin dato publicado para el modelo base (MODEL.md §3.10)"
         : `${SOURCE_LABELS.cgbvpManual2019}, p. 45 (aproximación de entrenamiento)`;
     }
     if (term.lawId !== "elevation") return LAWS[term.lawId].sources.map((id) => SOURCE_LABELS[id]).join(" · ");

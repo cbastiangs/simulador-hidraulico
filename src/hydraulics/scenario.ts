@@ -93,6 +93,11 @@ export type Scenario = {
    * unconnected (`missingAdapters`).
    */
   autoFittings?: boolean;
+  /**
+   * The building's floor-to-floor height, metres (UX.md §2): the canvas's
+   * floor lines, snapping and "piso n" labels. Drawing only; absent means 3.
+   */
+  floorHeightM?: number;
   source: ScenarioSource;
   sections: ScenarioSection[];
   nozzle: ScenarioNozzle;
@@ -195,6 +200,7 @@ export function parseScenario(value: unknown): Scenario {
     name: doc.name,
     methodId: oneOf(doc.methodId, "methodId", Object.keys(METHODS) as MethodId[]),
     ...(doc.autoFittings === undefined ? {} : { autoFittings: boolFlag(doc.autoFittings, "autoFittings") }),
+    ...(doc.floorHeightM === undefined ? {} : { floorHeightM: number(doc.floorHeightM, "floorHeightM", "greater than zero") }),
     source: {
       kind: oneOf(source.kind, "source.kind", ["fixed-pressure"] as const),
       pressurePsi: number(source.pressurePsi, "source.pressurePsi", "zero or more"),
