@@ -51,7 +51,7 @@ the way:
 | NP | nozzle pressure | §3.3–§3.5 |
 | FL | friction loss in each hose section | §3.1 |
 | EP | elevation pressure, source to nozzle | §3.2 |
-| AL | appliance losses (wye, reducer, FDC…) | §3.10 (⏳ M4) |
+| AL | appliance losses (wye, reducer, FDC…) | §3.10 (⏳ in-line fittings next; wyes M4) |
 
 Every term grows with flow Q (or is constant), so "pressure left at the
 nozzle − pressure the nozzle needs" falls as Q rises and crosses zero once.
@@ -108,6 +108,7 @@ engine converts metres: L_ft = L_m / 0.3048).
 |---|---|---|
 | `physical` (default) | 0.434 / 0.3048 = **1.424** | `physics`: ρg = 62.4 lb/ft³ ÷ 144 in²/ft² = 0.433 psi/ft, published as 0.434 |
 | `cgbvp-2019` (reference) | **1.5** | `convention`: CGBVP p. 44 (same page also mentions 1.4) |
+| `us-training` | 0.5 / 0.3048 = **1.640** | `convention`: Colorado DFPC pumper chart, "Elevation +/- 5 for every 10'" (0.5 psi/ft; 15 % above the physical value, the usual field round-up) |
 
 Applies whether or not water flows: a closed nozzle 10 m up still reads
 14.2 psi less than the pump (VC-04).
@@ -318,8 +319,36 @@ than a fog nozzle at 100 psi (185 gpm: 69 vs 93 lbf).
 - **`junction.continuity`** (`physics`): at a wye, flow in = Σ flows out, and
   one pressure at the junction. A tree from one source has one unknown per
   junction, solved by nested bisection.
-- **`appliance.fixed`** (`convention`, CGBVP p. 45): valve, wye, reducer
-  5 psi; siamese 10; monitor 10–25; eductor 40. Method `cgbvp-2019` only.
+- **`appliance.fixed`** (`convention`) ⏳ next, in-line fittings first
+  (owner, 2026-10-15): a fitting at a joint adds a loss AL(kind, Q) to the
+  series sum (§2). Each method carries its own table (§4). Wyes wait for
+  branching (M4); reducers, adapters and valves do not, since a fixed loss
+  is monotone in Q and `series.ts` can take it.
+
+  | Fitting | `cgbvp-2019` | `us-training` | `physical` |
+  |---|---|---|---|
+  | Reducer, adapter, valve | 5 psi (p. 45) | 0 psi up to 350 gpm, 10 psi above | "sin dato" |
+  | Wye | 5 psi | same generic "appliance" rule | "sin dato" |
+  | Siamese | ~10 psi | same generic "appliance" rule | "sin dato" |
+  | Master stream device | monitor 10–25 psi | 25 psi | "sin dato" |
+  | Standpipe | none (floor shortcut only) | 25 psi | n/a |
+  | Eductor | 40 psi | none: manufacturer data only | "sin dato" |
+
+  `us-training` basis: Colorado DFPC pumper chart, "Appliances + 10 psi >
+  350 gpm; Master streams + 25 psi; Standpipes + 25 psi" (`published`,
+  read in text 2026-10-15; `coloradoPumperChart` in `references.ts`). The
+  chart names "appliances" generically; applying it to a reducer or a valve
+  is our reading (`verify`). The threshold is strictly "> 350" in the chart
+  and "at least 350" in other training material.
+  The loss is a step in Q: it never falls as flow rises, so bisection
+  (§2) still converges, but at the step there can be pump pressures with no
+  exact flow. The screen labels it ("regla de 350 gpm") instead of hiding
+  it.
+
+  All of these are **training conventions, not measurements.** Every
+  training source found repeats the same rule and none cites a test; the
+  CGBVP and US figures disagree with each other (5 flat vs 0/10 stepped).
+  Measured manufacturer data exists for monitors and eductors only (see §9).
 - **`appliance.k`** (`physical`): ΔP = K · ρv²/2, or a manufacturer ΔP–Q
   curve. **No source chosen yet**: until one is, appliances under `physical`
   show "sin dato" rather than a guessed value.
@@ -374,17 +403,21 @@ Rules that follow:
 
 ## 4. Methods
 
-A method swaps constants, never laws.
+A method swaps constants and data tables, never laws. (A table such as the
+appliance losses is data read by one law, `appliance.fixed`.)
 
-| Constant | `physical` (default) | `cgbvp-2019` (reference) |
-|---|---|---|
-| Elevation k | 1.424 psi/m | 1.5 psi/m |
-| Appliance losses | K or curve (none yet) | fixed, p. 45 |
-| Fog reaction | 0.0505·Q·√NP | 0.24 kg per gpm at 100 psi |
-| Hose friction | same C table | same C table |
+| Constant | `physical` (default) | `cgbvp-2019` (reference) | `us-training` (owner, 2026-10-15) |
+|---|---|---|---|
+| Elevation k | 1.424 psi/m | 1.5 psi/m | 1.640 psi/m (0.5 psi/ft) |
+| Appliance losses | K or curve (none yet) | fixed, p. 45 | 0 / 10 psi at 350 gpm; 25 psi master stream, standpipe (§3.10) |
+| Fog reaction | 0.0505·Q·√NP | 0.24 kg per gpm at 100 psi | same as `physical` |
+| Hose friction | same C table | same C table | same C table (it is the Colorado chart's) |
 
-The screen always shows the reference beside the default, with the
-difference.
+`us-training` is the US fire-service teaching model (pump chart plus the
+rules of thumb that go with it). Nozzle pressures it teaches (50 psi smooth
+bore handline, 100 psi fog, 80 psi master stream) are nozzle data, not method
+constants. The screen always shows the reference (`cgbvp-2019`) beside the
+selected method, with the difference.
 
 ## 5. Manual errors never encoded
 
@@ -439,6 +472,10 @@ geometry or crashes (see AGENTS.md).
 | Envelope above rated flow | `pump.envelope` | M3 | A real pump curve (Hale [E9]; M11-1/M11-5 plates) |
 | Hazen–Williams form and C for steel | `pipe.hazen-williams` | M4 | NFPA 13/14 |
 | PRV set points | `valve.prv` | M4 | NFPA 14; manufacturer data |
-| Appliance K or curves | `appliance.k` | M4 | Manufacturer data [E5] |
+| Appliance K or curves | `appliance.k` | M4 | Manufacturer data [E5]. Best lead: Elkhart's wye pressure-loss PDFs (B100 series; host unreachable 2026-10-15) |
+| "Appliances" rule applied to reducers and valves | `appliance.fixed` | next | IFSTA Pumping Apparatus chapter on fireground hydraulics; the Colorado chart says only "Appliances" |
+| Standpipe +25 (Colorado) vs +10 (Golder Ranch, snippet only) | `appliance.fixed` | next | NFPA 14 or the source text |
+| Monitor loss: use Elkhart's *total static pressure drop*, not friction loss alone (Python 299-11, friction only: 11/18/24 psi at 750/1000/1250 gpm) | `appliance.fixed` / monitor | M2–M4 | Elkhart catalog f9 05-43 and Python pressure-drop chart (read 2026-10-15) |
+| Eductor: Elkhart 240 water bypass 2/6/11 psig at 60/95/125 gpm; foam mode needs 200 psi in, ≤ 130 psi out (≥ 70 psi drop, inferred), not CGBVP's flat 40 | `appliance.fixed` / eductor | M4 | Elkhart manual 98069000 Rev A, pp. 2–3 (read 2026-10-15) |
 | Hydrant curve form | `supply.hydrant` | later | NFPA 291 [E8] |
 | Application efficiency η | `extinguish.absorption` | M5 | Särdqvist 2002; Grimwood |

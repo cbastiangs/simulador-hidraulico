@@ -64,7 +64,16 @@
 - **On-canvas editing.** Tapping a hose shows a small toolbar on the canvas
   with the hose sizes and −15 / +15 m. Tapping the engine selects the pump:
   its discharge outlet size (1½, 2½, 3″ or "same as the hose"); a different
-  outlet size draws an adapter, whose loss is not modelled yet.
+  outlet size draws an adapter, which costs its loss once fittings land
+  (MODEL.md §3.10; ROADMAP §11, decisions 5–6).
+- **Fittings (planned, owner 2026-10-15).** A joint shows a small menu
+  (tap) to place a reducer, adapter or valve; each is drawn at the joint,
+  moves with it, and can be removed. Incompatible choices are refused with a
+  reason ("falta reductor 2½→1½″"). No loose items and no toolbox drag for
+  now. **Accesorios automáticos** (a switch under the canvas, on by default):
+  on, a size mismatch inserts a visible fitting; off, it is flagged in red and
+  the line is not solved. Fitting losses get their own segment in the
+  pressure-split bar. Under `us-training` the 350 gpm step is labelled.
 - **Length lock, per hose** (owner, 2026-10-14; replaces the global
   "Largo fijo / Libre" toggle under the canvas). Each hose has its own lock,
   a button on its on-canvas toolbar, with a 🔒/🔓 on its label. Locked is the
@@ -92,8 +101,8 @@
 ## 3. Equipment and controls
 
 - **Hose:** thickness proportional to diameter; couplings drawn as rings at
-  each joint; a reducer where the size changes; length and size labelled on
-  the hose.
+  each joint; a reducer at a joint where the size changes (a fitting object,
+  see §2 "Fittings"); length and size labelled on the hose.
 - **Gauges:** real dials: ticks every 50 psi, numbers, needle, and the
   reading below. Same component everywhere (pump, couplings, nozzle).
 - **Nozzle:** drawn as a combination or smooth-bore nozzle, with its

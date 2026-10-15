@@ -168,8 +168,11 @@ Envelope, outlets, discharge valves, governor modes, tank.
 ### 7.4 Branching
 
 Wyes, siamese, reducers and couplings. Under `cgbvp-2019`, fixed losses (p.
-45: 5/10/25/40 psi). Under `physical`, a K or manufacturer curve once a
-source is chosen.
+45: 5/10/25/40 psi). Under `us-training`, the Colorado chart's stepped rule
+(MODEL.md §3.10). Under `physical`, a K or manufacturer curve once a source
+is chosen. **In-line fittings (reducer, adapter, valve) come first, before
+branching** (§11, decision 5): they are a fixed series loss and need no tree
+solver.
 
 ### 7.4b Standpipes
 
@@ -307,6 +310,26 @@ automatic nozzles, branching.
    it as the reference, with the difference. **Every number the app shows can
    name its source** (`references.ts` SOURCES; a "Fuentes" panel in the app).
 4. **Hosting and licence:** deferred.
+
+### Fittings and methods (owner, 2026-10-15)
+
+5. **Fittings are objects at joints.** A reducer or adapter sits at a joint,
+   moves with its coupling, and costs its loss (MODEL.md §3.10). No
+   free-floating pieces: an item outside the chain has no hydraulic meaning.
+   Adding one is a tap on the joint and a small menu (the hose toolbar's
+   pattern); the toolbox drag-and-drop stays deferred (§10b).
+6. **Autofit is a per-scenario mode, on by default** ("Accesorios
+   automáticos", stored like `lengthFree`). On: a size mismatch inserts a
+   visible fitting you can tap and remove. Off: the mismatch is flagged and
+   the line is not solved until you place the fitting. Presets and first load
+   use on; an off-by-default challenge mode may come later.
+7. **Third method, `us-training`:** the US teaching model (Colorado DFPC
+   pump chart: 0.5 psi/ft elevation, 0/10 psi appliances at 350 gpm, 25 psi
+   master streams and standpipes). Selectable beside `physical` and
+   `cgbvp-2019`; the reference shown beside the selection stays `cgbvp-2019`.
+   Labelled a training convention: the web search found no measured data for
+   wyes, siamese, reducers or valves, only for monitors and eductors
+   (MODEL.md §9). Not combined per constant: a method is a bundle.
 
 Still wanted: M11-1 and M11-5 pump plates, the nozzles carried, hose sizes
 and couplings, PLT-11's load chart.
