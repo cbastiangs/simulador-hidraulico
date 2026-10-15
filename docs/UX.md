@@ -161,7 +161,7 @@
 |---|---|---|---|---|
 | ≥ 1024 px | top bar | centre | right column | below canvas, collapsible |
 | 600–1023 px | top bar | full width | below canvas | below inspector |
-| < 600 px | compact strip (pressure, flow) | full width, most of the screen | bottom sheet that slides up on selection | in the sheet, collapsible |
+| < 600 px | compact strip (pressure, flow) | full width, the rest of the screen; the page does not scroll (§8) | bottom sheet that slides up on selection (§8.2) | in the sheet, collapsible |
 
 ## 5. Visual style
 
@@ -198,3 +198,96 @@ not built yet.
   directly and show the result.
 - **Before handing back UI work:** check it in a browser at 390 px and
   1024 px wide, and send a screenshot.
+
+## 8. Actions and how each is reached (owner, 2026-10-15)
+
+The owner's phone test (2026-10-15) found mobile unusable: holding to drag
+scrolled the page, the canvas could not be navigated, and the pump gauge was
+hidden. Measured at 390 px: the page was 2032 px tall and the canvas let the
+browser scroll it (`touch-action: auto`); auto-fit drew the lay at 29 % in
+the bottom of a 422 px canvas, with the pump gauge over the truck and clipped
+by the canvas edge. The cause is structural, so this section fixes the rules
+first and lists every action against them. Owner's choices: on a phone the
+page does not scroll and a bottom sheet holds everything but the pump strip
+and the canvas; the sheet replaces the floating toolbars on phones; the
+welcome tour is interactive.
+
+### 8.1 Gesture rules
+
+| Gesture | Desktop | Phone / tablet |
+|---|---|---|
+| Pan | drag empty canvas; wheel / trackpad | one finger on empty canvas or on a hose |
+| Zoom | Ctrl + wheel, pinch on trackpad, − / + | pinch, − / + |
+| Fit | "Ajustar" | "Ajustar", double tap on empty canvas |
+| Select | click | tap (moves < 6 px) |
+| Move a coupling or the nozzle | drag its handle | drag its handle, at once (no hold) |
+| More actions | right click | hold 0.5 s without moving |
+
+- **On a phone the canvas owns every touch inside it.** The page never
+  scrolls from the canvas; pan and pinch are the canvas's own (pointer
+  events, `touch-action: none`), not the browser's scroll.
+- **On a phone the page does not scroll at all** (§4's layout, now
+  required): the pump strip at the top, the canvas filling the rest, and a
+  bottom sheet over it. Everything else lives in the sheet.
+- **Fit shows the whole lay, truck and nozzle included**, never starting
+  scrolled to one end; the vertical fit uses the lay's height, not the
+  whole building, and floors above are reached by panning. Below a
+  legible zoom (truck about 60 px long) it stops shrinking and the person
+  pans.
+- **Gauges never cover the equipment.** The pump's gauge sits above the
+  truck; the pump's pressure also stays in the top strip.
+
+### 8.2 The bottom sheet (phone)
+
+Three heights: **closed** (a handle and one line: flow, nozzle pressure),
+**peek** (the selected element's main controls), **full** (inspector,
+pressure split, calculation, concepts). Tapping an element opens it at peek;
+tapping empty canvas closes it. On phones it replaces the floating
+on-canvas toolbars, which cover a small canvas.
+
+### 8.3 Every action
+
+"Canvas" = on the drawing; "toolbar" = the floating bar by the element
+(desktop and tablet) or the sheet at peek (phone); "menu" = §8.1's more
+actions; "inspector" = the side column (desktop) or the sheet at full.
+
+| Area | Action | Desktop | Phone |
+|---|---|---|---|
+| Navigate | pan, zoom, fit | §8.1 | §8.1 |
+| Line | add a hose at the end | toolbar of the nozzle, menu on empty canvas, button | sheet |
+| | insert a hose here | hose / coupling toolbar, menu | sheet at peek, menu |
+| | split, join, remove | hose / coupling toolbar, menu | sheet at peek, menu |
+| | hose size, length (±15 m, typed) | hose toolbar; inspector | sheet at peek |
+| | length lock | hose toolbar, menu | sheet at peek |
+| | move a coupling (run, height) | drag; arrow keys; typed in inspector | drag; typed in sheet |
+| Fittings | adapter, valve at a joint | coupling toolbar | sheet at peek |
+| | Accesorios automáticos | switch under the canvas | sheet, full |
+| Nozzle | open / shut the bale | tap the nozzle | tap the nozzle |
+| | model, gallonage, pattern, typed rating | inspector | sheet at peek |
+| Pump | pressure (typed, ±1, ±10, slider) | pump panel | top strip: ± ; sheet: all |
+| | apply required pressure | pump panel | top strip |
+| | discharge outlet size | tap the engine → toolbar | tap the engine → sheet |
+| Scenario | load a preset | header | header menu |
+| | undo, redo | header; Ctrl+Z, Ctrl+Shift+Z | header icons |
+| Read | gauges, flow, pressure split | canvas, panel, floating bar | canvas, top strip, sheet |
+| | calculation, concepts | below the canvas | sheet, full |
+| Help | welcome tour, again | "?" in the header | "?" in the header |
+
+### 8.4 Welcome tour
+
+First visit only (remembered per browser), skippable, and reopened from
+"?". Each step points at the real element on the screen and, where it asks
+for an action, moves on when the person does it:
+
+1. "Esta es una línea: bomba → mangueras → pitón."
+2. Pump strip: "La presión de la bomba. Súbela o bájala."
+3. Nozzle: "Toca el pitón para abrirlo." (advances on open)
+4. A coupling: "Arrastra el acople a otro piso." (advances on a move)
+5. A hose: "Toca una manguera para cambiarla; mantén pulsado para más."
+6. Pressure split: "En qué se gasta la presión: fricción, altura, pitón."
+
+### 8.5 Order of work
+
+1. Phone layout without page scroll, canvas gestures, fit (§8.1).
+2. Bottom sheet replacing the toolbars on phones (§8.2).
+3. Welcome tour (§8.4).
