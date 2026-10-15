@@ -515,6 +515,11 @@ than a fog nozzle at 100 psi (185 gpm: 69 vs 93 lbf).
 - The message the model must support: **flow sets the cooling capacity;
   pressure moves the flow and shapes the stream.**
 - Its own folder (`src/extinguishment/`), never imported by the hydraulics.
+- **Convention, `extinguish.fire-flow`** ⏳ first (ROADMAP §11 decision 8):
+  NFA required flow, gpm = area ft² / 3 × fraction involved. Area is in m²
+  in the scenario; ft² is converted inside the law (`units.ts`). Written
+  from memory: `verify` against the NFA publication before use. A training
+  convention, not physics. Iowa (volume ft³ / 100) is not planned.
 
 ### 3.13 Pressures and speed: vocabulary
 
@@ -563,7 +568,9 @@ defaults, user measurements and explicit assumptions retain their
 provenance. (Owner, 2026-10-15: methods must be swappable and
 user-definable.)
 
-**Default model.** The default UI name is **"Modelo del simulador"**; its
+**Default model.** The default UI name is **"Modelo base"** (owner,
+2026-10-15; not "Física": friction is an empirical table and appliances are
+unmodelled, so it is a chosen basis, not physics alone); its
 internal id stays `physical` for now (legacy), and it is a **source-based
 descriptive default** — a chosen basis, not a claim that every value is
 measured or complete. Component by component:
@@ -583,11 +590,20 @@ picker requirement below, and the **arbitrary target-flow planning mode**
 refactor**, not shipped behavior. Nothing in §3.10's adopted `us-training`
 rule or §9's mapping runs today.
 
-**`cgbvp-2019` must never be a preset** (owner, 2026-10-15). It is to appear
-only as a **read-only reference** beside the selected method, with the
-difference, and is not to be offered in the picker; its parameter set stays
-as data. The planned selectable presets are `physical` (default, "Modelo
-del simulador"), `us-training`, and any profile the user builds.
+**Selecting and comparing** (owner, 2026-10-15; replaces "`cgbvp-2019` is a
+read-only reference, never a preset"). No method is privileged. Two slots:
+
+- **Método:** the one the app calculates with; default "Modelo base".
+- **Comparar con:** any other method, or none. When set, the same scenario
+  is solved again under it and the difference shown beside each number.
+  It is a toggle so the second solve can be switched off when solving gets
+  heavier (trees, networks).
+
+Every method can go in either slot: `physical`, `cgbvp-2019`,
+`us-training` and the user's own. **Built-ins are read-only,** so a number
+labelled "CGBVP 2019" or "Colorado" always matches its source; **"Clonar"**
+makes an editable, selectable copy (e.g. an instructor's version of the
+CGBVP manual).
 
 `us-training` is the US fire-service teaching model, labelled specifically
 as the **Colorado DFPC pumper chart (Jan 2020)** and the rules of thumb that
@@ -686,3 +702,5 @@ geometry or crashes (see AGENTS.md).
 | Eductor: Elkhart 240 water bypass 2/6/11 psig at 60/95/125 gpm; foam mode needs 200 psi in, ≤ 130 psi out (≥ 70 psi drop, inferred), not CGBVP's flat 40 | `appliance.fixed` / eductor | M4 | Elkhart manual 98069000 Rev A, pp. 2–3 (read 2026-10-15) |
 | Hydrant curve form | `supply.hydrant` | later | NFPA 291 [E8] |
 | Application efficiency η | `extinguish.absorption` | M5 | Särdqvist 2002; Grimwood |
+| Fire-preset heat release rates (MW) | `extinguish.absorption` | M5 | a published HRR source (to choose) |
+| NFA fire-flow formula | `extinguish.fire-flow` | M5 (first) | NFA fire-flow formula publication |

@@ -47,9 +47,9 @@ demonstrable in a few taps from a preset.
   It is the core of the flow-vs-pressure idea.
 - **Element laws solved together**; the pressure budget (PDP = NP + FL + EP
   + appliances) is a main visual.
-- **Methods are selectable, sourced profiles** (plus user-defined ones);
-  `cgbvp-2019` is a read-only comparison, never a selectable preset
-  (`MODEL.md` §4).
+- **Methods are selectable, sourced profiles** (plus user-defined ones):
+  one to calculate with, optionally one to compare against; built-ins are
+  read-only and cloned to edit (`MODEL.md` §4).
 - **Pure TypeScript engine, tested against published tables.**
 - **Station units inside** (m, in, psi, gpm; laws convert their own published
   constants), other display units at the screen's edge.
@@ -350,11 +350,13 @@ automatic nozzles, branching.
    to fd-app's station data comes later. Every built-in names its source, or
    says "generic" when it has none.
 3. **Method:** the default is the simulator model (`physical`, legacy id), a
-   source-based descriptive default ("Modelo del simulador"; `MODEL.md` §4).
-   Selectable: `physical`, `us-training` (Colorado DFPC 2020) and user-defined
-   methods — **planned design**, not runtime state (only `physical` and
-   `cgbvp-2019` are implemented). `cgbvp-2019` is always shown beside the
-   selection as a **read-only comparison**, never a selectable preset.
+   source-based descriptive default ("Modelo base"; `MODEL.md` §4).
+   Selectable: `physical`, `cgbvp-2019`, `us-training` (Colorado DFPC 2020)
+   and user-defined methods — **planned design**, not runtime state (only
+   `physical` and `cgbvp-2019` are implemented). A second, optional slot
+   compares against any other method; built-ins are read-only and cloned to
+   edit (owner, 2026-10-15; replaces "CGBVP always the reference, never
+   selectable").
    **Every number the app shows can name its source** (`references.ts`
    SOURCES; a "Fuentes" panel in the app).
 4. **Hosting and licence:** deferred.
@@ -381,8 +383,7 @@ automatic nozzles, branching.
    25 psi each; **standpipe a whole-system allowance of 25 psi**, independent
    of floors (elevation separate). The 10 psi is a training allowance, not a
    universal physical loss, and the profile covers only the components §3.10
-   lists. Selectable beside `physical`; the reference shown beside the
-   selection stays `cgbvp-2019` and is read-only. Measured data is thin and
+   lists. Selectable and comparable like any method (decision 3). Measured data is thin and
    device-specific (monitors, eductors, and one wildland wye test;
    `MODEL.md` §9), so the default `physical` uses equipment-specific data and
    leaves unknown losses explicitly unmodelled rather than assuming zero,

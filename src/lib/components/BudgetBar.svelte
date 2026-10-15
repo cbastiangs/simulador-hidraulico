@@ -45,7 +45,7 @@
           <span class="swatch fittings"></span>
           <span>
             <b>Accesorios {noData ? "sin dato" : `${f(parts.fittings)} psi`}</b> ·
-            {fittingCount} {fittingCount === 1 ? "accesorio" : "accesorios"} (adaptadores, válvulas){noData ? ": la física no tiene un valor publicado, cuenta 0" : ""}
+            {fittingCount} {fittingCount === 1 ? "accesorio" : "accesorios"} (adaptadores, válvulas){noData ? ": el modelo base no tiene un valor publicado, cuenta 0" : ""}
             · CGBVP: {f(reference.fittingLossPsi)}
           </span>
         </li>

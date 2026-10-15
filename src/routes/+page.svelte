@@ -141,9 +141,9 @@
 {#snippet results()}
   <div bind:this={budgetEl}><BudgetBar {result} {reference} /></div>
   <details class="card">
-    <summary>Ver cálculo ({result.terms.length} fórmulas) · física y CGBVP 2019</summary>
+    <summary>Ver cálculo ({result.terms.length} fórmulas) · modelo base y CGBVP 2019</summary>
     <table>
-      <thead><tr><th></th><th>Física</th><th>CGBVP 2019 (ref.)</th></tr></thead>
+      <thead><tr><th></th><th>Modelo base</th><th>CGBVP 2019 (ref.)</th></tr></thead>
       <tbody>
         <tr><td>Caudal</td><td>{result.flowGpm.toFixed(1)} gpm</td><td>{reference.flowGpm.toFixed(1)} gpm</td></tr>
         <tr><td>Accesorios</td><td>{result.terms.some((t) => t.lawId === "appliance.fixed" && t.inputs.lossPsi === null) ? "sin dato" : `${result.fittingLossPsi.toFixed(1)} psi`}</td><td>{reference.fittingLossPsi.toFixed(1)} psi</td></tr>

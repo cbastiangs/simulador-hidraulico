@@ -50,7 +50,7 @@
   </button>
 
   <p class="note">
-    Pérdida por accesorio: {loss ? `${loss.adapter} psi (fija)` : "sin dato en física, cuenta 0"} · CGBVP p. 45: {reference.adapter} psi.
+    Pérdida por accesorio: {loss ? `${loss.adapter} psi (fija)` : "sin dato en el modelo base, cuenta 0"} · CGBVP p. 45: {reference.adapter} psi.
     {#if isAuto(scenario) && j.mismatch}Desactiva «Accesorios automáticos» para colocarlo a mano.{/if}
   </p>
 </div>
