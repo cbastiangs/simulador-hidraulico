@@ -85,6 +85,13 @@
   losses get their own segment and legend line in the pressure split, with
   the CGBVP value beside "sin dato". Under `us-training` the 350 gpm step will
   be labelled.
+- **Selecting and deselecting (owner, 2026-10-16).** The app opens with
+  nothing selected. A tap selects; tapping what is already selected keeps
+  it. Nothing selected again: tap or click empty canvas, Esc, or the **×**
+  on the selection panel and on the floating toolbars. On a phone,
+  deselecting also closes the sheet. With nothing selected the selection
+  panel says "Nada seleccionado" and lists the line's parts (pump, each
+  hose and coupling, nozzle) as buttons, for discovery and the keyboard.
 - **Building the line (owner, 2026-10-15).** Hoses are added, split, joined
   and removed on the canvas; nothing needs the inspector:
   - **Context menu:** right click, or a press held still for 0.5 s on touch,
@@ -244,7 +251,7 @@ welcome tour is interactive.
 Three heights: **closed** (a handle and one line: flow, nozzle pressure),
 **peek** (the selected element's main controls), **full** (inspector,
 pressure split, calculation, concepts). Tapping an element opens it at peek;
-tapping empty canvas closes it. On phones it replaces the floating
+tapping empty canvas closes it and clears the selection (§2). On phones it replaces the floating
 on-canvas toolbars, which cover a small canvas.
 
 ### 8.3 Every action

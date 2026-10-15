@@ -22,7 +22,8 @@
   let loads = $state(0);
   // Replaced whole by each edit (lib/edit.ts), never mutated in place.
   let scenario: Scenario = $state.raw(presets[0].scenario);
-  let selection: Selection = $state({ kind: "nozzle" });
+  // Nothing is selected until the user taps something (UX.md §2 "Selecting").
+  let selection: Selection | null = $state(null);
 
   // Phones (UX.md §8): the page does not scroll; a bottom sheet holds the
   // inspector and results, and opens at peek when something is selected.
@@ -33,6 +34,12 @@
   function select(s: Selection, open = true) {
     selection = s;
     if (open && sheet === "closed") sheet = "peek";
+  }
+
+  /** Tap on empty canvas, Esc, or a panel's ×: nothing selected; the phone's sheet closes. */
+  function deselect() {
+    selection = null;
+    sheet = "closed";
   }
 
   function structural(next: Scenario, then?: Selection) {
@@ -61,8 +68,8 @@
   /** Keeps the selection pointing at something that still exists. */
   function keepSelection() {
     const n = scenario.sections.length;
-    if ((selection.kind === "section" && selection.index >= n) || (selection.kind === "joint" && selection.index > n)) {
-      selection = { kind: "nozzle" };
+    if ((selection?.kind === "section" && selection.index >= n) || (selection?.kind === "joint" && selection.index > n)) {
+      selection = null;
     }
   }
 
@@ -87,6 +94,8 @@
   function onKey(event: KeyboardEvent) {
     const target = event.target as HTMLElement;
     if (target.closest("input, textarea, select, [contenteditable]")) return;
+    // Esc clears the selection, unless it is closing a menu.
+    if (event.key === "Escape" && !document.querySelector("[role=menu]")) return deselect();
     if (!(event.ctrlKey || event.metaKey)) return;
     const key = event.key.toLowerCase();
     if (key === "z" && !event.shiftKey) undo();
@@ -114,7 +123,7 @@
     presetId = id;
     loads += 1;
     scenario = presets.find((p) => p.id === id)!.scenario;
-    selection = { kind: "nozzle" };
+    selection = null;
     past = [];
     future = [];
   }
@@ -129,7 +138,7 @@
 <svelte:window onkeydown={onKey} bind:innerWidth={windowWidth} />
 
 {#snippet side()}
-  <Inspector {scenario} {selection} onchange={(s) => apply(s, `inspector:${JSON.stringify(selection)}`)} onSelect={select} onEdit={structural} />
+  <Inspector {scenario} {selection} onClose={deselect} onchange={(s) => apply(s, `inspector:${JSON.stringify(selection)}`)} onSelect={select} onEdit={structural} />
   <button type="button" class="add" onclick={addSection}>+ Añadir tramo al final</button>
   {#if phone}
     <button type="button" class="add" onclick={() => apply(edit.setAutoFittings(scenario, !isAuto(scenario)))}>
@@ -178,7 +187,8 @@
       {phone}
       resetKey={`${presetId}#${loads}`}
       onSelect={select}
-      onTapEmpty={() => (sheet = "closed")}
+      onTapEmpty={deselect}
+      onDeselect={deselect}
       onMove={(i, runM, elevationM) => apply(edit.moveCoupling(scenario, i, { runM, elevationM }), `move:${i}`)}
       onToggleLock={(i) => apply(edit.toggleLengthLock(scenario, i))}
       onHoseSize={(i, id) => apply(edit.setSectionHose(scenario, i, id))}

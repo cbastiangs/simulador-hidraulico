@@ -44,10 +44,11 @@
     onEdit,
     phone = false,
     onTapEmpty,
+    onDeselect,
   }: {
     scenario: Scenario;
     result: SeriesResult;
-    selection: Selection;
+    selection: Selection | null;
     floorM?: number;
     /** Changes when a new lay is loaded: auto-fit is restored. */
     resetKey: string;
@@ -70,6 +71,8 @@
     phone?: boolean;
     /** A tap on empty canvas (the phone's sheet closes). */
     onTapEmpty?: () => void;
+    /** The floating toolbars' ×. */
+    onDeselect: () => void;
   } = $props();
 
   const TAP_PX = 6;
@@ -145,7 +148,7 @@
     ),
   );
   const last = $derived(layout.nodes.length - 1);
-  const isSection = (i: number) => selection.kind === "section" && selection.index === i;
+  const isSection = (i: number) => selection?.kind === "section" && selection.index === i;
   const outletIn = $derived(scenario.source.outletSizeIn);
   const js = $derived(joints(scenario));
   const missing = $derived(js.filter((j) => j.missing));
@@ -413,9 +416,9 @@
     return { gapPx: hoseVelocityMps(result.flowGpm, diameterIn) * seconds * PX_PER_M, seconds };
   };
 
-  const selectedHose = $derived(selection.kind === "section" ? layout.hoses[selection.index] : undefined);
+  const selectedHose = $derived(selection?.kind === "section" ? layout.hoses[selection.index] : undefined);
   // The nozzle joint's fittings are edited in the inspector: its handle works the bale.
-  const selectedJoint = $derived(selection.kind === "joint" && selection.index < last ? layout.nodes[selection.index] : undefined);
+  const selectedJoint = $derived(selection?.kind === "joint" && selection.index < last ? layout.nodes[selection.index] : undefined);
   /** Where a joint's fittings are drawn: after the coupling ring, or just before the nozzle. */
   const fittingX = (i: number) => (i === last ? -16 : i === 0 ? -2 : 4);
 </script>
@@ -482,7 +485,7 @@
           oncontextmenu={(e) => openMenu(e, { kind: "pump" })}
           onpointerdown={(e) => holdStart(e, { kind: "pump" })}
         >
-          <rect class="truck" class:selected={selection.kind === "pump"} x={layout.xAt(-9.5)} y={layout.groundY - 3.2 * PX_PER_M} width={7 * PX_PER_M} height={2.6 * PX_PER_M} rx="5" />
+          <rect class="truck" class:selected={selection?.kind === "pump"} x={layout.xAt(-9.5)} y={layout.groundY - 3.2 * PX_PER_M} width={7 * PX_PER_M} height={2.6 * PX_PER_M} rx="5" />
           <rect class="window" x={layout.xAt(-8.9)} y={layout.groundY - 2.8 * PX_PER_M} width={1.6 * PX_PER_M} height={0.9 * PX_PER_M} rx="2" />
           <circle class="wheel" cx={layout.xAt(-8)} cy={layout.groundY - 0.5 * PX_PER_M} r={0.5 * PX_PER_M} />
           <circle class="wheel" cx={layout.xAt(-4)} cy={layout.groundY - 0.5 * PX_PER_M} r={0.5 * PX_PER_M} />
@@ -557,7 +560,7 @@
             flowGpm={result.flowGpm}
             x={0}
             y={0}
-            selected={selection.kind === "nozzle"}
+            selected={selection?.kind === "nozzle"}
             onToggle={onToggleNozzle}
           />
         </g>
@@ -565,7 +568,7 @@
         <!-- The pump outlet's joint: tap only (the outlet doesn't move) -->
         <circle
           class="handle joint0"
-          class:active={selection.kind === "joint" && selection.index === 0}
+          class:active={selection?.kind === "joint" && selection.index === 0}
           cx={layout.nodes[0].x}
           cy={layout.nodes[0].y}
           r={16 * k}
@@ -622,6 +625,7 @@
         {@const s = scenario.sections[i]}
         {@const up = selectedHose.labelY * zoom + 34 + HOSE_BAR_PX > layout.heightPx * zoom}
         <div class="hose-bar" class:up style:left={`${selectedHose.labelX * zoom}px`} style:top={`${selectedHose.labelY * zoom + (up ? -26 : 34)}px`}>
+          <button type="button" class="bar-close" aria-label="Quitar selección (Esc)" title="Quitar selección (Esc)" onclick={onDeselect}>×</button>
           <div class="chips" role="radiogroup" aria-label="Diámetro del tramo">
             {#each HOSE_SIZES as size (size.id)}
               <button type="button" role="radio" aria-checked={s.hoseSizeId === size.id} class:on={s.hoseSizeId === size.id} onclick={() => onHoseSize(i, size.id)}>{chipLabel(size)}</button>
@@ -641,9 +645,10 @@
         </div>
       {/if}
 
-      {#if selectedJoint && dragging === null && selection.kind === "joint" && !phone}
+      {#if selectedJoint && dragging === null && selection?.kind === "joint" && !phone}
         {@const up = selectedJoint.y * zoom + 40 + HOSE_BAR_PX > layout.heightPx * zoom}
         <div class="hose-bar joint-bar" class:up style:left={`${selectedJoint.x * zoom}px`} style:top={`${selectedJoint.y * zoom + (up ? -30 : 30)}px`}>
+          <button type="button" class="bar-close" aria-label="Quitar selección (Esc)" title="Quitar selección (Esc)" onclick={onDeselect}>×</button>
           <JointControls {scenario} joint={selection.index} onToggle={(kind) => onToggleFitting(selection.index, kind)} />
           <div class="chips">
             <button type="button" onclick={() => onEdit(edit.insertSection(scenario, selection.index), { kind: "section", index: selection.index })}>+ Tramo aquí</button>
@@ -747,6 +752,9 @@
   .auto-fit.on { border-color: var(--fitting); color: var(--fitting); }
   .missing-note { border-color: var(--warn); color: var(--warn); }
   .joint-bar { justify-items: stretch; padding: 10px; }
+  .hose-bar { padding-right: 34px; }
+  .bar-close { position: absolute; top: 2px; right: 2px; width: 30px; height: 30px; border: 0; border-radius: 6px; background: transparent; font-size: 18px; color: var(--muted); cursor: pointer; }
+  .bar-close:hover { background: var(--band); color: var(--ink); }
   .joint0 { cursor: pointer; }
   .lock.on { background: var(--surface); border-color: var(--accent); }
   .zoom { display: flex; gap: 4px; }

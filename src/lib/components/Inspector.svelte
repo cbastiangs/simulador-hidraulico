@@ -17,14 +17,18 @@
     onchange,
     onSelect,
     onEdit,
+    onClose,
   }: {
     scenario: Scenario;
-    selection: Selection;
+    /** Null: nothing selected; the panel lists what can be. */
+    selection: Selection | null;
     floorM?: number;
     onchange: (s: Scenario) => void;
     onSelect: (s: Selection) => void;
     /** A structural edit (insert, split, join, remove) and what to select after it: its own undo step. */
     onEdit: (next: Scenario, select?: Selection) => void;
+    /** The header's ×: clear the selection. */
+    onClose: () => void;
   } = $props();
 
   const last = $derived(scenario.sections.length - 1);
@@ -39,7 +43,23 @@
 </script>
 
 <aside class="inspector">
-  {#if selection.kind === "pump"}
+  {#if selection}
+    <button type="button" class="close" aria-label="Quitar selección (Esc)" title="Quitar selección (Esc)" onclick={onClose}>×</button>
+  {/if}
+  {#if selection === null}
+    <header>
+      <h3>Nada seleccionado</h3>
+      <p>Toca una parte de la línea para editarla. Clic derecho o mantener pulsado: más opciones.</p>
+    </header>
+    <nav class="parts" aria-label="Partes de la línea">
+      <button type="button" onclick={() => onSelect({ kind: "pump" })}>Bomba · salida</button>
+      {#each scenario.sections as s, i (i)}
+        <button type="button" onclick={() => onSelect({ kind: "section", index: i })}>Tramo {i + 1} · {s.lengthM} m de {s.diameterIn.toString().replace(".5", "½")}″</button>
+        {#if i < last}<button type="button" class="joint" onclick={() => onSelect({ kind: "joint", index: i + 1 })}>Acople {i + 1}</button>{/if}
+      {/each}
+      <button type="button" onclick={() => onSelect({ kind: "nozzle" })}>Pitón · {scenario.nozzle.open ? "abierto" : "cerrado"}</button>
+    </nav>
+  {:else if selection.kind === "pump"}
     {@const outlet = scenario.source.outletSizeIn}
     <header>
       <h3>Bomba · salida de descarga</h3>
@@ -175,9 +195,14 @@
 </aside>
 
 <style>
-  .inspector { background: var(--surface); border-radius: var(--radius); padding: 14px; display: grid; gap: 14px; align-content: start; min-width: 0; }
+  .inspector { position: relative; background: var(--surface); border-radius: var(--radius); padding: 14px; display: grid; gap: 14px; align-content: start; min-width: 0; }
   .inspector > * { min-width: 0; }
-  header h3 { margin: 0; font-size: 16px; }
+  header h3 { margin: 0; font-size: 16px; padding-right: 40px; }
+  .close { position: absolute; top: 6px; right: 6px; width: 44px; height: 44px; border: 0; border-radius: 8px; background: transparent; font-size: 22px; color: var(--muted); cursor: pointer; }
+  .close:hover { background: var(--band); color: var(--ink); }
+  .parts { display: grid; gap: 4px; }
+  .parts button { min-height: 40px; padding: 0 12px; text-align: left; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); cursor: pointer; font-size: 14px; }
+  .parts .joint { min-height: 32px; margin-left: 16px; font-size: 13px; color: var(--muted); border-style: dashed; }
   header p { margin: 2px 0 0; color: var(--muted); font-size: 13px; }
   .label { font-size: 12px; color: var(--muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.04em; }
   .field { display: grid; gap: 6px; }
