@@ -139,6 +139,12 @@ drop-down) grouped by coupling fit; an aimable stream drawn in metres with
 a labelled illustrative reach; a context menu on long press (touch, 0.5 s)
 or right click for hoses, couplings and the nozzle (insert, split, remove).
 
+**To mock up (2026-10-15, not yet drawn):** concepts and settings
+comparison. Gauges can show static (nozzle shut) next to flowing pressure and
+the speed; a table and a flow-versus-pressure chart of the ring settings,
+with "calculado" and "clasificación del fabricante" labelled apart (MODEL
+§3.5, §3.13). Built only after the mock-up is approved.
+
 ## 7. Process
 
 - **New screens and major visual changes start as a static mock-up**
