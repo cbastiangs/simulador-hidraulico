@@ -80,28 +80,45 @@ export const HOSE_SIZES: readonly HoseSize[] = [
 export type MethodId = "cgbvp-2019" | "physical";
 
 /**
- * The calculation conventions a line is solved under. Each method only swaps
- * constants; the element laws stay the same. Today elevation is the only
- * constant that differs. Fixed appliance losses (5 psi per wye in the
- * manual, p. 45) will join it once lines can branch.
+ * An in-line fitting at a joint (MODEL.md §3.10). `adapter`: joins two
+ * coupling sizes (a reducer or an increaser). `valve`: an in-line valve, fully
+ * open (partial opening has no law yet).
+ */
+export type FittingKind = "adapter" | "valve";
+
+/**
+ * The calculation conventions a line is solved under. Each method swaps
+ * constants and data tables; the element laws stay the same (MODEL.md §4).
  */
 export type Method = {
   id: MethodId;
   /** Pressure per metre of height between the pump and the nozzle. */
   psiPerMeterOfHeight: number;
   source: SourceId | null;
+  /**
+   * Fixed loss per fitting while water flows, psi (`appliance.fixed`). Null:
+   * the method has no value ("sin dato"); the fitting is shown and counts 0.
+   */
+  fittingLossPsi: Record<FittingKind, number> | null;
 };
 
 export const METHODS: Record<MethodId, Method> = {
   /**
    * The manual's quick rule, p. 44: 1.5 psi per metre (10 m = 15 psi). The
    * same page also mentions 1.4; its worked table uses 1.5. Which one is
-   * examined today is unconfirmed.
+   * examined today is unconfirmed. Fittings, p. 45: valve, wye or reducer
+   * 5 psi, a training approximation (the real loss depends on flow).
    */
-  "cgbvp-2019": { id: "cgbvp-2019", psiPerMeterOfHeight: 1.5, source: "cgbvpManual2019" },
+  "cgbvp-2019": {
+    id: "cgbvp-2019",
+    psiPerMeterOfHeight: 1.5,
+    source: "cgbvpManual2019",
+    fittingLossPsi: { adapter: 5, valve: 5 },
+  },
   /**
    * Hydrostatics: 62.4 lb/ft³ over 144 in²/ft² = 0.433, published as 0.434
-   * psi per foot; per metre, 0.434 / 0.3048 = 1.424.
+   * psi per foot; per metre, 0.434 / 0.3048 = 1.424. No measured fitting
+   * curve has a source yet.
    */
-  physical: { id: "physical", psiPerMeterOfHeight: 0.434 / METERS_PER_FOOT, source: null },
+  physical: { id: "physical", psiPerMeterOfHeight: 0.434 / METERS_PER_FOOT, source: null, fittingLossPsi: null },
 };

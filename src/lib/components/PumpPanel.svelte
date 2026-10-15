@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { Scenario } from "$hydraulics/scenario.ts";
+  import { missingAdapters, type Scenario } from "$hydraulics/scenario.ts";
   import type { SeriesResult } from "$hydraulics/series.ts";
   import * as edit from "$lib/edit.ts";
   import Gauge from "./Gauge.svelte";
@@ -16,6 +16,8 @@
     "no-pressure": "La bomba no llega al punto más alto",
   };
   const f = (n: number) => n.toFixed(1);
+  // A missing adapter (manual fittings) leaves the line unconnected: say so rather than "nozzle closed".
+  const missing = $derived(missingAdapters(scenario));
 </script>
 
 <section class="pump" aria-label="Panel de bomba">
@@ -37,8 +39,12 @@
   </button>
   <div class="flow" aria-live="polite">
     <div class="big">{f(result.flowGpm)} <small>gpm</small></div>
-    <span class="state" class:warn={result.state !== "flowing"}>
-      {STATE[result.state]}{result.state === "flowing" ? ` · ${result.nozzlePressurePsi.toFixed(0)} psi en pitón` : ""}
+    <span class="state" class:warn={result.state !== "flowing" || missing.length > 0}>
+      {#if missing.length > 0}
+        Línea sin conectar · falta adaptador
+      {:else}
+        {STATE[result.state]}{result.state === "flowing" ? ` · ${result.nozzlePressurePsi.toFixed(0)} psi en pitón` : ""}
+      {/if}
     </span>
   </div>
 </section>

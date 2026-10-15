@@ -8,9 +8,16 @@
 
   const parts = $derived.by(() => {
     const sum = (id: string) => result.terms.filter((t) => t.lawId === id).reduce((a, t) => a + t.valuePsi, 0);
-    return { nozzle: sum("nozzle.fixed-orifice"), friction: sum("hose.friction"), elevation: sum("elevation") };
+    return {
+      nozzle: sum("nozzle.fixed-orifice"),
+      friction: sum("hose.friction"),
+      elevation: sum("elevation"),
+      fittings: sum("appliance.fixed"),
+    };
   });
-  const total = $derived(parts.nozzle + parts.friction + Math.max(0, parts.elevation));
+  const fittingCount = $derived(result.terms.filter((t) => t.lawId === "appliance.fixed").length);
+  const noData = $derived(result.terms.some((t) => t.lawId === "appliance.fixed" && t.inputs.lossPsi === null));
+  const total = $derived(parts.nozzle + parts.friction + parts.fittings + Math.max(0, parts.elevation));
   const pct = (v: number) => `${total > 0 ? (Math.max(0, v) / total) * 100 : 0}%`;
   const f = (n: number) => n.toFixed(1);
 </script>
@@ -21,6 +28,7 @@
     <div class="bar">
       <div class="nozzle" style:width={pct(parts.nozzle)}>Pitón {f(parts.nozzle)}</div>
       <div class="friction" style:width={pct(parts.friction)}>Fricción {f(parts.friction)}</div>
+      {#if parts.fittings > 0}<div class="fittings" style:width={pct(parts.fittings)}>{f(parts.fittings)}</div>{/if}
       {#if parts.elevation > 0}<div class="elevation" style:width={pct(parts.elevation)}>{f(parts.elevation)}</div>{/if}
     </div>
     {#if !compact}<ul class="legend">
@@ -32,6 +40,16 @@
         <span class="swatch friction"></span>
         <span><b>Fricción {f(parts.friction)} psi</b> · lo que se pierde por rozamiento en las mangueras</span>
       </li>
+      {#if fittingCount > 0}
+        <li>
+          <span class="swatch fittings"></span>
+          <span>
+            <b>Accesorios {noData ? "sin dato" : `${f(parts.fittings)} psi`}</b> ·
+            {fittingCount} {fittingCount === 1 ? "accesorio" : "accesorios"} (adaptadores, válvulas){noData ? ": la física no tiene un valor publicado, cuenta 0" : ""}
+            · CGBVP: {f(reference.fittingLossPsi)}
+          </span>
+        </li>
+      {/if}
       <li>
         <span class="swatch elevation"></span>
         <span>
@@ -63,4 +81,5 @@
   .nozzle { background: var(--water); }
   .friction { background: var(--friction); }
   .elevation { background: var(--elevation); }
+  .fittings { background: var(--fitting); }
 </style>

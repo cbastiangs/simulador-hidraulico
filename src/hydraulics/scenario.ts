@@ -1,5 +1,6 @@
-import { METHODS, type MethodId } from "./references.ts";
-import { solveSeriesLine, type SeriesLine, type SeriesResult } from "./series.ts";
+import { NOZZLE_SPECS } from "./catalog.ts";
+import { HOSE_SIZES, METHODS, type FittingKind, type MethodId } from "./references.ts";
+import { solveSeriesLine, type Fitting, type SeriesLine, type SeriesResult } from "./series.ts";
 
 /**
  * The scenario document: everything that decides a lay's hydraulics, as
@@ -30,11 +31,12 @@ export type ScenarioSource = {
   kind: "fixed-pressure";
   pressurePsi: number;
   /**
-   * Discharge outlet size, inches. Drawing and information only: an adapter
-   * to a different hose size is drawn, its loss is not modelled yet
-   * (appliances, MODEL.md §3.10).
+   * Discharge outlet size, inches. Absent: the same as the first hose's
+   * coupling. A different size needs an adapter at joint 0 (see `joints`).
    */
   outletSizeIn?: number;
+  /** Fittings at the pump outlet (joint 0). */
+  fittings?: FittingKind[];
 };
 
 export type ScenarioSection = {
@@ -57,6 +59,8 @@ export type ScenarioSection = {
    * editing only; the hydraulics are unaffected.
    */
   lengthFree?: boolean;
+  /** Fittings placed by hand at this section's downstream coupling (joint i + 1). */
+  endFittings?: FittingKind[];
 };
 
 /**
@@ -82,6 +86,13 @@ export type Scenario = {
   version: 1;
   name: string;
   methodId: MethodId;
+  /**
+   * "Accesorios automáticos" (ROADMAP §11, decision 6). Absent or true: every
+   * coupling-size mismatch gets an adapter, derived, never stored. False:
+   * adapters are placed by hand, and a mismatch without one leaves the line
+   * unconnected (`missingAdapters`).
+   */
+  autoFittings?: boolean;
   source: ScenarioSource;
   sections: ScenarioSection[];
   nozzle: ScenarioNozzle;
@@ -132,6 +143,15 @@ function boolFlag(value: unknown, path: string): boolean {
   return value;
 }
 
+const FITTING_KINDS = ["adapter", "valve"] as const satisfies readonly FittingKind[];
+
+/** At most one of each kind per joint, in a fixed order. */
+function fittingList(value: unknown, path: string): FittingKind[] {
+  if (!Array.isArray(value)) throw new ScenarioError(path, "must be a list of fittings");
+  const kinds = value.map((v: unknown, i) => oneOf(v, `${path}[${i}]`, FITTING_KINDS));
+  return FITTING_KINDS.filter((k) => kinds.includes(k));
+}
+
 function idOrNull(value: unknown, path: string) {
   if (value === null) return null;
   if (typeof value !== "string" || value.length > 100) throw new ScenarioError(path, "must be an id or null");
@@ -174,12 +194,14 @@ export function parseScenario(value: unknown): Scenario {
     version: 1,
     name: doc.name,
     methodId: oneOf(doc.methodId, "methodId", Object.keys(METHODS) as MethodId[]),
+    ...(doc.autoFittings === undefined ? {} : { autoFittings: boolFlag(doc.autoFittings, "autoFittings") }),
     source: {
       kind: oneOf(source.kind, "source.kind", ["fixed-pressure"] as const),
       pressurePsi: number(source.pressurePsi, "source.pressurePsi", "zero or more"),
       ...(source.outletSizeIn === undefined
         ? {}
         : { outletSizeIn: number(source.outletSizeIn, "source.outletSizeIn", "greater than zero") }),
+      ...(source.fittings === undefined ? {} : { fittings: fittingList(source.fittings, "source.fittings") }),
     },
     sections: doc.sections.map((raw: unknown, i) => {
       const path = `sections[${i}]`;
@@ -192,6 +214,7 @@ export function parseScenario(value: unknown): Scenario {
         endElevationM: number(section.endElevationM, `${path}.endElevationM`, "finite"),
         ...(section.lengthFree === undefined ? {} : { lengthFree: boolFlag(section.lengthFree, `${path}.lengthFree`) }),
         ...(section.runM === undefined ? {} : { runM: number(section.runM, `${path}.runM`, "zero or more") }),
+        ...(section.endFittings === undefined ? {} : { endFittings: fittingList(section.endFittings, `${path}.endFittings`) }),
       };
     }),
     nozzle: {
@@ -206,9 +229,70 @@ export function parseScenario(value: unknown): Scenario {
   };
 }
 
+/** A hose's coupling size: its catalog row's, else its diameter (hand-entered or large-diameter hose). */
+export function couplingOf(section: ScenarioSection): number {
+  return HOSE_SIZES.find((h) => h.id === section.hoseSizeId)?.couplingIn ?? section.diameterIn;
+}
+
+/**
+ * One joint of the line (MODEL.md §3.10): joint 0 is the pump outlet, joint
+ * i the coupling after section i − 1, the last the nozzle inlet. `upIn` and
+ * `downIn` are the coupling sizes that meet there; undefined means unknown
+ * (a hand-entered nozzle) or "same as the hose" (pump outlet), which fits.
+ */
+export type Joint = {
+  index: number;
+  upIn?: number;
+  downIn?: number;
+  /** The coupling sizes differ: an adapter belongs here. */
+  mismatch: boolean;
+  /** Placed by hand (stored in the document). */
+  placed: FittingKind[];
+  /** Derived by "Accesorios automáticos": an adapter nobody stored. */
+  auto: boolean;
+  /** Manual mode, a mismatch and no adapter: the line isn't connected here. */
+  missing: boolean;
+};
+
+export const isAuto = (scenario: Scenario) => scenario.autoFittings !== false;
+
+export function joints(scenario: Scenario): Joint[] {
+  const { sections, source, nozzle } = scenario;
+  const nozzleInlet = NOZZLE_SPECS.find((n) => n.id === nozzle.specId)?.inletIn;
+  const auto = isAuto(scenario);
+  return Array.from({ length: sections.length + 1 }, (_, index) => {
+    const upIn = index === 0 ? source.outletSizeIn : couplingOf(sections[index - 1]);
+    const downIn = index === sections.length ? nozzleInlet : couplingOf(sections[index]);
+    const placed = (index === 0 ? source.fittings : sections[index - 1].endFittings) ?? [];
+    const mismatch = upIn !== undefined && downIn !== undefined && upIn !== downIn;
+    const hasAdapter = placed.includes("adapter");
+    return {
+      index,
+      upIn,
+      downIn,
+      mismatch,
+      placed,
+      auto: auto && mismatch && !hasAdapter,
+      missing: !auto && mismatch && !hasAdapter,
+    };
+  });
+}
+
+/** The joints a manual-mode line can't be connected at. */
+export const missingAdapters = (scenario: Scenario) => joints(scenario).filter((j) => j.missing);
+
+/** Every fitting the line has, placed or derived, in joint order. */
+export function fittingsOf(scenario: Scenario): Fitting[] {
+  return joints(scenario).flatMap((j) => [
+    ...(j.auto ? [{ joint: j.index, kind: "adapter" as const }] : []),
+    ...j.placed.map((kind) => ({ joint: j.index, kind })),
+  ]);
+}
+
 /** The engine's input for a parsed document. */
 export function toSeriesLine(scenario: Scenario): SeriesLine {
   return {
+    fittings: fittingsOf(scenario),
     pumpPressurePsi: scenario.source.pressurePsi,
     sections: scenario.sections.map(({ lengthM, frictionCoefficient, endElevationM }) => ({
       hose: { lengthM, frictionCoefficient },
@@ -222,7 +306,13 @@ export function toSeriesLine(scenario: Scenario): SeriesLine {
   };
 }
 
-/** Solves under the document's method, or another one (the reference shown beside it). */
+/**
+ * Solves under the document's method, or another one (the reference shown
+ * beside it). A line with a missing adapter isn't connected, so no water
+ * flows: it is solved with the nozzle shut (static pressure only).
+ */
 export function solveScenario(scenario: Scenario, methodId: MethodId = scenario.methodId): SeriesResult {
-  return solveSeriesLine(toSeriesLine(scenario), METHODS[methodId]);
+  const line = toSeriesLine(scenario);
+  const connected = missingAdapters(scenario).length === 0;
+  return solveSeriesLine(connected ? line : { ...line, nozzle: { ...line.nozzle, open: false } }, METHODS[methodId]);
 }

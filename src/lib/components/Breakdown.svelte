@@ -15,6 +15,11 @@
 
   function sources(term: Term) {
     if (term.lawId === "nozzle.fixed-orifice") return "Ley del orificio (física): Q ∝ √P";
+    if (term.lawId === "appliance.fixed") {
+      return term.inputs.lossPsi === null
+        ? "Sin dato publicado para el método físico (MODEL.md §3.10)"
+        : `${SOURCE_LABELS.cgbvpManual2019}, p. 45 (aproximación de entrenamiento)`;
+    }
     if (term.lawId !== "elevation") return LAWS[term.lawId].sources.map((id) => SOURCE_LABELS[id]).join(" · ");
     const source = METHODS[methodId].source;
     return source ? `${SOURCE_LABELS[source]}, p. 44` : "Hidrostática: ρ·g·h";
@@ -36,6 +41,11 @@
         <span class="name">Desnivel</span>
         <span class="formula">
           EP = k × h = {f(k, 3)} psi/m × {f(h)} m = <strong>{f(term.valuePsi)} psi</strong>
+        </span>
+      {:else if term.lawId === "appliance.fixed"}
+        <span class="name">{term.kind === "valve" ? "Válvula en línea" : "Adaptador"}, {term.joint === 0 ? "salida de la bomba" : `acople ${term.joint}`}</span>
+        <span class="formula">
+          AL = {term.inputs.lossPsi === null ? "sin dato → " : ""}<strong>{f(term.valuePsi)} psi</strong>{term.inputs.lossPsi === null ? "" : " (fija mientras fluye)"}
         </span>
       {:else}
         {@const { ratedPressurePsi: npr, ratedFlowGpm: qr, flowGpm: q } = term.inputs}
