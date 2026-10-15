@@ -293,3 +293,23 @@ for an action, moves on when the person does it:
 1. Phone layout without page scroll, canvas gestures, fit (§8.1).
 2. Bottom sheet replacing the toolbars on phones (§8.2).
 3. Welcome tour (§8.4).
+
+## 9. Top tasks (owner, 2026-10-15)
+
+What people come to do. Every screen decision is checked against these; the
+object × action matrix and the phone walkthrough (next) are built from them.
+A task whose law is not built yet waits for its milestone.
+
+| # | Who | Task | Needs |
+|---|---|---|---|
+| 1 | Instructor | Show that a 1½″ line loses far more pressure than a 2½″ at the same flow | built |
+| 2 | Instructor | Show that more flow costs pressure: turn the gallonage ring, watch friction | built |
+| 3 | Pump operator | Find and apply the pump pressure for an attack line to the 3rd floor | built |
+| 4 | Firefighter | Build a station maniobra from scratch: pump, 2 × 2½″, reducer, 1½″, nozzle | built |
+| 5 | Instructor | Explain why the nozzle gets less than its rating when pump pressure is short | built |
+| 6 | Anyone | Change one thing (a hose size, a length, a floor) and see its effect on flow | built |
+| 7 | Instructor | Compare the physical result with the CGBVP 2019 figure and where they differ | method selector |
+| 8 | Anyone | Fix a mistake: remove a hose, undo | built |
+| 9 | Instructor | Send a lay to a student so they open exactly that line | share link (M1) |
+| 10 | Firefighter | Same flow with a smooth bore vs a fog nozzle | M2 |
+| 11 | Instructor | Swap smooth-bore tips (⅞″, 15/16″, 1″, 1⅛″) and see flow grow with the tip's square and the pump pressure each demands; tips worked like stacked tips, tapped to change | M2: `nozzle.smooth-bore` (Freeman) in MODEL.md first; smooth-bore rows in the catalog |
