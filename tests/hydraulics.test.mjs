@@ -235,3 +235,8 @@ test("flow.velocity: 95 gpm in 1½″ is 0.4085·95/1.5² = 17.25 ft/s (MODEL.md
   const { hoseVelocityMps } = await import("../src/hydraulics/velocity.ts");
   assert.ok(Math.abs(hoseVelocityMps(95, 1.5) / 0.3048 - 17.25) < 0.01);
 });
+
+test("flow.velocity at a nozzle: 100 psi leaves at 12.18·√100 = 121.8 ft/s (MODEL.md §3.7)", async () => {
+  const { nozzleExitVelocityMps } = await import("../src/hydraulics/velocity.ts");
+  assert.ok(Math.abs(nozzleExitVelocityMps(100) / 0.3048 - 121.8) < 0.3);
+});

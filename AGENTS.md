@@ -23,7 +23,7 @@ here untouched; the screen and station-data integration are still open (see
   and what to verify before implementing. Code, tests and on-screen formulas
   follow it.
 - `docs/UX.md` — how screens behave and look: canvas, controls, layout,
-  mobile, visual style, and the mock-up-first process.
+  mobile, visual style, and how UI work is checked.
 - `docs/PLAN-simulador.md` — history and open questions: the licence and
   placement question, solver roadmap, station data. Where its sequencing or
   fd-app plumbing disagrees with `ROADMAP.md`, the roadmap wins.
@@ -55,9 +55,9 @@ here untouched; the screen and station-data integration are still open (see
 - The app never computes hydraulics itself: it builds an input, calls the
   engine, and formats the result.
 - UI text in Spanish, code and docs in English.
-- **UI work follows `docs/UX.md`.** A new screen or a major visual change
-  starts as a static mock-up the owner approves; before handing back, check
-  it in a browser at 390 px and 1024 px and send a screenshot.
+- **UI work follows `docs/UX.md`.** Build directly; **no mock-ups unless the
+  owner asks for one** (owner, 2026-10-15: they cost tokens). Before handing
+  back, check it in a browser at 390 px and 1024 px and send a screenshot.
 
 ## Design documents over code
 
