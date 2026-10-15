@@ -185,10 +185,9 @@ Envelope, outlets, discharge valves, governor modes, tank.
 
 ### 7.4 Branching
 
-Wyes, siamese, reducers and couplings. The default (`physical`) uses
-**equipment-specific data**: a sourced K or manufacturer ΔP–Q curve for the
-actual device, else explicitly unmodelled ("sin dato" — not a measured
-zero). `cgbvp-2019` (fixed losses, p. 45: 5/10/25/40 psi) and `us-training`
+Wyes, siamese, reducers and couplings. The default (`physical`) uses the
+actual device's ΔP–Q curve when one is adopted, else the Colorado
+allowances, labelled (owner, 2026-10-15; `MODEL.md` §3.10). `cgbvp-2019` (fixed losses, p. 45: 5/10/25/40 psi) and `us-training`
 (the Colorado chart's stepped rule, `MODEL.md` §3.10) are training
 **conventions**. The stepped rule is a discontinuity: a forward-flow
 simulation must report a gap where no root exists rather than silently
@@ -385,9 +384,9 @@ automatic nozzles, branching.
    universal physical loss, and the profile covers only the components §3.10
    lists. Selectable and comparable like any method (decision 3). Measured data is thin and
    device-specific (monitors, eductors, and one wildland wye test;
-   `MODEL.md` §9), so the default `physical` uses equipment-specific data and
-   leaves unknown losses explicitly unmodelled rather than assuming zero,
-   and it never silently swaps in a training allowance (`MODEL.md` §4). A
+   `MODEL.md` §9). The default `physical` uses the same allowances, labelled,
+   until a device's measured curve replaces them (owner, 2026-10-15: a
+   fireground tool calculates with what crews are taught; `MODEL.md` §3.10). A
    user may clone and edit any profile, including its per-component supported
    rules or values, with the versioned full configuration saved in the
    scenario document. This is planned design; only `physical` and

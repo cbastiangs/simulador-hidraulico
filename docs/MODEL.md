@@ -413,11 +413,11 @@ than a fog nozzle at 100 psi (185 gpm: 69 vs 93 lbf).
 
   | Fitting | `cgbvp-2019` | `us-training` | `physical` |
   |---|---|---|---|
-  | Reducer, adapter, valve | 5 psi (p. 45) | generic "appliance" rule (training mapping) | "sin dato" |
-  | Wye | 5 psi | generic rule, on common-port flow | "sin dato" |
-  | Siamese | ~10 psi | generic rule, on common-port flow | "sin dato" |
-  | Master stream device | monitor 10–25 psi | 25 psi | "sin dato" |
-  | Aerial waterway | — | 25 psi | "sin dato" |
+  | Reducer, adapter, valve | 5 psi (p. 45) | generic "appliance" rule (training mapping) | same as `us-training` |
+  | Wye | 5 psi | generic rule, on common-port flow | same as `us-training`, or the device's curve |
+  | Siamese | ~10 psi | generic rule, on common-port flow | same as `us-training`, or the device's curve |
+  | Master stream device | monitor 10–25 psi | 25 psi | 25 psi, or the device's curve |
+  | Aerial waterway | — | 25 psi | 25 psi |
   | Standpipe (whole system) | none (floor shortcut only) | 25 psi | n/a |
   | Eductor | 40 psi | none: manufacturer data only | "sin dato" |
 
@@ -489,10 +489,17 @@ than a fog nozzle at 100 psi (185 gpm: 69 vs 93 lbf).
   change [E5]). A K also needs its **reference velocity and diameter**
   documented, and a generic pipe-fitting K is not transplanted to a
   different fire appliance — the geometry, valve state and valid range must
-  match. No value is adopted yet: until the curve is read and a choice is
-  made, appliances under `physical` show "sin dato" rather than a guessed
-  value. Missing data stays **visibly unmodelled** — a "sin dato"
-  contribution of 0 is a placeholder, not a measured zero.
+  match. No curve is adopted yet.
+
+  **Default appliance rule** (owner, 2026-10-15: "we are doing a fireground
+  tool"; replaces "sin dato" under `physical`). Without a curve for the
+  actual device, `physical` uses the Colorado allowances (the `us-training`
+  rule above: 0 / 10 psi above 350 gpm, 25 psi master stream, aerial
+  waterway and whole standpipe system), **labelled as a training
+  allowance**, not a measurement. A device curve, once adopted, replaces the
+  allowance for that device and says so; the two are never added. Runtime:
+  today's code still counts "sin dato" (0) under `physical`; the allowance
+  ships with the no-root handling of §2, which the 350 gpm step needs.
 
 ### 3.11 Standpipes ⏳ M2 (outlet), M4 (system)
 
@@ -570,7 +577,7 @@ user-definable.)
 
 **Default model.** The default UI name is **"Modelo base"** (owner,
 2026-10-15; not "Física": friction is an empirical table and appliances are
-unmodelled, so it is a chosen basis, not physics alone); its
+training allowances, so it is a chosen basis, not physics alone); its
 internal id stays `physical` for now (legacy), and it is a **source-based
 descriptive default** — a chosen basis, not a claim that every value is
 measured or complete. Component by component:
@@ -580,7 +587,7 @@ measured or complete. Component by component:
 | Conservation (mass + energy) | steady-state, pressure-dependent; emitter `q = C·p^γ`, γ ≈ 0.5 for open nozzles | EPA EPANET manual [E2] §3.1, §3.3, §12.1 |
 | Hose friction | `FL = C·(Q/100)²·(L/100)` | Colorado DFPC generic C table [E15] p. 2; form supported by USDA [E11] App. C p. 11; a measured C can override the generic value now (multi-point curves are a planned future law) |
 | Elevation | `EP = (0.434/0.3048)·h_m psi` (hydrostatics) | `physics`; 0.434 psi/ft is the usual published approximation, not an exact constant |
-| Appliances | sourced K or ΔP–Q curve for the actual device; else explicitly unmodelled ("sin dato") | unmodelled ≠ a measured zero; curves not yet adopted (§3.10) |
+| Appliances | the actual device's ΔP–Q curve when adopted; else the Colorado allowances, labelled | [E15] p. 1; owner 2026-10-15; curves not yet adopted (§3.10) |
 | Source | fixed pressure today; a **measured** pump curve later | certification/test points are not a measured full curve |
 
 **Runtime status.** Only the existing `physical` and `cgbvp-2019` profile
@@ -613,16 +620,16 @@ are verified from the Colorado chart (§3.10, [E15] p. 1), so direct IFSTA
 verification is unnecessary to implement this specifically labelled Colorado
 profile. The profile is **complete within its stated scope** — it
 supplies the components §3.10 lists and makes no claim to cover every
-appliance or fitting. It stays **separate** from the equipment-specific
-default: the `physical` equipment-data policy is unchanged, and a training
-allowance is never silently swapped in for measured data (or the reverse).
+appliance or fitting. The default borrows its appliance rule (§3.10) and
+differs from it in elevation (0.434 vs 0.5 psi/ft); an allowance is always
+labelled, and a measured device curve replaces it rather than adding to it.
 Nozzle pressures it teaches (50 psi smooth bore handline, 100 psi fog, 80
 psi master stream) are nozzle data, not method constants.
 
 | Constant | `physical` (default) | `cgbvp-2019` (reference) | `us-training` (owner, 2026-10-15) |
 |---|---|---|---|
 | Elevation k | 1.424 psi/m | 1.5 psi/m | 1.640 psi/m (0.5 psi/ft) |
-| Appliance losses | K or curve (none yet) | fixed, p. 45 | 0 / 10 psi > 350 gpm; 25 psi master stream, aerial and whole-system standpipe (§3.10) |
+| Appliance losses | Colorado allowances, labelled; a device curve replaces them | fixed, p. 45 | 0 / 10 psi > 350 gpm; 25 psi master stream, aerial and whole-system standpipe (§3.10) |
 | Fog reaction | 0.0505·Q·√NP | 0.24 kg per gpm at 100 psi | same as `physical` |
 | Hose friction | same C table | same C table | same C table (it is the Colorado chart's) |
 
