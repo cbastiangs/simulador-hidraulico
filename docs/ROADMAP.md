@@ -212,6 +212,27 @@ Its own folder (`src/extinguishment/`), never imported by the hydraulics.
 - The message: flow sets the cooling capacity; pressure moves the flow and
   shapes the stream.
 
+**Feasibility (2026-10-15):** cheap. It needs only the nozzle flow Q that
+`solveScenario` already returns, nothing from M2–M4: one engine file, one
+test against hand arithmetic, one card ("Extinción") with a fire-size picker
+and a bar *capacidad de enfriamiento vs calor del fuego*. Paired with the
+selectable nozzle (ring down: pressure up, flow down) it shows the message
+with today's line. What blocks it is sources, not code.
+
+Options for the law, not exclusive (a method bundle can pick one):
+
+| | Law | Needs before shipping | Fits |
+|---|---|---|---|
+| A. Heat balance | cooling = Q × 163 kW/gpm × η vs a fire's heat release (MW) | η (Särdqvist 2002; Grimwood); sourced HRR for each fire preset | `physical` |
+| B. Fire-flow convention | required gpm from fire size: NFA (area ft² / 3 × fraction involved) or Iowa (volume ft³ / 100) | Both formulas verified against their publications (written from memory so far); no η | `us-training` / a training label; a "caudal requerido" mark on the flow gauge |
+
+Out of scope either way: time to knockdown, fire dynamics, quantified reach
+or droplet size (qualitative labels only). Never present pressure as
+irrelevant.
+
+**Decided (owner, 2026-10-15; §11 decision 8):** B first, NFA only; A
+later beside it; right after §10c's polish, ahead of M2–M4.
+
 ### 7.7 Two pumps
 
 Relay and a siamese fed by two engines. This needs the general network
@@ -273,7 +294,7 @@ paño, bifurca, desnivel).
 | **M2 Nozzles** | Nozzle kinds and reaction; A/B compare | Smooth bore vs fog |
 | **M3 Trucks** | Truck files, capacity envelope, several outlets with valves, governor, tank; pump × system chart | Pump capacity |
 | **M4 Branching** | Wyes, appliances, couplings; presets from station maniobras | Diameter and couplings in real lays |
-| **M5 Extinguishment** | §7.6 with its sources | GPM extinguishes |
+| **M5 Extinguishment** | §7.6: NFA fire flow first (after §10c, ahead of M2), heat balance once η is sourced | GPM extinguishes |
 | **M6 Aerial** | §8 | Tipping margin vs load chart |
 | Later | Two pumps (7.7), hydrant and drafting, station data from fd-app, lessons as annotated presets | |
 
@@ -331,6 +352,24 @@ automatic nozzles, branching.
    Labelled a training convention: the web search found no measured data for
    wyes, siamese, reducers or valves, only for monitors and eductors
    (MODEL.md §9). Not combined per constant: a method is a bundle.
+
+### Extinguishment (owner, 2026-10-15)
+
+8. **Fire flow first, heat balance later** (§7.6). Ships right after §10c's
+   polish, ahead of M2–M4: it needs only the solved nozzle flow.
+   - **First: NFA formula only** (`extinguish.fire-flow`): a "caudal
+     requerido" mark on the flow gauge, from a preset's floor area and
+     fraction involved. Says the message in the firefighter's units and
+     needs no η. Labelled a training convention. Verify against the NFA
+     publication before use.
+   - **Iowa: not planned.** Volume-based, built for confined spaces; a
+     second number that disagrees without teaching more. Revisit only if
+     the station teaches it.
+   - **Later: heat balance (A)** beside it, as `physical` sits beside
+     `cgbvp-2019`: the convention says what you need, the physics says why
+     (each gpm absorbs a fixed heat; pressure absorbs none). Waits for a
+     sourced η and fire heat release rates; shown alone it would be a
+     confident number on a weak basis.
 
 Still wanted: M11-1 and M11-5 pump plates, the nozzles carried, hose sizes
 and couplings, PLT-11's load chart.
