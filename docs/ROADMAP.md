@@ -373,3 +373,12 @@ automatic nozzles, branching.
 
 Still wanted: M11-1 and M11-5 pump plates, the nozzles carried, hose sizes
 and couplings, PLT-11's load chart.
+
+### Saving and sharing (owner, 2026-10-15)
+
+8. **Share link: wanted, deferred** until the current polish is done (§10c,
+   UX.md §8). A link carries the whole scenario document; opening it
+   rebuilds that lay (top task 9, UX.md §9).
+9. **Cloud saves and permanent lays are the planned paid feature.** The
+   share link stays free beside them. Accounts, storage and pricing are not
+   designed yet, and they bring back PLAN §1's licence and hosting question.
