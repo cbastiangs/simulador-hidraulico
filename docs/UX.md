@@ -60,20 +60,29 @@
 - **Controls below the drawing,** never over it: zoom readout,
   − / + / Ajustar.
 - **Tap vs drag.** A press that moves less than 6 px is a tap: it selects
-  (on the nozzle it also works the bale, open/shut). More is a drag.
+  (on the nozzle it also works the bale, open/shut; on a coupling it opens
+  that joint's fittings; the hose itself opens the hose toolbar). More is a
+  drag.
 - **On-canvas editing.** Tapping a hose shows a small toolbar on the canvas
   with the hose sizes and −15 / +15 m. Tapping the engine selects the pump:
   its discharge outlet size (1½, 2½, 3″ or "same as the hose"); a different
-  outlet size draws an adapter, which costs its loss once fittings land
-  (MODEL.md §3.10; ROADMAP §11, decisions 5–6).
-- **Fittings (planned, owner 2026-10-15).** A joint shows a small menu
-  (tap) to place a reducer, adapter or valve; each is drawn at the joint,
-  moves with it, and can be removed. Incompatible choices are refused with a
-  reason ("falta reductor 2½→1½″"). No loose items and no toolbox drag for
+  outlet size needs an adapter (MODEL.md §3.10; ROADMAP §11, decisions 5–6).
+- **Fittings (owner 2026-10-15).** Tapping a coupling (or the small ring at
+  the pump outlet) opens a toolbar on the canvas, mirrored in the inspector,
+  with that joint's adapter (named reducción/ampliación by direction, with
+  the sizes) and an in-line valve. The nozzle joint is edited in the nozzle's
+  inspector panel, since tapping the nozzle works the bale. Fittings are drawn
+  at the joint in their own colour and move with it. An adapter is only
+  offered where coupling sizes differ. No loose items and no toolbox drag for
   now. **Accesorios automáticos** (a switch under the canvas, on by default):
-  on, a size mismatch inserts a visible fitting; off, it is flagged in red and
-  the line is not solved. Fitting losses get their own segment in the
-  pressure-split bar. Under `us-training` the 350 gpm step is labelled.
+  on, every mismatch gets an adapter, drawn dashed and not removable while the
+  switch is on; off, adapters are placed by hand (turning it off keeps the
+  ones it had derived), and a mismatch without one shows a red "!" at the
+  joint, a "Falta adaptador" button under the canvas, and "Línea sin
+  conectar" on the pump panel: no water flows until it is placed. Fitting
+  losses get their own segment and legend line in the pressure split, with
+  the CGBVP value beside "sin dato". Under `us-training` the 350 gpm step will
+  be labelled.
 - **Length lock, per hose** (owner, 2026-10-14; replaces the global
   "Largo fijo / Libre" toggle under the canvas). Each hose has its own lock,
   a button on its on-canvas toolbar, with a 🔒/🔓 on its label. Locked is the
@@ -101,8 +110,8 @@
 ## 3. Equipment and controls
 
 - **Hose:** thickness proportional to diameter; couplings drawn as rings at
-  each joint; a reducer at a joint where the size changes (a fitting object,
-  see §2 "Fittings"); length and size labelled on the hose.
+  each joint; an adapter at a joint where the coupling size changes (a
+  fitting object, see §2 "Fittings"); length and size labelled on the hose.
 - **Gauges:** real dials: ticks every 50 psi, numbers, needle, and the
   reading below. Same component everywhere (pump, couplings, nozzle).
 - **Nozzle:** drawn as a combination or smooth-bore nozzle, with its

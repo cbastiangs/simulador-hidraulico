@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { HOSE_SIZES } from "$hydraulics/references.ts";
-  import type { Scenario } from "$hydraulics/scenario.ts";
+  import { HOSE_SIZES, type FittingKind } from "$hydraulics/references.ts";
+  import { isAuto, joints, type Scenario } from "$hydraulics/scenario.ts";
   import type { SeriesResult } from "$hydraulics/series.ts";
   import {
     PX_PER_M,
@@ -12,13 +12,15 @@
   } from "$lib/geometry/world.ts";
   import type { Selection } from "$lib/selection.ts";
   import Gauge from "./Gauge.svelte";
+  import JointControls from "./JointControls.svelte";
   import NozzleDrawing from "./NozzleDrawing.svelte";
   import { hoseVelocityMps } from "$hydraulics/velocity.ts";
 
   // The canvas (UX.md §2): one uniform scale, the lay auto-fitted to the
   // space available; gauges, labels, handles and the nozzle keep their screen
   // size at any zoom. A press that moves under 6 px is a tap (select; on the
-  // nozzle, work the bale); more is a drag (move the coupling).
+  // nozzle, work the bale; on a coupling, open its fittings); more is a drag
+  // (move the coupling).
   let {
     scenario,
     result,
@@ -31,6 +33,8 @@
     onToggleNozzle,
     onHoseSize,
     onLength,
+    onToggleFitting,
+    onAutoFittings,
   }: {
     scenario: Scenario;
     result: SeriesResult;
@@ -46,6 +50,10 @@
     onToggleNozzle: () => void;
     onHoseSize: (sectionIndex: number, hoseSizeId: string) => void;
     onLength: (sectionIndex: number, lengthM: number) => void;
+    /** Place or remove a fitting at a joint (0 = pump outlet). */
+    onToggleFitting: (joint: number, kind: FittingKind) => void;
+    /** "Accesorios automáticos" on or off (UX.md §2). */
+    onAutoFittings: (on: boolean) => void;
   } = $props();
 
   const TAP_PX = 6;
@@ -116,7 +124,8 @@
   const last = $derived(layout.nodes.length - 1);
   const isSection = (i: number) => selection.kind === "section" && selection.index === i;
   const outletIn = $derived(scenario.source.outletSizeIn);
-  const adapter = $derived(outletIn !== undefined && outletIn !== scenario.sections[0].diameterIn);
+  const js = $derived(joints(scenario));
+  const missing = $derived(js.filter((j) => j.missing));
 
   function setManualZoom(z: number) {
     manualZoom = Math.min(3, Math.max(0.1, z));
@@ -157,7 +166,7 @@
         onSelect({ kind: "nozzle" });
         onToggleNozzle();
       } else {
-        onSelect({ kind: "section", index: press.node - 1 });
+        onSelect({ kind: "joint", index: press.node });
       }
     }
     press = null;
@@ -179,8 +188,9 @@
     if (step) {
       event.preventDefault();
       onMove(i, step[0], step[1]);
-    } else if (event.key === "Enter" && node === last) {
-      onToggleNozzle();
+    } else if (event.key === "Enter") {
+      if (node === last) onToggleNozzle();
+      else onSelect({ kind: "joint", index: node });
     }
   }
 
@@ -199,6 +209,10 @@
   };
 
   const selectedHose = $derived(selection.kind === "section" ? layout.hoses[selection.index] : undefined);
+  // The nozzle joint's fittings are edited in the inspector: its handle works the bale.
+  const selectedJoint = $derived(selection.kind === "joint" && selection.index < last ? layout.nodes[selection.index] : undefined);
+  /** Where a joint's fittings are drawn: after the coupling ring, or just before the nozzle. */
+  const fittingX = (i: number) => (i === last ? -16 : i === 0 ? -2 : 4);
 </script>
 
 <svelte:window bind:innerHeight={windowHeight} bind:innerWidth={windowWidth} />
@@ -245,14 +259,6 @@
           <circle class="wheel" cx={layout.xAt(-4)} cy={layout.groundY - 0.5 * PX_PER_M} r={0.5 * PX_PER_M} />
         </g>
         <rect class="outlet" x={layout.xAt(-2.5)} y={layout.nodes[0].y - 0.25 * PX_PER_M} width={layout.nodes[0].x - layout.xAt(-2.5)} height={0.5 * PX_PER_M} />
-        {#if adapter}
-          <path
-            class="coupling"
-            d={`M ${layout.nodes[0].x - 4 * k} ${layout.nodes[0].y - 9 * k} L ${layout.nodes[0].x + 6 * k} ${layout.nodes[0].y - 5 * k} L ${layout.nodes[0].x + 6 * k} ${layout.nodes[0].y + 5 * k} L ${layout.nodes[0].x - 4 * k} ${layout.nodes[0].y + 9 * k} Z`}
-          >
-            <title>Adaptador {sizeLabel(outletIn!)} → {sizeLabel(scenario.sections[0].diameterIn)}</title>
-          </path>
-        {/if}
         <text class="tag" x={layout.xAt(-5.75)} y={layout.groundY + 16 * k}>Bomba{outletIn ? ` · salida ${sizeLabel(outletIn)}` : ""}</text>
 
         <!-- Hoses -->
@@ -280,14 +286,38 @@
           </text>
         {/each}
 
-        <!-- Couplings (and reducers where the size changes) -->
+        <!-- Couplings and their fittings (MODEL.md §3.10): adapters where coupling sizes differ, valves -->
         {#each layout.nodes as n, i (i)}
+          {@const j = js[i]}
           {#if i > 0 && i < last}
             <rect class="coupling" x={n.x - 3.5 * k} y={n.y - 9 * k} width={7 * k} height={18 * k} rx={1.5 * k} />
-            {#if scenario.sections[i].diameterIn !== scenario.sections[i - 1].diameterIn}
-              <path class="coupling" d={`M ${n.x + 3.5 * k} ${n.y - 8 * k} L ${n.x + 13 * k} ${n.y - 4 * k} L ${n.x + 13 * k} ${n.y + 4 * k} L ${n.x + 3.5 * k} ${n.y + 8 * k} Z`} />
-            {/if}
           {/if}
+          <g transform={`translate(${n.x} ${n.y}) scale(${k})`} class="fittings">
+            {#if j.auto || j.placed.includes("adapter")}
+              {@const x = fittingX(i)}
+              {@const big = 8}
+              {@const small = 4.5}
+              {@const [l, r] = (j.downIn ?? 0) < (j.upIn ?? 0) ? [big, small] : [small, big]}
+              <path class="adapter" class:auto={j.auto} d={`M ${x} ${-l} L ${x + 10} ${-r} L ${x + 10} ${r} L ${x} ${l} Z`}>
+                <title>{j.auto ? "Adaptador automático" : "Adaptador"} {sizeLabel(j.upIn ?? 0)} → {sizeLabel(j.downIn ?? 0)}</title>
+              </path>
+            {/if}
+            {#if j.placed.includes("valve")}
+              <g class="valve" transform={`translate(${i === last ? -30 : i === 0 ? 16 : 20} 0)`}>
+                <path d="M -6 -6 L 6 6 L 6 -6 L -6 6 Z" />
+                <line x1="0" y1="0" x2="0" y2="-11" />
+                <line x1="-5" y1="-11" x2="5" y2="-11" />
+                <title>Válvula en línea</title>
+              </g>
+            {/if}
+            {#if j.missing}
+              <g class="missing">
+                <circle cx={fittingX(i) + 5} cy="0" r="10" />
+                <text x={fittingX(i) + 5} y="4.5">!</text>
+                <title>Falta adaptador {sizeLabel(j.upIn ?? 0)} → {sizeLabel(j.downIn ?? 0)}</title>
+              </g>
+            {/if}
+          </g>
         {/each}
 
         <g transform={`translate(${layout.nodes[last].x} ${layout.nodes[last].y}) scale(${k})`}>
@@ -301,7 +331,22 @@
           />
         </g>
 
-        <!-- Handles: tap to select (the nozzle's also works the bale), drag to move -->
+        <!-- The pump outlet's joint: tap only (the outlet doesn't move) -->
+        <circle
+          class="handle joint0"
+          class:active={selection.kind === "joint" && selection.index === 0}
+          cx={layout.nodes[0].x}
+          cy={layout.nodes[0].y}
+          r={16 * k}
+          stroke-width={1.5 * k}
+          role="button"
+          tabindex="0"
+          aria-label="Salida de la bomba: accesorios"
+          onclick={() => onSelect({ kind: "joint", index: 0 })}
+          onkeydown={(e) => e.key === "Enter" && onSelect({ kind: "joint", index: 0 })}
+        />
+
+        <!-- Handles: tap opens the coupling's fittings (the nozzle's works the bale), drag to move -->
         {#each layout.nodes as n, i (i)}
           {#if i > 0}
             <circle
@@ -313,7 +358,7 @@
               stroke-width={1.5 * k}
               role="slider"
               tabindex="0"
-              aria-label={i === last ? "Pitón: tocar abre o cierra, arrastrar mueve" : `Acople ${i}`}
+              aria-label={i === last ? "Pitón: tocar abre o cierra, arrastrar mueve" : `Acople ${i}: tocar muestra accesorios, arrastrar mueve`}
               aria-valuenow={n.elevationM}
               aria-valuetext={`${scenario.sections[i - 1].lengthM} m de largo, ${n.elevationM} m de altura`}
               onpointerdown={(e) => down(e, i)}
@@ -354,10 +399,29 @@
           </div>
         </div>
       {/if}
+
+      {#if selectedJoint && dragging === null && selection.kind === "joint"}
+        {@const up = selectedJoint.y * zoom + 40 + HOSE_BAR_PX > layout.heightPx * zoom}
+        <div class="hose-bar joint-bar" class:up style:left={`${selectedJoint.x * zoom}px`} style:top={`${selectedJoint.y * zoom + (up ? -30 : 30)}px`}>
+          <JointControls {scenario} joint={selection.index} onToggle={(kind) => onToggleFitting(selection.index, kind)} />
+        </div>
+      {/if}
     </div>
   </div>
   <!-- Controls live below the drawing, never over it. -->
   <div class="toolbar">
+  <button
+    type="button"
+    class="auto-fit"
+    class:on={isAuto(scenario)}
+    aria-pressed={isAuto(scenario)}
+    onclick={() => onAutoFittings(!isAuto(scenario))}
+  >Accesorios automáticos: {isAuto(scenario) ? "sí" : "no"}</button>
+  {#if missing.length > 0}
+    <button type="button" class="missing-note" onclick={() => onSelect({ kind: "joint", index: missing[0].index })}>
+      ⚠ Falta adaptador en {missing.map((j) => (j.index === 0 ? "la salida" : j.index === last ? "el pitón" : `acople ${j.index}`)).join(", ")}
+    </button>
+  {/if}
   <span class="badge">1:1 · {Math.round(zoom * 100)} %{manualZoom === null ? " · auto" : ""}</span>
   <div class="zoom">
     <button type="button" aria-label="Alejar" onclick={() => setManualZoom(zoom / 1.25)}>−</button>
@@ -384,6 +448,14 @@
   .window { fill: #f8d7d3; }
   .wheel { fill: var(--ink); }
   .outlet, .coupling { fill: var(--steel); }
+  .fittings { pointer-events: none; }
+  .fittings title { pointer-events: auto; }
+  .adapter { fill: var(--fitting); stroke: var(--fitting); stroke-width: 1; }
+  .adapter.auto { fill: color-mix(in srgb, var(--fitting) 55%, transparent); stroke-dasharray: 2 2; }
+  .valve path { fill: var(--fitting); }
+  .valve line { stroke: var(--fitting); stroke-width: 2; }
+  .missing circle { fill: var(--warn); }
+  .missing text { fill: #fff; font-size: 14px; font-weight: 800; text-anchor: middle; }
   .hose { stroke: var(--hose); stroke-linecap: butt; fill: none; }
   .particles { fill: none; stroke: #fff; stroke-opacity: 0.85; stroke-linecap: round; stroke-dasharray: 0 var(--gap); animation: water var(--period) linear infinite; pointer-events: none; }
   @keyframes water { to { stroke-dashoffset: calc(-1 * var(--gap)); } }
@@ -402,6 +474,11 @@
   .len { font-weight: 700; min-width: 3.5rem; text-align: center; }
   .toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 8px 10px; border-top: 1px solid var(--line); }
   .badge { font-size: 12px; color: var(--muted); margin-left: auto; }
+  .auto-fit, .missing-note { min-height: 44px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); font-weight: 600; font-size: 13px; cursor: pointer; }
+  .auto-fit.on { border-color: var(--fitting); color: var(--fitting); }
+  .missing-note { border-color: var(--warn); color: var(--warn); }
+  .joint-bar { justify-items: stretch; padding: 10px; }
+  .joint0 { cursor: pointer; }
   .lock.on { background: var(--surface); border-color: var(--accent); }
   .zoom { display: flex; gap: 4px; }
   .zoom button { min-width: 44px; height: 44px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); cursor: pointer; }

@@ -75,6 +75,8 @@
       onToggleLock={(i) => (scenario = edit.toggleLengthLock(scenario, i))}
       onHoseSize={(i, id) => (scenario = edit.setSectionHose(scenario, i, id))}
       onLength={(i, m) => (scenario = edit.setSectionLength(scenario, i, m))}
+      onToggleFitting={(j, kind) => (scenario = edit.toggleFitting(scenario, j, kind))}
+      onAutoFittings={(on) => (scenario = edit.setAutoFittings(scenario, on))}
       onToggleNozzle={() => (scenario = edit.setNozzleOpen(scenario, !scenario.nozzle.open))}
     />
   </div>
@@ -92,6 +94,7 @@
         <thead><tr><th></th><th>Física</th><th>CGBVP 2019 (ref.)</th></tr></thead>
         <tbody>
           <tr><td>Caudal</td><td>{result.flowGpm.toFixed(1)} gpm</td><td>{reference.flowGpm.toFixed(1)} gpm</td></tr>
+          <tr><td>Accesorios</td><td>{result.terms.some((t) => t.lawId === "appliance.fixed" && t.inputs.lossPsi === null) ? "sin dato" : `${result.fittingLossPsi.toFixed(1)} psi`}</td><td>{reference.fittingLossPsi.toFixed(1)} psi</td></tr>
           <tr><td>Presión en pitón</td><td>{result.nozzlePressurePsi.toFixed(1)} psi</td><td>{reference.nozzlePressurePsi.toFixed(1)} psi</td></tr>
           <tr><td>Presión requerida</td><td>{result.requiredPumpPressurePsi.toFixed(1)} psi</td><td>{reference.requiredPumpPressurePsi.toFixed(1)} psi</td></tr>
         </tbody>

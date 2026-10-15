@@ -5,6 +5,7 @@
   import * as edit from "$lib/edit.ts";
   import { runsOf } from "$lib/geometry/world.ts";
   import type { Selection } from "$lib/selection.ts";
+  import JointControls from "./JointControls.svelte";
   import NumberField from "./NumberField.svelte";
 
   // Edits what is selected on the canvas (UX.md §3, design/main-screen.html).
@@ -50,12 +51,7 @@
         {/each}
       </div>
     </div>
-    {#if outlet !== undefined && outlet !== scenario.sections[0].diameterIn}
-      <p class="note">
-        Adaptador {outlet.toString().replace(".5", "½")}″ → {scenario.sections[0].diameterIn.toString().replace(".5", "½").replace(".75", "¾")}″:
-        su pérdida aún no se modela (accesorios, MODEL.md §3.10).
-      </p>
-    {/if}
+    <JointControls {scenario} joint={0} onToggle={(kind) => onchange(edit.toggleFitting(scenario, 0, kind))} />
   {:else if selection.kind === "nozzle"}
     {@const n = scenario.nozzle}
     <header>
@@ -119,6 +115,18 @@
       <NumberField label="Caudal nominal" value={n.ratedFlowGpm} unit="gpm" step={5} digits={0} onchange={(q) => onchange(edit.setNozzleRating(scenario, { ratedFlowGpm: q }))} />
       <NumberField label="Presión nominal" value={n.ratedPressurePsi} unit="psi" step={5} digits={0} onchange={(p) => onchange(edit.setNozzleRating(scenario, { ratedPressurePsi: p }))} />
     </details>
+
+    <JointControls {scenario} joint={last + 1} onToggle={(kind) => onchange(edit.toggleFitting(scenario, last + 1, kind))} />
+  {:else if selection.kind === "joint"}
+    {@const j = selection.index}
+    <header>
+      <h3>{j === 0 ? "Salida de la bomba" : `Acople ${j}`} · accesorios</h3>
+      <p>{j === 0 ? "Entre la bomba y el tramo 1" : `Entre el tramo ${j} y el tramo ${j + 1}`} · arrastra el acople para moverlo</p>
+    </header>
+    <JointControls {scenario} joint={j} onToggle={(kind) => onchange(edit.toggleFitting(scenario, j, kind))} />
+    {#if j > 0}
+      <button type="button" class="secondary" onclick={() => onSelect({ kind: "section", index: j - 1 })}>Editar tramo {j}</button>
+    {/if}
   {:else}
     {@const i = selection.index}
     {@const s = scenario.sections[i]}

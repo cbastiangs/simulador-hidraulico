@@ -51,7 +51,7 @@ the way:
 | NP | nozzle pressure | §3.3–§3.5 |
 | FL | friction loss in each hose section | §3.1 |
 | EP | elevation pressure, source to nozzle | §3.2 |
-| AL | appliance losses (wye, reducer, FDC…) | §3.10 (⏳ in-line fittings next; wyes M4) |
+| AL | appliance losses (wye, reducer, FDC…) | §3.10 (✅ in-line fittings; wyes M4) |
 
 Every term grows with flow Q (or is constant), so "pressure left at the
 nozzle − pressure the nozzle needs" falls as Q rises and crosses zero once.
@@ -319,11 +319,18 @@ than a fog nozzle at 100 psi (185 gpm: 69 vs 93 lbf).
 - **`junction.continuity`** (`physics`): at a wye, flow in = Σ flows out, and
   one pressure at the junction. A tree from one source has one unknown per
   junction, solved by nested bisection.
-- **`appliance.fixed`** (`convention`) ⏳ next, in-line fittings first
-  (owner, 2026-10-15): a fitting at a joint adds a loss AL(kind, Q) to the
-  series sum (§2). Each method carries its own table (§4). Wyes wait for
-  branching (M4); reducers, adapters and valves do not, since a fixed loss
-  is monotone in Q and `series.ts` can take it.
+- **`appliance.fixed`** (`convention`) ✅ for in-line fittings (adapter,
+  valve) under `cgbvp-2019` and `physical`; ⏳ `us-training`, wyes (M4).
+  A fitting at a joint adds a loss AL(kind, Q) to the series sum (§2). Each
+  method carries its own table (§4). Wyes wait for branching (M4); adapters
+  and valves do not, since a fixed loss is monotone in Q and `series.ts` can
+  take it. As built: the loss is spent only while water flows (none at
+  Q = 0); a coupling's gauge reads upstream of the fittings at its joint, and
+  at the nozzle joint the fittings sit between the hose end and the nozzle;
+  "sin dato" counts 0 and is labelled. An adapter belongs wherever the
+  **coupling** sizes differ (1¾″ on 1½″ couplings meets 1½″ hose directly),
+  read from the hose row's `couplingIn`, the pump's outlet size and the
+  nozzle spec's inlet.
 
   | Fitting | `cgbvp-2019` | `us-training` | `physical` |
   |---|---|---|---|

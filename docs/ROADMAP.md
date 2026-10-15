@@ -319,9 +319,10 @@ automatic nozzles, branching.
    Adding one is a tap on the joint and a small menu (the hose toolbar's
    pattern); the toolbox drag-and-drop stays deferred (§10b).
 6. **Autofit is a per-scenario mode, on by default** ("Accesorios
-   automáticos", stored like `lengthFree`). On: a size mismatch inserts a
-   visible fitting you can tap and remove. Off: the mismatch is flagged and
-   the line is not solved until you place the fitting. Presets and first load
+   automáticos", stored as `autoFittings`). On: a size mismatch gets a
+   visible adapter, derived, not removable while on. Off: adapters are placed
+   by hand; a mismatch without one is flagged and no water flows until you
+   place it. Presets and first load
    use on; an off-by-default challenge mode may come later.
 7. **Third method, `us-training`:** the US teaching model (Colorado DFPC
    pump chart: 0.5 psi/ft elevation, 0/10 psi appliances at 350 gpm, 25 psi

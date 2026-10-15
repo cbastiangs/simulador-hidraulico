@@ -1,4 +1,4 @@
-import type { SourceId } from "./references.ts";
+import type { FittingKind, SourceId } from "./references.ts";
 
 /**
  * The registry of laws by id (docs/MODEL.md §3). A solved line reports one
@@ -7,7 +7,7 @@ import type { SourceId } from "./references.ts";
  * never recompute anything.
  */
 
-export type LawId = "hose.friction" | "elevation" | "nozzle.fixed-orifice";
+export type LawId = "hose.friction" | "elevation" | "nozzle.fixed-orifice" | "appliance.fixed";
 
 export type Law = {
   id: LawId;
@@ -33,6 +33,7 @@ export const LAWS: Record<LawId, Law> = {
     sources: [],
     model: "§3.3",
   },
+  "appliance.fixed": { id: "appliance.fixed", formula: "AL = Σ pérdida fija", sources: [], model: "§3.10" },
 };
 
 /** One applied law: its inputs in the law's units, and the pressure it accounts for. */
@@ -47,5 +48,14 @@ export type Term =
   | {
       lawId: "nozzle.fixed-orifice";
       inputs: { ratedPressurePsi: number; ratedFlowGpm: number; flowGpm: number };
+      valuePsi: number;
+    }
+  | {
+      lawId: "appliance.fixed";
+      /** Joint 0 is the pump outlet, joint i the coupling after section i − 1, the last the nozzle inlet. */
+      joint: number;
+      kind: FittingKind;
+      /** The method's value; null = "sin dato", counted as 0. */
+      inputs: { lossPsi: number | null };
       valuePsi: number;
     };

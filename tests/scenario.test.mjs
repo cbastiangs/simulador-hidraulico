@@ -33,10 +33,11 @@ test("preset linea-basica: 30 m of 1-1/2\" to a 100 gpm fog nozzle", () => {
 
 test("preset reduccion-un-piso: physical vs the CGBVP reference", () => {
   // Friction at 100 gpm: 2 × 0.98425 + 24 × 0.98425 = 25.59 psi; nozzle 100; rise 3 m.
-  // Physical: 3 m = 9.8425 ft × 0.434 = 4.27 → 129.86. CGBVP: 3 m × 1.5 = 4.5 → 130.09.
+  // Physical: 3 m = 9.8425 ft × 0.434 = 4.27 → 129.86 (the 2-1/2" → 1-1/2" reducer: no data, 0).
+  // CGBVP: 3 m × 1.5 = 4.5, plus the reducer's fixed 5 psi (p. 45) → 100 + 25.59 + 4.5 + 5 = 135.09.
   const scenario = parseScenario(preset("reduccion-un-piso.json"));
   near(solveScenario(scenario).requiredPumpPressurePsi, 129.86, 0.01);
-  near(solveScenario(scenario, "cgbvp-2019").requiredPumpPressurePsi, 130.09, 0.01);
+  near(solveScenario(scenario, "cgbvp-2019").requiredPumpPressurePsi, 135.09, 0.01);
   // Pressure drops at each coupling: pump 135 → after the 2-1/2" and the climb → nozzle.
   const pressures = solveScenario(scenario).nodes.map((n) => n.pressurePsi);
   assert.ok(pressures[0] > pressures[1] && pressures[1] > pressures[2]);

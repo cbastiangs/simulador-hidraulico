@@ -1,6 +1,6 @@
 import { NOZZLE_SPECS } from "$hydraulics/catalog.ts";
-import { HOSE_SIZES } from "$hydraulics/references.ts";
-import type { Scenario, ScenarioSection } from "$hydraulics/scenario.ts";
+import { HOSE_SIZES, type FittingKind } from "$hydraulics/references.ts";
+import { joints, type Scenario, type ScenarioSection } from "$hydraulics/scenario.ts";
 import { runsOf, tautRunM } from "$lib/geometry/world.ts";
 
 /**
@@ -27,10 +27,64 @@ function withSection(scenario: Scenario, index: number, change: (s: ScenarioSect
   return { ...scenario, sections: scenario.sections.map((s, i) => (i === index ? change(s) : s)) };
 }
 
-/** Discharge outlet size (inches), or undefined for "same as the hose". Drawing only. */
+/** Discharge outlet size (inches), or undefined for "same as the hose". */
 export function setOutletSize(scenario: Scenario, outletSizeIn: number | undefined): Scenario {
   const { outletSizeIn: _, ...source } = scenario.source;
-  return { ...scenario, source: outletSizeIn === undefined ? source : { ...source, outletSizeIn } };
+  return pruneAdapters({ ...scenario, source: outletSizeIn === undefined ? source : { ...source, outletSizeIn } });
+}
+
+// Fittings (MODEL.md §3.10, UX.md §2). Joint 0 is stored on the source,
+// joint i on the end of section i − 1.
+
+const placedAt = (scenario: Scenario, joint: number) =>
+  (joint === 0 ? scenario.source.fittings : scenario.sections[joint - 1].endFittings) ?? [];
+
+const ORDER: readonly FittingKind[] = ["adapter", "valve"];
+
+function withFittings(scenario: Scenario, joint: number, kinds: readonly FittingKind[]): Scenario {
+  const list = ORDER.filter((k) => kinds.includes(k));
+  const set = <T extends { fittings?: FittingKind[]; endFittings?: FittingKind[] }>(o: T, key: "fittings" | "endFittings"): T => {
+    const { [key]: _, ...rest } = o;
+    return (list.length ? { ...rest, [key]: list } : rest) as T;
+  };
+  return joint === 0
+    ? { ...scenario, source: set(scenario.source, "fittings") }
+    : withSection(scenario, joint - 1, (s) => set(s, "endFittings"));
+}
+
+/** Places or removes a fitting at a joint. An adapter only goes where coupling sizes differ, and only by hand. */
+export function toggleFitting(scenario: Scenario, joint: number, kind: FittingKind): Scenario {
+  const placed = placedAt(scenario, joint);
+  if (placed.includes(kind)) return withFittings(scenario, joint, placed.filter((k) => k !== kind));
+  if (kind === "adapter" && (scenario.autoFittings !== false || !joints(scenario)[joint].mismatch)) return scenario;
+  return withFittings(scenario, joint, [...placed, kind]);
+}
+
+/** Drops hand-placed adapters where the sizes now match: they would join nothing. */
+function pruneAdapters(scenario: Scenario): Scenario {
+  return joints(scenario).reduce(
+    (s, j) => (j.placed.includes("adapter") && !j.mismatch ? withFittings(s, j.index, j.placed.filter((k) => k !== "adapter")) : s),
+    scenario,
+  );
+}
+
+/**
+ * "Accesorios automáticos". Turning it off stores the adapters it had
+ * derived, so the line stays connected; turning it on drops stored adapters,
+ * which it derives again.
+ */
+export function setAutoFittings(scenario: Scenario, on: boolean): Scenario {
+  if (on) {
+    const { autoFittings: _, ...rest } = scenario;
+    return joints(scenario).reduce(
+      (s, j) => (j.placed.includes("adapter") ? withFittings(s, j.index, j.placed.filter((k) => k !== "adapter")) : s),
+      rest as Scenario,
+    );
+  }
+  return joints(scenario).reduce(
+    (s, j) => (j.auto ? withFittings(s, j.index, [...j.placed, "adapter"]) : s),
+    { ...scenario, autoFittings: false } as Scenario,
+  );
 }
 
 export function setSourcePressure(scenario: Scenario, pressurePsi: number): Scenario {
@@ -123,23 +177,30 @@ export function setSectionLength(scenario: Scenario, i: number, lengthM: number)
 export function setSectionHose(scenario: Scenario, index: number, hoseSizeId: string): Scenario {
   const size = HOSE_SIZES.find((h) => h.id === hoseSizeId);
   if (!size) return scenario;
-  return withSection(scenario, index, (s) => ({
-    ...s,
-    hoseSizeId: size.id,
-    diameterIn: size.nominalDiameterIn,
-    frictionCoefficient: size.frictionCoefficient,
-  }));
+  return pruneAdapters(
+    withSection(scenario, index, (s) => ({
+      ...s,
+      hoseSizeId: size.id,
+      diameterIn: size.nominalDiameterIn,
+      frictionCoefficient: size.frictionCoefficient,
+    })),
+  );
 }
 
-/** Appends a section like the last one, level with where the line ends. */
+/**
+ * Appends a section like the last one, level with where the line ends. The
+ * nozzle's fittings move to the new end with the nozzle.
+ */
 export function addSection(scenario: Scenario): Scenario {
   const last = scenario.sections[scenario.sections.length - 1];
-  return { ...scenario, sections: [...scenario.sections, { ...last }] };
+  const { endFittings: _, ...joined } = last;
+  return { ...scenario, sections: [...scenario.sections.slice(0, -1), joined, { ...last }] };
 }
 
+/** Removes a section and the fittings at its downstream coupling. */
 export function removeSection(scenario: Scenario, index: number): Scenario {
   if (scenario.sections.length <= 1) return scenario;
-  return { ...scenario, sections: scenario.sections.filter((_, i) => i !== index) };
+  return pruneAdapters({ ...scenario, sections: scenario.sections.filter((_, i) => i !== index) });
 }
 
 export function setNozzleOpen(scenario: Scenario, open: boolean): Scenario {
@@ -149,7 +210,7 @@ export function setNozzleOpen(scenario: Scenario, open: boolean): Scenario {
 export function setNozzleSpec(scenario: Scenario, specId: string): Scenario {
   const spec = NOZZLE_SPECS.find((n) => n.id === specId);
   if (!spec) return scenario;
-  return {
+  return pruneAdapters({
     ...scenario,
     nozzle: {
       ...scenario.nozzle,
@@ -159,7 +220,7 @@ export function setNozzleSpec(scenario: Scenario, specId: string): Scenario {
       ratedFlowGpm: spec.ratedFlowGpm,
       ratedPressurePsi: spec.ratedPressurePsi,
     },
-  };
+  });
 }
 
 /**
@@ -173,7 +234,8 @@ export function setNozzleRating(
 ): Scenario {
   const { nozzle } = scenario;
   const typedFlow = rating.ratedFlowGpm !== undefined;
-  return {
+  // A hand-entered nozzle has no known inlet, so it fits any hose.
+  return pruneAdapters({
     ...scenario,
     nozzle: {
       ...nozzle,
@@ -183,7 +245,7 @@ export function setNozzleRating(
       ratedFlowGpm: within(rating.ratedFlowGpm ?? nozzle.ratedFlowGpm, LIMITS.ratedFlowGpm),
       ratedPressurePsi: within(rating.ratedPressurePsi ?? nozzle.ratedPressurePsi, LIMITS.ratedPressurePsi),
     },
-  };
+  });
 }
 
 /** Turns the gallonage ring to one of its settings. */
