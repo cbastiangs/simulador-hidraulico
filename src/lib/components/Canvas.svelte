@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { tick } from "svelte";
+  import { tick, untrack } from "svelte";
   import { HOSE_SIZES, type FittingKind } from "$hydraulics/references.ts";
   import { joints, type Scenario } from "$hydraulics/scenario.ts";
   import type { SeriesResult } from "$hydraulics/series.ts";
@@ -22,7 +22,7 @@
   // The canvas (UX.md §2): one uniform scale, the lay auto-fitted to the
   // space available; gauges, labels, handles and the nozzle keep their screen
   // size at any zoom. A press that moves under 6 px is a tap (select; on the
-  // nozzle, work the bale; on a coupling, open its fittings); more is a drag
+  // coupling, open its fittings; the bale is its own target); more is a drag
   // (move the coupling). Right click, or a long press on touch, opens a
   // context menu for what is under it. The canvas owns its touches (UX.md
   // §8.1): one finger on empty canvas or a hose pans, two fingers pan and
@@ -43,6 +43,7 @@
     onEdit,
     phone = false,
     wide = false,
+    coverPx = 0,
     onTapEmpty,
     onDeselect,
   }: {
@@ -69,6 +70,8 @@
     phone?: boolean;
     /** Desktop three-column layout (UX.md §4): the canvas takes the window's height. */
     wide?: boolean;
+    /** Pixels of the canvas's foot under the phone's open sheet (UX.md §10.3 T1). */
+    coverPx?: number;
     /** A tap on empty canvas (the phone's sheet closes). */
     onTapEmpty?: () => void;
     /** The floating toolbars' ×. */
@@ -205,7 +208,7 @@
     else run();
   };
 
-  const nodeTarget = (node: number): MenuTarget => (node === last ? { kind: "nozzle" } : { kind: "joint", index: node });
+  const nodeTarget = (node: number): Selection => (node === last ? { kind: "nozzle" } : { kind: "joint", index: node });
 
   function setManualZoom(z: number) {
     manualZoom = Math.min(3, Math.max(0.1, z));
@@ -368,13 +371,8 @@
     cancelHold();
     if (held) held = false;
     else if (press && dragging === null) {
-      // A tap: select; on the nozzle, also work the bale.
-      if (press.node === last) {
-        onSelect({ kind: "nozzle" });
-        onToggleNozzle();
-      } else {
-        onSelect({ kind: "joint", index: press.node });
-      }
+      // A tap only selects (UX.md §10.1); the bale is its own target.
+      onSelect(nodeTarget(press.node));
     }
     press = null;
     dragging = null;
@@ -396,11 +394,16 @@
       event.preventDefault();
       onMove(i, step[0], step[1]);
     } else if (event.key === "Enter") {
-      if (node === last) onToggleNozzle();
-      else onSelect({ kind: "joint", index: node });
+      onSelect(nodeTarget(node));
     }
   }
 
+  /** "piso 3 · 9 m": the floor first, since its label hides at a fitted zoom (UX.md §10.3 T3). */
+  const floorName = (m: number) => {
+    const n = m / floorM;
+    if (!Number.isInteger(n)) return m <= 0 ? `${m} m` : n < 1 ? `sobre planta baja · ${m} m` : `sobre piso ${Math.floor(n)} · ${m} m`;
+    return n === 0 ? "planta baja · 0 m" : n < 0 ? `${m} m` : `piso ${n} · ${m} m`;
+  };
   const sizeLabel = (d: number) => `${d.toString().replace(".5", "½").replace(".75", "¾")}″`;
   const fraction = (s: string) => s.replace("1-1/2", "1½").replace("1-3/4", "1¾").replace("2-1/2", "2½").replace('"', "″");
   /** 3" hoses come with two coupling sizes: "3″ (2½″)" names the coupling. */
@@ -418,6 +421,33 @@
   const selectedHose = $derived(selection?.kind === "section" ? layout.hoses[selection.index] : undefined);
   // The nozzle joint's fittings are edited in the inspector: its handle works the bale.
   const selectedJoint = $derived(selection?.kind === "joint" && selection.index < last ? layout.nodes[selection.index] : undefined);
+  // Keep the selection in sight above the phone's sheet: the stage grows by
+  // the covered height so it can scroll up, and a selection under the sheet
+  // (or off screen) is scrolled to the middle of what stays visible.
+  $effect(() => {
+    const sel = selection;
+    const cover = coverPx;
+    if (!sel || !scroller) return;
+    untrack(() => {
+      const p =
+        sel.kind === "section" ? { x: layout.hoses[sel.index]?.labelX, y: layout.hoses[sel.index]?.labelY }
+        : sel.kind === "joint" ? layout.nodes[sel.index]
+        : sel.kind === "nozzle" ? { x: layout.nodes[last].x + 40 * k, y: layout.nodes[last].y }
+        : { x: layout.xAt(-5.75), y: layout.groundY - 1.6 * PX_PER_M };
+      if (p?.x === undefined || p.y === undefined) return;
+      const x = p.x * zoom;
+      const y = p.y * zoom;
+      const el = scroller!;
+      const visible = el.clientHeight - cover;
+      const margin = 40;
+      requestAnimationFrame(() => {
+        const top = y < el.scrollTop + margin || y > el.scrollTop + visible - margin ? y - visible / 2 : el.scrollTop;
+        const left = x < el.scrollLeft + margin || x > el.scrollLeft + el.clientWidth - margin ? x - el.clientWidth / 2 : el.scrollLeft;
+        if (top !== el.scrollTop || left !== el.scrollLeft) el.scrollTo({ top, left, behavior: "smooth" });
+      });
+    });
+  });
+
   /** Where a joint's fittings are drawn: after the coupling ring, or just before the nozzle. */
   const fittingX = (i: number) => (i === last ? -16 : i === 0 ? -2 : 4);
 </script>
@@ -442,7 +472,7 @@
     onpointerdown={gestureDown}
     onclickcapture={swallowClick}
   >
-    <div class="stage" style:width={`${layout.widthPx * zoom}px`} style:height={`${layout.heightPx * zoom}px`}>
+    <div class="stage" style:width={`${layout.widthPx * zoom}px`} style:height={`${layout.heightPx * zoom + coverPx}px`}>
       <svg
         bind:this={svg}
         width={layout.widthPx * zoom}
@@ -552,16 +582,6 @@
           </g>
         {/each}
 
-        <g transform={`translate(${layout.nodes[last].x} ${layout.nodes[last].y}) scale(${k})`}>
-          <NozzleDrawing
-            nozzle={scenario.nozzle}
-            flowGpm={result.flowGpm}
-            x={0}
-            y={0}
-            selected={selection?.kind === "nozzle"}
-            onToggle={onToggleNozzle}
-          />
-        </g>
 
         <!-- The pump outlet's joint: tap only (the outlet doesn't move) -->
         <circle
@@ -580,7 +600,7 @@
           onpointerdown={(e) => holdStart(e, { kind: "joint", index: 0 })}
         />
 
-        <!-- Handles: tap opens the coupling's fittings (the nozzle's works the bale), drag to move -->
+        <!-- Handles: tap selects, drag moves -->
         {#each layout.nodes as n, i (i)}
           {#if i > 0}
             <circle
@@ -592,7 +612,7 @@
               stroke-width={1.5 * k}
               role="slider"
               tabindex="0"
-              aria-label={i === last ? "Pitón: tocar abre o cierra, arrastrar mueve" : `Acople ${i}: tocar muestra accesorios, arrastrar mueve`}
+              aria-label={i === last ? "Pitón: tocar selecciona, arrastrar mueve" : `Acople ${i}: tocar muestra accesorios, arrastrar mueve`}
               aria-valuenow={n.elevationM}
               aria-valuetext={`${scenario.sections[i - 1].lengthM} m de largo, ${n.elevationM} m de altura`}
               onpointerdown={(e) => down(e, i)}
@@ -603,16 +623,28 @@
               onkeydown={(e) => keyMove(e, i)}
             />
             {#if dragging === i}
-              <text class="drag-label" x={n.x} y={n.y + 40 * k}>{scenario.sections[i - 1].lengthM} m · {n.elevationM} m</text>
+              <text class="drag-label" x={n.x} y={n.y + 40 * k}>{scenario.sections[i - 1].lengthM} m · {floorName(n.elevationM)}</text>
             {/if}
           {/if}
         {/each}
+
+        <!-- The nozzle above its handle, so its bale takes the tap -->
+        <g transform={`translate(${layout.nodes[last].x} ${layout.nodes[last].y}) scale(${k})`}>
+          <NozzleDrawing
+            nozzle={scenario.nozzle}
+            flowGpm={result.flowGpm}
+            x={0}
+            y={0}
+            selected={selection?.kind === "nozzle"}
+            onToggle={onToggleNozzle}
+          />
+        </g>
 
         <!-- Gauges last, so they sit above everything -->
         {#each layout.nodes as n, i (i)}
           {@const truckTop = layout.groundY - 3.2 * PX_PER_M}
           <!-- The pump's gauge sits above the truck, its reading clear of the roof (UX.md §8.1). -->
-          <g transform={`translate(${i === 0 ? layout.xAt(-1.5) : n.x} ${i === 0 ? Math.min(layout.groundY - 4.6 * PX_PER_M, truckTop - 42 * gaugeK) : n.y - 72 * gaugeK}) scale(${gaugeK})`}>
+          <g class="gauge" transform={`translate(${i === 0 ? layout.xAt(-1.5) : n.x} ${i === 0 ? Math.min(layout.groundY - 4.6 * PX_PER_M, truckTop - 42 * gaugeK) : n.y - 72 * gaugeK}) scale(${gaugeK})`}>
             <Gauge psi={n.pressurePsi} />
           </g>
         {/each}
@@ -709,7 +741,7 @@
   .window { fill: #f8d7d3; }
   .wheel { fill: var(--ink); }
   .outlet, .coupling { fill: var(--steel); }
-  .fittings { pointer-events: none; }
+  .fittings, .gauge { pointer-events: none; }
   .fittings title { pointer-events: auto; }
   .adapter { fill: var(--fitting); stroke: var(--fitting); stroke-width: 1; }
   .adapter.auto { fill: color-mix(in srgb, var(--fitting) 55%, transparent); stroke-dasharray: 2 2; }

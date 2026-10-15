@@ -6,7 +6,7 @@
   import Concepts from "$lib/components/Concepts.svelte";
   import Inspector from "$lib/components/Inspector.svelte";
   import PumpPanel from "$lib/components/PumpPanel.svelte";
-  import Sheet, { CLOSED_PX, type SheetState } from "$lib/components/Sheet.svelte";
+  import Sheet, { CLOSED_PX, sheetHeights, type SheetState } from "$lib/components/Sheet.svelte";
   import * as edit from "$lib/edit.ts";
   import type { Selection } from "$lib/selection.ts";
 
@@ -55,7 +55,10 @@
       localStorage.setItem("panel.pump", folded ? "folded" : "open");
     } catch {}
   }
-  let sheet: SheetState = $state("closed");
+  let sheet = $state<SheetState>("closed");
+  let windowHeight = $state(800);
+  /** How much of the canvas the open sheet covers, so the canvas keeps the selection above it. */
+  const coverPx = $derived(phone && sheet === "peek" ? sheetHeights(windowHeight).peek - CLOSED_PX : 0);
 
   function select(s: Selection, open = true) {
     selection = s;
@@ -161,7 +164,7 @@
 </script>
 
 <svelte:head><title>Simulador hidráulico</title></svelte:head>
-<svelte:window onkeydown={onKey} />
+<svelte:window onkeydown={onKey} bind:innerHeight={windowHeight} />
 
 {#snippet line()}
   <section class="line-tools" aria-label="Línea">
@@ -219,6 +222,7 @@
       {selection}
       {phone}
       {wide}
+      {coverPx}
       resetKey={`${presetId}#${loads}`}
       onSelect={select}
       onTapEmpty={deselect}

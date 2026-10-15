@@ -2,6 +2,12 @@
   export type SheetState = "closed" | "peek" | "full";
   /** Height of the closed sheet; the page keeps this much free below the canvas. */
   export const CLOSED_PX = 72;
+  /** Each state's height in a window this tall. */
+  export const sheetHeights = (windowHeight: number): Record<SheetState, number> => ({
+    closed: CLOSED_PX,
+    peek: Math.min(windowHeight * 0.5, 440),
+    full: windowHeight - 56,
+  });
 </script>
 
 <script lang="ts">
@@ -23,7 +29,7 @@
   } = $props();
 
   let windowHeight = $state(800);
-  const heights = $derived({ closed: CLOSED_PX, peek: Math.min(windowHeight * 0.5, 440), full: windowHeight - 56 });
+  const heights = $derived(sheetHeights(windowHeight));
 
   let drag: { y: number; from: number; moved: boolean } | null = $state(null);
   let dragHeight = $state(0);

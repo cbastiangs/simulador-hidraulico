@@ -73,7 +73,7 @@
   the pump outlet) opens a toolbar on the canvas, mirrored in the inspector,
   with that joint's adapter (named reducción/ampliación by direction, with
   the sizes) and an in-line valve. The nozzle joint is edited in the nozzle's
-  inspector panel, since tapping the nozzle works the bale. Fittings are drawn
+  inspector panel. Fittings are drawn
   at the joint in their own colour and move with it. An adapter is only
   offered where coupling sizes differ. No loose items and no toolbox drag for
   now. **Accesorios automáticos** (a switch in the Línea section, §4; on by default):
@@ -353,7 +353,7 @@ each surface lives on desktop and phone.
 
 | Pattern | What it is | Rule |
 |---|---|---|
-| **Select** | tap / click an element | shows its controls; never changes the line (exception to remove: §10.3 T2) |
+| **Select** | tap / click an element | shows its controls; never changes the line |
 | **Direct manipulation** | drag a coupling or the nozzle; flick the bale | for geometry and equipment states only; snaps; typed value always available too |
 | **Quick actions** | the selected element's common edits: floating toolbar (desktop, tablet), sheet at peek (phone) | at most one row of choices plus one of actions |
 | **More actions** | right-click / long-press menu | a shortcut, never the only way to an action |
@@ -392,9 +392,9 @@ they know what to do, would they see how, would they understand the result?
 
 | Task | Where it breaks | Fix |
 |---|---|---|
-| T1 1½″ vs 2½″ | Tapping a hose opens the sheet at peek, which can hide that hose; comparing means remembering the first number | Pan so the selection stays above the sheet; A/B compare is M2 |
-| T2 gallonage ring | **Tapping the nozzle to select it also works the bale**, so looking at the ring shuts the line (0 gpm) | On the canvas, the bale lever is its own target; tapping the nozzle body only selects |
-| T3 3rd floor | At a fitted zoom floors are 12 px apart and their labels hide; the drag label says "9 m", not the floor | Drag label names the floor ("piso 3"); the typed "± piso" in the sheet stays |
+| T1 1½″ vs 2½″ | Tapping a hose opens the sheet at peek, which can hide that hose; comparing means remembering the first number | ✅ The canvas scrolls the selection above the sheet (its stage grows by the covered height); A/B compare is M2 |
+| T2 gallonage ring | **Tapping the nozzle to select it also works the bale**, so looking at the ring shuts the line (0 gpm) | ✅ Tapping the nozzle only selects; the bale lever is its own target, drawn above the handle |
+| T3 3rd floor | At a fitted zoom floors are 12 px apart and their labels hide; the drag label says "9 m", not the floor | ✅ The drag label names the floor ("piso 3 · 9 m", "sobre piso 1 · 3.5 m"); the typed "± piso" stays |
 | T4 build a maniobra | No blank line, so you start from a preset and edit; the nozzle model sits under "Ajustes avanzados" | "Línea nueva" in the header menu; model chips at the top of the nozzle's sheet |
 | T5 nozzle under its rating | The rating vs the actual pressure is only in the Conceptos card (sheet, full) | A rated-pressure mark on the nozzle's gauge, and a one-line note when it falls short |
 | T6 change one thing | Works; each change shows in the strip and the closed sheet's split bar | — |
@@ -403,8 +403,8 @@ they know what to do, would they see how, would they understand the result?
 
 ### 10.4 Order (proposal)
 
-1. T2 bale target, T3 floor in the drag label, selection kept above the
-   sheet: the walkthrough's breaks.
+1. ✅ T2 bale target, T3 floor in the drag label, selection kept above the
+   sheet: the walkthrough's breaks (2026-10-16).
 2. Missing ◻ in the matrix that the tasks need: method picker and compare
    toggle, blank line, nozzle model quick pick, gauge tap and hide, rated
    mark on the nozzle gauge.
