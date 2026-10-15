@@ -86,3 +86,10 @@ what another proves.
 
 No database, no Docker. Before handing work back, run all three. `pnpm dev`
 serves the app locally.
+
+## Commits
+
+Commit messages carry no AI co-author or session trailers: no
+`Co-Authored-By: Claude …`, no `Claude-Session:`, no generated-by lines.
+The owner (2026-10-15) asked for the history to be clean of them. Pull
+request descriptions follow the same rule.
