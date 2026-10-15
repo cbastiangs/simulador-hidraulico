@@ -269,7 +269,7 @@ paño, bifurca, desnivel).
 | | Delivers | Shows |
 |---|---|---|
 | **M0** ✅ | Roadmap; import-boundary test; Node pin | — |
-| **M1 Foundation** | SvelteKit static app; scenario document v1; element laws + solver (7.1); one truck outlet → hose → nozzle; top-down and side views; gauges; particles; pressure budget; units; share link. **Test on the oldest tablet at the station; this is also the checkpoint for keeping Svelte or switching to React.** | Flow vs pressure, friction, elevation |
+| **M1 Foundation** | SvelteKit static app; scenario document v1; element laws + solver (7.1); one truck outlet → hose → nozzle; top-down and side views; gauges; particles; pressure budget; units; share link. | Flow vs pressure, friction, elevation |
 | **M2 Nozzles** | Nozzle kinds and reaction; A/B compare | Smooth bore vs fog |
 | **M3 Trucks** | Truck files, capacity envelope, several outlets with valves, governor, tank; pump × system chart | Pump capacity |
 | **M4 Branching** | Wyes, appliances, couplings; presets from station maniobras | Diameter and couplings in real lays |
