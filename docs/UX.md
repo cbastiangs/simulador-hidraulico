@@ -83,6 +83,31 @@
   losses get their own segment and legend line in the pressure split, with
   the CGBVP value beside "sin dato". Under `us-training` the 350 gpm step will
   be labelled.
+- **Building the line (owner, 2026-10-15).** Hoses are added, split, joined
+  and removed on the canvas; nothing needs the inspector:
+  - **Context menu:** right click, or a press held still for 0.5 s on touch,
+    on a hose (insert before / after, split in two, lock or unlock its
+    length, remove), a coupling (insert a hose here, join the two hoses,
+    fittings), the nozzle (add a hose before it, open/shut, change nozzle),
+    the engine or pump outlet (insert at the outlet, outlet fittings, pump),
+    or empty canvas (add at the end, fit the view). The press that opens it
+    is not also a tap.
+  - **Every menu entry has a visible control too,** since nobody discovers a
+    long press: the hose toolbar has "+ Tramo", "Dividir" and "🗑 Quitar";
+    the coupling toolbar "+ Tramo aquí" and "Unir tramos"; a hint under the
+    canvas names the menu.
+  - **Edits keep the drawing still:** an inserted hose copies its neighbour,
+    level and taut, so nothing else moves; a split meets halfway up the rise;
+    a join takes the upstream hose's size and the combined length; a removed
+    hose closes the gap (everything downstream drops by its rise). The
+    nozzle keeps its fittings through all of them.
+  - **Undo / redo** in the header ("↶ Deshacer", "↷ Rehacer"; Ctrl+Z,
+    Ctrl+Shift+Z or Ctrl+Y). A drag or a burst of typing in one field is one
+    step. Loading a preset clears the history.
+  - **The engine solves one line**, so the only things to add are hoses,
+    fittings and the nozzle. Wyes, second lines and a toolbox to drag pieces
+    from wait for branching (ROADMAP §10c); no piece is offered that the
+    solver can't compute.
 - **Length lock, per hose** (owner, 2026-10-14; replaces the global
   "Largo fijo / Libre" toggle under the canvas). Each hose has its own lock,
   a button on its on-canvas toolbar, with a 🔒/🔓 on its label. Locked is the
@@ -158,8 +183,8 @@ nozzle settings (30/60/95/125 gpm) are generic placeholders.
 **Awaiting approval (2026-10-14):** `design/nozzle-stream-menu.html` and
 its renders: nozzle panel with a model card and a picker list (no
 drop-down) grouped by coupling fit; an aimable stream drawn in metres with
-a labelled illustrative reach; a context menu on long press (touch, 0.5 s)
-or right click for hoses, couplings and the nozzle (insert, split, remove).
+a labelled illustrative reach; the context menu it proposed is built
+(owner, 2026-10-15; §2 "Building the line").
 
 **Built without a mock-up (owner, 2026-10-15):** a "Conceptos" card below the
 results (static pressure, flowing pressure, exit pressure, flow, hose speed,

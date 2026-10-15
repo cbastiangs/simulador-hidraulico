@@ -22,7 +22,61 @@
   // Replaced whole by each edit (lib/edit.ts), never mutated in place.
   let scenario: Scenario = $state.raw(presets[0].scenario);
   let selection: Selection = $state({ kind: "nozzle" });
-  // How dragging and height edits treat hose length (UX.md §2); fixed length by default.
+
+  // Undo and redo (UX.md §2). Every edit goes through `apply`; a burst of edits
+  // with the same key (one drag, one typed field) is one step.
+  const HISTORY_MAX = 100;
+  const BURST_MS = 600;
+  let past: Scenario[] = $state.raw([]);
+  let future: Scenario[] = $state.raw([]);
+  let burst = { key: "", at: 0 };
+
+  function apply(next: Scenario, key = "") {
+    if (next === scenario) return;
+    const now = performance.now();
+    const sameBurst = key !== "" && key === burst.key && now - burst.at < BURST_MS;
+    if (!sameBurst) past = [...past.slice(-(HISTORY_MAX - 1)), scenario];
+    burst = { key, at: now };
+    future = [];
+    scenario = next;
+  }
+
+  /** Keeps the selection pointing at something that still exists. */
+  function keepSelection() {
+    const n = scenario.sections.length;
+    if ((selection.kind === "section" && selection.index >= n) || (selection.kind === "joint" && selection.index > n)) {
+      selection = { kind: "nozzle" };
+    }
+  }
+
+  function undo() {
+    if (past.length === 0) return;
+    future = [scenario, ...future];
+    scenario = past[past.length - 1];
+    past = past.slice(0, -1);
+    burst = { key: "", at: 0 };
+    keepSelection();
+  }
+
+  function redo() {
+    if (future.length === 0) return;
+    past = [...past, scenario];
+    scenario = future[0];
+    future = future.slice(1);
+    burst = { key: "", at: 0 };
+    keepSelection();
+  }
+
+  function onKey(event: KeyboardEvent) {
+    const target = event.target as HTMLElement;
+    if (target.closest("input, textarea, select, [contenteditable]")) return;
+    if (!(event.ctrlKey || event.metaKey)) return;
+    const key = event.key.toLowerCase();
+    if (key === "z" && !event.shiftKey) undo();
+    else if ((key === "z" && event.shiftKey) || key === "y") redo();
+    else return;
+    event.preventDefault();
+  }
 
   const result = $derived(solveScenario(scenario));
   const reference = $derived(solveScenario(scenario, "cgbvp-2019"));
@@ -44,25 +98,32 @@
     loads += 1;
     scenario = presets.find((p) => p.id === id)!.scenario;
     selection = { kind: "nozzle" };
+    past = [];
+    future = [];
   }
 
   function addSection() {
-    scenario = edit.addSection(scenario);
+    apply(edit.addSection(scenario));
     selection = { kind: "section", index: scenario.sections.length - 1 };
   }
 </script>
 
 <svelte:head><title>Simulador hidráulico</title></svelte:head>
+<svelte:window onkeydown={onKey} />
 
 <div class="app">
   <header class="top">
     <h1>Simulador hidráulico</h1>
+    <div class="history">
+      <button type="button" onclick={undo} disabled={past.length === 0} title="Deshacer (Ctrl+Z)">↶ Deshacer</button>
+      <button type="button" onclick={redo} disabled={future.length === 0} title="Rehacer (Ctrl+Shift+Z)">↷ Rehacer</button>
+    </div>
     <select value={presetId} onchange={(e) => choosePreset(e.currentTarget.value)} aria-label="Escenario inicial">
       {#each presets as p (p.id)}<option value={p.id}>{p.scenario.name}</option>{/each}
     </select>
   </header>
 
-  <div class="pump"><PumpPanel {scenario} {result} onchange={(s) => (scenario = s)} /></div>
+  <div class="pump"><PumpPanel {scenario} {result} onchange={(s) => apply(s, "pump")} /></div>
 
   <div class="canvas">
     <Canvas
@@ -71,18 +132,22 @@
       {selection}
       resetKey={`${presetId}#${loads}`}
       onSelect={(s) => (selection = s)}
-      onMove={(i, runM, elevationM) => (scenario = edit.moveCoupling(scenario, i, { runM, elevationM }))}
-      onToggleLock={(i) => (scenario = edit.toggleLengthLock(scenario, i))}
-      onHoseSize={(i, id) => (scenario = edit.setSectionHose(scenario, i, id))}
-      onLength={(i, m) => (scenario = edit.setSectionLength(scenario, i, m))}
-      onToggleFitting={(j, kind) => (scenario = edit.toggleFitting(scenario, j, kind))}
-      onAutoFittings={(on) => (scenario = edit.setAutoFittings(scenario, on))}
-      onToggleNozzle={() => (scenario = edit.setNozzleOpen(scenario, !scenario.nozzle.open))}
+      onMove={(i, runM, elevationM) => apply(edit.moveCoupling(scenario, i, { runM, elevationM }), `move:${i}`)}
+      onToggleLock={(i) => apply(edit.toggleLengthLock(scenario, i))}
+      onHoseSize={(i, id) => apply(edit.setSectionHose(scenario, i, id))}
+      onLength={(i, m) => apply(edit.setSectionLength(scenario, i, m), `length:${i}`)}
+      onToggleFitting={(j, kind) => apply(edit.toggleFitting(scenario, j, kind))}
+      onAutoFittings={(on) => apply(edit.setAutoFittings(scenario, on))}
+      onToggleNozzle={() => apply(edit.setNozzleOpen(scenario, !scenario.nozzle.open))}
+      onEdit={(next, select) => {
+        apply(next);
+        if (select) selection = select;
+      }}
     />
   </div>
 
   <div class="side">
-    <Inspector {scenario} {selection} onchange={(s) => (scenario = s)} onSelect={(s) => (selection = s)} />
+    <Inspector {scenario} {selection} onchange={(s) => apply(s, `inspector:${JSON.stringify(selection)}`)} onSelect={(s) => (selection = s)} />
     <button type="button" class="add" onclick={addSection}>+ Añadir tramo al final</button>
   </div>
 
@@ -125,6 +190,9 @@
   .dock > :global(*) { max-width: 1976px; margin: 0 auto; }
   .top { grid-area: top; display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; justify-content: space-between; }
   .top h1 { margin: 0; font-size: 18px; }
+  .history { display: flex; gap: 6px; margin-left: auto; }
+  .history button { height: 44px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); font-weight: 600; cursor: pointer; }
+  .history button:disabled { opacity: 0.4; cursor: default; }
   .top select { height: 44px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); padding: 0 10px; max-width: 100%; }
   .pump { grid-area: pump; }
   .canvas { grid-area: canvas; min-width: 0; }

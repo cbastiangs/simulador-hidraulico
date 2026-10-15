@@ -5,7 +5,7 @@ import { runsOf, tautRunM } from "$lib/geometry/world.ts";
 
 /**
  * Edits to a scenario. Each returns a new document and never changes the
- * one it was given, so the page can keep a history for undo later and the
+ * one it was given, so the page can keep a history for undo and the
  * solver always sees a whole, consistent document. Each also clamps its
  * value to what parseScenario accepts, so an edit can't produce a document
  * a share link would reject.
@@ -188,19 +188,84 @@ export function setSectionHose(scenario: Scenario, index: number, hoseSizeId: st
 }
 
 /**
- * Appends a section like the last one, level with where the line ends. The
- * nozzle's fittings move to the new end with the nozzle.
+ * Inserts a hose at position `at` (0 = at the pump outlet, sections.length =
+ * just before the nozzle), like its neighbour, level and taut, so nothing
+ * else moves. Inserted before the nozzle, the nozzle's fittings move to the
+ * new end with the nozzle.
  */
-export function addSection(scenario: Scenario): Scenario {
-  const last = scenario.sections[scenario.sections.length - 1];
-  const { endFittings: _, ...joined } = last;
-  return { ...scenario, sections: [...scenario.sections.slice(0, -1), joined, { ...last }] };
+export function insertSection(scenario: Scenario, at: number): Scenario {
+  const n = scenario.sections.length;
+  if (at < 0 || at > n) return scenario;
+  const like = scenario.sections[Math.min(at, n - 1)];
+  const { endFittings: _, runM: __, lengthFree: ___, ...hose } = like;
+  const added: ScenarioSection = { ...hose, endElevationM: startElevationM(scenario, at) };
+  if (at < n) return { ...scenario, sections: [...scenario.sections.slice(0, at), added, ...scenario.sections.slice(at)] };
+  const { endFittings, ...joined } = scenario.sections[n - 1];
+  return {
+    ...scenario,
+    sections: [...scenario.sections.slice(0, -1), joined, endFittings ? { ...added, endFittings } : added],
+  };
 }
 
-/** Removes a section and the fittings at its downstream coupling. */
+/** Appends a hose at the end, level with where the line ends. */
+export const addSection = (scenario: Scenario) => insertSection(scenario, scenario.sections.length);
+
+/**
+ * Splits section `i` into two hoses of half its length (to 0.5 m), joined
+ * halfway up its rise. The downstream coupling keeps its fittings.
+ */
+export function splitSection(scenario: Scenario, i: number): Scenario {
+  const s = scenario.sections[i];
+  const first = Math.round(s.lengthM) / 2;
+  if (first < LIMITS.lengthM.min || s.lengthM - first < LIMITS.lengthM.min) return scenario;
+  const start = startElevationM(scenario, i);
+  const run = runsOf(scenario.sections)[i];
+  const { endFittings: _, ...hose } = s;
+  const half = (part: number) => (s.runM === undefined ? {} : { runM: (run * part) / s.lengthM });
+  const a: ScenarioSection = { ...hose, lengthM: first, endElevationM: start + ((s.endElevationM - start) * first) / s.lengthM, ...half(first) };
+  const b: ScenarioSection = { ...s, lengthM: s.lengthM - first, ...half(s.lengthM - first) };
+  return { ...scenario, sections: [...scenario.sections.slice(0, i), a, b, ...scenario.sections.slice(i + 1)] };
+}
+
+/**
+ * Joins the two hoses at coupling `joint` (1 … sections.length − 1) into one
+ * of the upstream hose's size and their combined length. The fittings at that
+ * coupling go with it.
+ */
+export function mergeAtJoint(scenario: Scenario, joint: number): Scenario {
+  const n = scenario.sections.length;
+  if (joint < 1 || joint > n - 1) return scenario;
+  const [a, b] = [scenario.sections[joint - 1], scenario.sections[joint]];
+  const runs = runsOf(scenario.sections);
+  const { endFittings: _, runM: __, ...hose } = a;
+  const merged: ScenarioSection = {
+    ...hose,
+    lengthM: within(a.lengthM + b.lengthM, LIMITS.lengthM),
+    endElevationM: b.endElevationM,
+    ...(a.runM === undefined && b.runM === undefined ? {} : { runM: runs[joint - 1] + runs[joint] }),
+    ...(b.endFittings ? { endFittings: b.endFittings } : {}),
+  };
+  return pruneAdapters({ ...scenario, sections: [...scenario.sections.slice(0, joint - 1), merged, ...scenario.sections.slice(joint + 1)] });
+}
+
+/**
+ * Removes a section; the line closes up, so everything downstream drops by
+ * its rise. The fittings at its downstream coupling go with it, except at the
+ * nozzle: removing the last hose, the nozzle keeps its fittings.
+ */
 export function removeSection(scenario: Scenario, index: number): Scenario {
-  if (scenario.sections.length <= 1) return scenario;
-  return pruneAdapters({ ...scenario, sections: scenario.sections.filter((_, i) => i !== index) });
+  const n = scenario.sections.length;
+  if (n <= 1 || index < 0 || index >= n) return scenario;
+  const removed = scenario.sections[index];
+  const rise = removed.endElevationM - startElevationM(scenario, index);
+  const sections = scenario.sections
+    .filter((_, i) => i !== index)
+    .map((s, i) => (i < index ? s : { ...s, endElevationM: within(s.endElevationM - rise, LIMITS.elevationM) }));
+  if (index === n - 1) {
+    const { endFittings: _, ...last } = sections[n - 2];
+    sections[n - 2] = removed.endFittings ? { ...last, endFittings: removed.endFittings } : last;
+  }
+  return pruneAdapters({ ...scenario, sections });
 }
 
 export function setNozzleOpen(scenario: Scenario, open: boolean): Scenario {

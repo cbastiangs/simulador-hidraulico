@@ -11,6 +11,8 @@
     type Bounds,
   } from "$lib/geometry/world.ts";
   import type { Selection } from "$lib/selection.ts";
+  import * as edit from "$lib/edit.ts";
+  import ContextMenu, { type MenuTarget } from "./ContextMenu.svelte";
   import Gauge from "./Gauge.svelte";
   import JointControls from "./JointControls.svelte";
   import NozzleDrawing from "./NozzleDrawing.svelte";
@@ -20,7 +22,8 @@
   // space available; gauges, labels, handles and the nozzle keep their screen
   // size at any zoom. A press that moves under 6 px is a tap (select; on the
   // nozzle, work the bale; on a coupling, open its fittings); more is a drag
-  // (move the coupling).
+  // (move the coupling). Right click, or a long press on touch, opens a
+  // context menu for what is under it.
   let {
     scenario,
     result,
@@ -35,6 +38,7 @@
     onLength,
     onToggleFitting,
     onAutoFittings,
+    onEdit,
   }: {
     scenario: Scenario;
     result: SeriesResult;
@@ -54,6 +58,8 @@
     onToggleFitting: (joint: number, kind: FittingKind) => void;
     /** "Accesorios automáticos" on or off (UX.md §2). */
     onAutoFittings: (on: boolean) => void;
+    /** A structural edit (insert, split, join, remove), and what to select after it. */
+    onEdit: (next: Scenario, select?: Selection) => void;
   } = $props();
 
   const TAP_PX = 6;
@@ -66,7 +72,7 @@
   /** Below this the constant-size gauges crowd each other; the canvas scrolls sideways instead. */
   const MIN_FIT_ZOOM = 0.12;
   /** Height of the on-canvas hose toolbar, to open it upward when there is no room below. */
-  const HOSE_BAR_PX = 180;
+  const HOSE_BAR_PX = 225;
   let svg: SVGSVGElement | undefined = $state();
 
   // Dragging freezes the world and the zoom: refitting under the pointer would move the target.
@@ -127,6 +133,61 @@
   const js = $derived(joints(scenario));
   const missing = $derived(js.filter((j) => j.missing));
 
+  // Context menu (UX.md §2): right click, or a press held still for 0.5 s on touch.
+  const HOLD_MS = 500;
+  let menu = $state<{ target: MenuTarget; x: number; y: number } | null>(null);
+  let hold: { timer: ReturnType<typeof setTimeout>; x: number; y: number } | null = null;
+  /** The press that opened the menu must not also count as a tap when it lifts. */
+  let held = false;
+
+  function openMenu(event: MouseEvent, target: MenuTarget) {
+    event.preventDefault();
+    event.stopPropagation();
+    // On touch, browsers that fire contextmenu on a long press beat our timer.
+    held = hold !== null;
+    cancelHold();
+    press = null;
+    menu = { target, x: event.clientX, y: event.clientY };
+    if (target.kind !== "empty") onSelect(target);
+  }
+
+  function holdStart(event: PointerEvent, target: MenuTarget) {
+    if (hold) return;
+    held = false;
+    if (event.pointerType === "mouse") return;
+    const { clientX: x, clientY: y } = event;
+    hold = {
+      x,
+      y,
+      timer: setTimeout(() => {
+        hold = null;
+        held = true;
+        press = null;
+        dragging = null;
+        frozen = null;
+        menu = { target, x, y };
+        if (target.kind !== "empty") onSelect(target);
+      }, HOLD_MS),
+    };
+  }
+
+  function holdMove(event: PointerEvent) {
+    if (hold && Math.hypot(event.clientX - hold.x, event.clientY - hold.y) >= TAP_PX) cancelHold();
+  }
+
+  function cancelHold() {
+    if (hold) clearTimeout(hold.timer);
+    hold = null;
+  }
+
+  /** A tap, unless it was the end of a long press. */
+  const tap = (run: () => void) => () => {
+    if (held) held = false;
+    else run();
+  };
+
+  const nodeTarget = (node: number): MenuTarget => (node === last ? { kind: "nozzle" } : { kind: "joint", index: node });
+
   function setManualZoom(z: number) {
     manualZoom = Math.min(3, Math.max(0.1, z));
   }
@@ -137,6 +198,8 @@
   }
 
   function down(event: PointerEvent, node: number) {
+    if (event.button !== 0) return;
+    holdStart(event, nodeTarget(node));
     press = { node, x: event.clientX, y: event.clientY };
     (event.currentTarget as Element).setPointerCapture(event.pointerId);
   }
@@ -145,6 +208,7 @@
     if (!press) return;
     if (dragging === null) {
       if (Math.hypot(event.clientX - press.x, event.clientY - press.y) < TAP_PX) return;
+      cancelHold();
       dragging = press.node;
       frozen = { bounds: fitted, zoom };
       onSelect(dragging === last ? { kind: "nozzle" } : { kind: "section", index: dragging - 1 });
@@ -160,7 +224,9 @@
   }
 
   function up() {
-    if (press && dragging === null) {
+    cancelHold();
+    if (held) held = false;
+    else if (press && dragging === null) {
       // A tap: select; on the nozzle, also work the bale.
       if (press.node === last) {
         onSelect({ kind: "nozzle" });
@@ -227,6 +293,11 @@
         viewBox={`0 0 ${layout.widthPx} ${layout.heightPx}`}
         role="application"
         aria-label="Vista lateral de la línea"
+        oncontextmenu={(e) => openMenu(e, { kind: "empty" })}
+        onpointerdown={(e) => holdStart(e, { kind: "empty" })}
+        onpointermove={holdMove}
+        onpointerup={cancelHold}
+        onpointercancel={cancelHold}
       >
         <!-- Floors: bands, lines, labels -->
         {#each layout.floors as f (f.elevationM)}
@@ -250,8 +321,10 @@
           role="button"
           tabindex="0"
           aria-label="Bomba: elegir salida"
-          onclick={() => onSelect({ kind: "pump" })}
+          onclick={tap(() => onSelect({ kind: "pump" }))}
           onkeydown={(e) => e.key === "Enter" && onSelect({ kind: "pump" })}
+          oncontextmenu={(e) => openMenu(e, { kind: "pump" })}
+          onpointerdown={(e) => holdStart(e, { kind: "pump" })}
         >
           <rect class="truck" class:selected={selection.kind === "pump"} x={layout.xAt(-9.5)} y={layout.groundY - 3.2 * PX_PER_M} width={7 * PX_PER_M} height={2.6 * PX_PER_M} rx="5" />
           <rect class="window" x={layout.xAt(-8.9)} y={layout.groundY - 2.8 * PX_PER_M} width={1.6 * PX_PER_M} height={0.9 * PX_PER_M} rx="2" />
@@ -278,8 +351,10 @@
             role="button"
             tabindex="0"
             aria-label={`Tramo ${h.index + 1}: ${s.lengthM} m de ${sizeLabel(s.diameterIn)}`}
-            onclick={() => onSelect({ kind: "section", index: h.index })}
+            onclick={tap(() => onSelect({ kind: "section", index: h.index }))}
             onkeydown={(e) => e.key === "Enter" && onSelect({ kind: "section", index: h.index })}
+            oncontextmenu={(e) => openMenu(e, { kind: "section", index: h.index })}
+            onpointerdown={(e) => holdStart(e, { kind: "section", index: h.index })}
           />
           <text class="tag" transform={`translate(${h.labelX} ${h.labelY + 22 * k}) rotate(${Math.abs(h.angle) > 60 ? 0 : h.angle})`}>
             {s.lengthFree ? "🔓" : "🔒"} {s.lengthM} m · {sizeLabel(s.diameterIn)}{h.slackM >= 0.5 ? ` · holgura ${h.slackM.toFixed(1)} m` : ""}
@@ -342,8 +417,10 @@
           role="button"
           tabindex="0"
           aria-label="Salida de la bomba: accesorios"
-          onclick={() => onSelect({ kind: "joint", index: 0 })}
+          onclick={tap(() => onSelect({ kind: "joint", index: 0 }))}
           onkeydown={(e) => e.key === "Enter" && onSelect({ kind: "joint", index: 0 })}
+          oncontextmenu={(e) => openMenu(e, { kind: "joint", index: 0 })}
+          onpointerdown={(e) => holdStart(e, { kind: "joint", index: 0 })}
         />
 
         <!-- Handles: tap opens the coupling's fittings (the nozzle's works the bale), drag to move -->
@@ -365,6 +442,7 @@
               onpointermove={move}
               onpointerup={up}
               onpointercancel={up}
+              oncontextmenu={(e) => openMenu(e, nodeTarget(i))}
               onkeydown={(e) => keyMove(e, i)}
             />
             {#if dragging === i}
@@ -397,6 +475,11 @@
             <button type="button" aria-label="Alargar 15 m" onclick={() => onLength(i, s.lengthM + 15)}>+15 m</button>
             <button type="button" class="lock" class:on={!s.lengthFree} aria-pressed={!s.lengthFree} onclick={() => onToggleLock(i)}>{s.lengthFree ? "🔓 Libre" : "🔒 Largo fijo"}</button>
           </div>
+          <div class="chips">
+            <button type="button" onclick={() => onEdit(edit.insertSection(scenario, i + 1), { kind: "section", index: i + 1 })}>+ Tramo</button>
+            <button type="button" disabled={s.lengthM < 2} onclick={() => onEdit(edit.splitSection(scenario, i), { kind: "section", index: i })}>Dividir</button>
+            <button type="button" class="danger" disabled={scenario.sections.length <= 1} onclick={() => onEdit(edit.removeSection(scenario, i), { kind: "section", index: Math.max(0, i - 1) })}>🗑 Quitar</button>
+          </div>
         </div>
       {/if}
 
@@ -404,6 +487,12 @@
         {@const up = selectedJoint.y * zoom + 40 + HOSE_BAR_PX > layout.heightPx * zoom}
         <div class="hose-bar joint-bar" class:up style:left={`${selectedJoint.x * zoom}px`} style:top={`${selectedJoint.y * zoom + (up ? -30 : 30)}px`}>
           <JointControls {scenario} joint={selection.index} onToggle={(kind) => onToggleFitting(selection.index, kind)} />
+          <div class="chips">
+            <button type="button" onclick={() => onEdit(edit.insertSection(scenario, selection.index), { kind: "section", index: selection.index })}>+ Tramo aquí</button>
+            {#if selection.index > 0}
+              <button type="button" onclick={() => onEdit(edit.mergeAtJoint(scenario, selection.index), { kind: "section", index: selection.index - 1 })}>Unir tramos</button>
+            {/if}
+          </div>
         </div>
       {/if}
     </div>
@@ -422,6 +511,7 @@
       ⚠ Falta adaptador en {missing.map((j) => (j.index === 0 ? "la salida" : j.index === last ? "el pitón" : `acople ${j.index}`)).join(", ")}
     </button>
   {/if}
+  <span class="hint">Clic derecho o mantener pulsado: más opciones</span>
   <span class="badge">1:1 · {Math.round(zoom * 100)} %{manualZoom === null ? " · auto" : ""}</span>
   <div class="zoom">
     <button type="button" aria-label="Alejar" onclick={() => setManualZoom(zoom / 1.25)}>−</button>
@@ -431,11 +521,24 @@
   </div>
 </div>
 
+{#if menu}
+  <ContextMenu
+    target={menu.target}
+    x={menu.x}
+    y={menu.y}
+    {scenario}
+    {onEdit}
+    {onSelect}
+    onFit={() => (manualZoom = null)}
+    onClose={() => (menu = null)}
+  />
+{/if}
+
 <style>
   .canvas { position: relative; background: var(--surface); border-radius: var(--radius); overflow: hidden; }
   .scroller { width: 100%; overflow: auto; transition: height 0.2s ease; }
   .stage { position: relative; }
-  svg { display: block; user-select: none; }
+  svg { display: block; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
   .band { fill: var(--band); }
   .ground { fill: var(--ground); }
   .floor { stroke: var(--line); stroke-dasharray: 4 4; }
@@ -470,6 +573,9 @@
   .hose-bar { position: absolute; transform: translateX(-50%); display: grid; gap: 4px; justify-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 6px; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15); z-index: 2; }
   .chips { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; justify-content: center; }
   .chips button { min-height: 36px; min-width: 40px; padding: 0 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); font-weight: 600; font-size: 13px; cursor: pointer; }
+  .chips button:disabled { opacity: 0.4; cursor: default; }
+  .chips .danger { color: var(--warn); }
+  .hint { font-size: 12px; color: var(--muted); }
   .chips .on { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
   .len { font-weight: 700; min-width: 3.5rem; text-align: center; }
   .toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 8px 10px; border-top: 1px solid var(--line); }
