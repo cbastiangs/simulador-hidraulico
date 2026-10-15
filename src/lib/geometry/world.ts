@@ -69,15 +69,18 @@ export function growBounds(current: Bounds, sections: readonly Section[], floorM
 
 /**
  * The bounds extended to fill a viewport of `widthPx` × `heightPx` at `zoom`,
- * so the world never ends before the canvas does. Adds world to the right and
- * above (sky over the building, ground stays at the bottom); the scale is
- * unchanged. Depends only on the viewport, so it can't feed back into a drag.
+ * so the world never ends before the canvas does. Adds world to the right,
+ * and above and below in equal parts, so the lay sits in the middle of a tall
+ * canvas rather than at its foot (UX.md §8.1); the scale is unchanged.
+ * Depends only on the viewport, so it can't feed back into a drag.
  */
 export function fillViewport(bounds: Bounds, widthPx: number, heightPx: number, zoom: number): Bounds {
+  const extraY = Math.max(0, heightPx / (PX_PER_M * zoom) - (bounds.maxY - bounds.minY));
   return {
-    ...bounds,
+    minX: bounds.minX,
     maxX: Math.max(bounds.maxX, bounds.minX + widthPx / (PX_PER_M * zoom)),
-    maxY: Math.max(bounds.maxY, bounds.minY + heightPx / (PX_PER_M * zoom)),
+    minY: bounds.minY - extraY / 2,
+    maxY: bounds.maxY + extraY / 2,
   };
 }
 

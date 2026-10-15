@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { tick } from "svelte";
   import { HOSE_SIZES, type FittingKind } from "$hydraulics/references.ts";
   import { isAuto, joints, type Scenario } from "$hydraulics/scenario.ts";
   import type { SeriesResult } from "$hydraulics/series.ts";
@@ -23,7 +24,9 @@
   // size at any zoom. A press that moves under 6 px is a tap (select; on the
   // nozzle, work the bale; on a coupling, open its fittings); more is a drag
   // (move the coupling). Right click, or a long press on touch, opens a
-  // context menu for what is under it.
+  // context menu for what is under it. The canvas owns its touches (UX.md
+  // §8.1): one finger on empty canvas or a hose pans, two fingers pan and
+  // pinch, Ctrl + wheel zooms; the page never scrolls from here.
   let {
     scenario,
     result,
@@ -39,6 +42,8 @@
     onToggleFitting,
     onAutoFittings,
     onEdit,
+    phone = false,
+    onTapEmpty,
   }: {
     scenario: Scenario;
     result: SeriesResult;
@@ -48,7 +53,8 @@
     resetKey: string;
     /** Lock or unlock the length of section `i` (UX.md §2). */
     onToggleLock: (i: number) => void;
-    onSelect: (s: Selection) => void;
+    /** Select; `open` false when a drag selects, so the phone's sheet stays shut over the canvas. */
+    onSelect: (s: Selection, open?: boolean) => void;
     /** Move the coupling at the end of a section to a horizontal run and height (edit.moveCoupling). */
     onMove: (sectionIndex: number, runM: number, elevationM: number) => void;
     onToggleNozzle: () => void;
@@ -60,6 +66,10 @@
     onAutoFittings: (on: boolean) => void;
     /** A structural edit (insert, split, join, remove), and what to select after it. */
     onEdit: (next: Scenario, select?: Selection) => void;
+    /** Phone layout (UX.md §8): the canvas fills its container and the bottom sheet replaces the floating toolbars. */
+    phone?: boolean;
+    /** A tap on empty canvas (the phone's sheet closes). */
+    onTapEmpty?: () => void;
   } = $props();
 
   const TAP_PX = 6;
@@ -92,9 +102,9 @@
     if (resetKey !== fittedFor) {
       fittedFor = resetKey;
       manualZoom = null;
-      // When the lay is wider than the canvas, start on the nozzle.
+      // Start at the truck: the line reads from the pump (UX.md §8.1).
       requestAnimationFrame(() => {
-        if (scroller) scroller.scrollLeft = scroller.scrollWidth;
+        if (scroller) scroller.scrollLeft = 0;
       });
     }
   });
@@ -103,7 +113,9 @@
   // The canvas takes the height the window has (UX.md §2): the lay sits on the
   // ground at the bottom and the rest is building above it, so a rising hose
   // can be dragged up. Side by side, the page above the canvas is about 240 px and the floating pressure bar (page) 70 px.
-  const canvasHeight = $derived(Math.max(260, windowWidth >= 1024 ? windowHeight - 310 : windowHeight * 0.5));
+  const canvasHeight = $derived(
+    phone ? Math.max(200, viewHeight) : Math.max(260, windowWidth >= 1024 ? windowHeight - 310 : windowHeight * 0.5),
+  );
   const fitZoom = $derived.by(() => {
     if (viewWidth === 0) return 1;
     const w = (fitted.maxX - fitted.minX) * PX_PER_M;
@@ -114,6 +126,11 @@
   const zoom = $derived(frozen?.zoom ?? manualZoom ?? fitZoom);
   /** Multiply screen-size things by k so they stay the same size at any zoom. */
   const k = $derived(1 / zoom);
+  /**
+   * Gauges shrink with the zoom below 80 %, down to 75 % of their size, so
+   * they never cover the equipment at a fitted zoom yet stay readable.
+   */
+  const gaugeK = $derived(k * Math.min(1, Math.max(0.75, zoom / 0.8)));
   /** Floor labels are constant-size: below this they would overlap, so they hide. */
   const showFloorLabels = $derived(floorM * PX_PER_M * zoom >= 20);
 
@@ -192,6 +209,128 @@
     manualZoom = Math.min(3, Math.max(0.1, z));
   }
 
+  // Pan and zoom (UX.md §8.1). Pointers are followed on the window, not
+  // captured, so a tap still reaches the hose or engine under it.
+  const pointers = new Map<number, { x: number; y: number }>();
+  let gesture:
+    | { kind: "pan"; x: number; y: number; left: number; top: number; moved: boolean; empty: boolean }
+    | { kind: "pinch"; distance: number; zoom: number; anchor: { x: number; y: number } }
+    | null = null;
+  /** A pan or pinch happened: the click that ends it must not select anything. */
+  let panned = false;
+  let grabbing = $state(false);
+  let lastEmptyTap = 0;
+
+  /** Nothing to select under the press: the sky, the ground, a floor. */
+  const isEmpty = (el: Element) => {
+    const hit = el.closest("[role], button, .hose-bar");
+    return !hit || hit === svg || hit === scroller;
+  };
+  const centre = () => {
+    const [a, b] = [...pointers.values()];
+    return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, distance: Math.hypot(a.x - b.x, a.y - b.y) };
+  };
+
+  /** The world point (metres) under a window point, to hold it still while zooming. */
+  function anchorAt(clientX: number, clientY: number) {
+    const rect = scroller!.getBoundingClientRect();
+    const px = clientX - rect.left;
+    const py = clientY - rect.top;
+    return {
+      x: filled.minX + (scroller!.scrollLeft + px) / (PX_PER_M * zoom),
+      y: filled.maxY - (scroller!.scrollTop + py) / (PX_PER_M * zoom),
+      px,
+      py,
+    };
+  }
+
+  async function zoomAround(z: number, anchor: { x: number; y: number; px: number; py: number }) {
+    setManualZoom(z);
+    await tick();
+    if (!scroller) return;
+    scroller.scrollLeft = (anchor.x - filled.minX) * PX_PER_M * zoom - anchor.px;
+    scroller.scrollTop = (filled.maxY - anchor.y) * PX_PER_M * zoom - anchor.py;
+  }
+
+  function startGesture(empty: boolean) {
+    if (pointers.size === 1) {
+      const [p] = [...pointers.values()];
+      gesture = { kind: "pan", x: p.x, y: p.y, left: scroller!.scrollLeft, top: scroller!.scrollTop, moved: false, empty };
+    } else if (pointers.size === 2) {
+      cancelHold();
+      panned = true;
+      const c = centre();
+      gesture = { kind: "pinch", distance: c.distance, zoom, anchor: anchorAt(c.x, c.y) };
+    }
+  }
+
+  function gestureDown(event: PointerEvent) {
+    const el = event.target as Element;
+    // Handles drag couplings; a press already dragging one owns the touch.
+    if (el.closest(".handle") || press || dragging !== null) return;
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+    if (pointers.size === 0) panned = false;
+    pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    startGesture(isEmpty(el));
+  }
+
+  function gestureMove(event: PointerEvent) {
+    if (!pointers.has(event.pointerId) || !gesture || !scroller) return;
+    pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    if (gesture.kind === "pan") {
+      const dx = event.clientX - gesture.x;
+      const dy = event.clientY - gesture.y;
+      if (!gesture.moved && Math.hypot(dx, dy) < TAP_PX) return;
+      gesture.moved = true;
+      panned = true;
+      grabbing = true;
+      scroller.scrollLeft = gesture.left - dx;
+      scroller.scrollTop = gesture.top - dy;
+    } else if (pointers.size === 2) {
+      const c = centre();
+      const rect = scroller.getBoundingClientRect();
+      // Two fingers: the point first under them follows their centre (pan) at the pinched zoom.
+      zoomAround(gesture.zoom * (c.distance / gesture.distance), { ...gesture.anchor, px: c.x - rect.left, py: c.y - rect.top });
+    }
+  }
+
+  function gestureUp(event: PointerEvent) {
+    if (!pointers.delete(event.pointerId)) return;
+    if (gesture?.kind === "pan" && !gesture.moved && gesture.empty && pointers.size === 0 && !held) {
+      const now = performance.now();
+      if (now - lastEmptyTap < 300) {
+        manualZoom = null;
+        lastEmptyTap = 0;
+      } else {
+        lastEmptyTap = now;
+        onTapEmpty?.();
+      }
+    }
+    gesture = null;
+    grabbing = false;
+    // One finger left of a pinch carries on panning from where it is.
+    if (pointers.size > 0) startGesture(false);
+  }
+
+  function swallowClick(event: MouseEvent) {
+    if (!panned) return;
+    panned = false;
+    event.stopPropagation();
+    event.preventDefault();
+  }
+
+  // Ctrl + wheel (and a trackpad pinch, which browsers send as one) zooms around the pointer.
+  $effect(() => {
+    if (!scroller) return;
+    const wheel = (event: WheelEvent) => {
+      if (!event.ctrlKey) return;
+      event.preventDefault();
+      zoomAround(zoom * Math.exp(-event.deltaY * 0.002), anchorAt(event.clientX, event.clientY));
+    };
+    scroller.addEventListener("wheel", wheel, { passive: false });
+    return () => scroller?.removeEventListener("wheel", wheel);
+  });
+
   function worldPoint(event: PointerEvent) {
     const rect = svg!.getBoundingClientRect();
     return { x: (event.clientX - rect.left) / zoom, y: (event.clientY - rect.top) / zoom };
@@ -211,7 +350,7 @@
       cancelHold();
       dragging = press.node;
       frozen = { bounds: fitted, zoom };
-      onSelect(dragging === last ? { kind: "nozzle" } : { kind: "section", index: dragging - 1 });
+      onSelect(dragging === last ? { kind: "nozzle" } : { kind: "section", index: dragging - 1 }, false);
     }
     const i = dragging - 1;
     const p = worldPoint(event);
@@ -281,10 +420,27 @@
   const fittingX = (i: number) => (i === last ? -16 : i === 0 ? -2 : 4);
 </script>
 
-<svelte:window bind:innerHeight={windowHeight} bind:innerWidth={windowWidth} />
+<svelte:window
+  bind:innerHeight={windowHeight}
+  bind:innerWidth={windowWidth}
+  onpointermove={gestureMove}
+  onpointerup={gestureUp}
+  onpointercancel={gestureUp}
+/>
 
-<div class="canvas" style:--k={k}>
-  <div class="scroller" style:height={`${canvasHeight}px`} bind:this={scroller} bind:clientWidth={viewWidth} bind:clientHeight={viewHeight}>
+<div class="canvas" class:phone style:--k={k}>
+  <div
+    class="scroller"
+    class:grabbing
+    role="group"
+    aria-label="Lienzo: un dedo o arrastrar desplaza, dos dedos acercan"
+    style:height={phone ? undefined : `${canvasHeight}px`}
+    bind:this={scroller}
+    bind:clientWidth={viewWidth}
+    bind:clientHeight={viewHeight}
+    onpointerdown={gestureDown}
+    onclickcapture={swallowClick}
+  >
     <div class="stage" style:width={`${layout.widthPx * zoom}px`} style:height={`${layout.heightPx * zoom}px`}>
       <svg
         bind:this={svg}
@@ -453,13 +609,15 @@
 
         <!-- Gauges last, so they sit above everything -->
         {#each layout.nodes as n, i (i)}
-          <g transform={`translate(${i === 0 ? layout.xAt(-1.5) : n.x} ${(i === 0 ? layout.groundY - 4.6 * PX_PER_M : n.y) - (i === 0 ? 0 : 72 * k)}) scale(${k})`}>
+          {@const truckTop = layout.groundY - 3.2 * PX_PER_M}
+          <!-- The pump's gauge sits above the truck, its reading clear of the roof (UX.md §8.1). -->
+          <g transform={`translate(${i === 0 ? layout.xAt(-1.5) : n.x} ${i === 0 ? Math.min(layout.groundY - 4.6 * PX_PER_M, truckTop - 42 * gaugeK) : n.y - 72 * gaugeK}) scale(${gaugeK})`}>
             <Gauge psi={n.pressurePsi} />
           </g>
         {/each}
       </svg>
 
-      {#if selectedHose && dragging === null}
+      {#if selectedHose && dragging === null && !phone}
         {@const i = selectedHose.index}
         {@const s = scenario.sections[i]}
         {@const up = selectedHose.labelY * zoom + 34 + HOSE_BAR_PX > layout.heightPx * zoom}
@@ -483,7 +641,7 @@
         </div>
       {/if}
 
-      {#if selectedJoint && dragging === null && selection.kind === "joint"}
+      {#if selectedJoint && dragging === null && selection.kind === "joint" && !phone}
         {@const up = selectedJoint.y * zoom + 40 + HOSE_BAR_PX > layout.heightPx * zoom}
         <div class="hose-bar joint-bar" class:up style:left={`${selectedJoint.x * zoom}px`} style:top={`${selectedJoint.y * zoom + (up ? -30 : 30)}px`}>
           <JointControls {scenario} joint={selection.index} onToggle={(kind) => onToggleFitting(selection.index, kind)} />
@@ -502,6 +660,7 @@
   <button
     type="button"
     class="auto-fit"
+    hidden={phone}
     class:on={isAuto(scenario)}
     aria-pressed={isAuto(scenario)}
     onclick={() => onAutoFittings(!isAuto(scenario))}
@@ -511,7 +670,7 @@
       ⚠ Falta adaptador en {missing.map((j) => (j.index === 0 ? "la salida" : j.index === last ? "el pitón" : `acople ${j.index}`)).join(", ")}
     </button>
   {/if}
-  <span class="hint">Clic derecho o mantener pulsado: más opciones</span>
+  {#if !phone}<span class="hint">Clic derecho o mantener pulsado: más opciones</span>{/if}
   <span class="badge">1:1 · {Math.round(zoom * 100)} %{manualZoom === null ? " · auto" : ""}</span>
   <div class="zoom">
     <button type="button" aria-label="Alejar" onclick={() => setManualZoom(zoom / 1.25)}>−</button>
@@ -536,7 +695,11 @@
 
 <style>
   .canvas { position: relative; background: var(--surface); border-radius: var(--radius); overflow: hidden; }
-  .scroller { width: 100%; overflow: auto; transition: height 0.2s ease; }
+  .scroller { width: 100%; overflow: auto; transition: height 0.2s ease; touch-action: none; overscroll-behavior: contain; }
+  .scroller.grabbing { cursor: grabbing; }
+  .canvas.phone { height: 100%; display: flex; flex-direction: column; }
+  .canvas.phone .scroller { flex: 1; min-height: 0; transition: none; }
+  .canvas.phone .toolbar { padding: 6px 8px; }
   .stage { position: relative; }
   svg { display: block; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
   .band { fill: var(--band); }

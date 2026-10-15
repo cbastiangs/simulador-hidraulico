@@ -16,12 +16,15 @@
     floorM = 3,
     onchange,
     onSelect,
+    onEdit,
   }: {
     scenario: Scenario;
     selection: Selection;
     floorM?: number;
     onchange: (s: Scenario) => void;
     onSelect: (s: Selection) => void;
+    /** A structural edit (insert, split, join, remove) and what to select after it: its own undo step. */
+    onEdit: (next: Scenario, select?: Selection) => void;
   } = $props();
 
   const last = $derived(scenario.sections.length - 1);
@@ -124,9 +127,13 @@
       <p>{j === 0 ? "Entre la bomba y el tramo 1" : `Entre el tramo ${j} y el tramo ${j + 1}`} · arrastra el acople para moverlo</p>
     </header>
     <JointControls {scenario} joint={j} onToggle={(kind) => onchange(edit.toggleFitting(scenario, j, kind))} />
-    {#if j > 0}
-      <button type="button" class="secondary" onclick={() => onSelect({ kind: "section", index: j - 1 })}>Editar tramo {j}</button>
-    {/if}
+    <div class="actions">
+      <button type="button" class="secondary" onclick={() => onEdit(edit.insertSection(scenario, j), { kind: "section", index: j })}>+ Tramo aquí</button>
+      {#if j > 0}
+        <button type="button" class="secondary" onclick={() => onEdit(edit.mergeAtJoint(scenario, j), { kind: "section", index: j - 1 })}>Unir tramos</button>
+        <button type="button" class="secondary" onclick={() => onSelect({ kind: "section", index: j - 1 })}>Editar tramo {j}</button>
+      {/if}
+    </div>
   {:else}
     {@const i = selection.index}
     {@const s = scenario.sections[i]}
@@ -154,15 +161,16 @@
         ? "Largo fijo: arrastra el acople dentro del alcance de la manguera; la altura no puede superar su largo."
         : "Libre: arrastra el acople y la manguera se ajusta al largo necesario."}
     </p>
-    <button
-      type="button"
-      class="secondary"
-      disabled={scenario.sections.length <= 1}
-      onclick={() => {
-        onchange(edit.removeSection(scenario, i));
-        onSelect({ kind: "section", index: Math.max(0, i - 1) });
-      }}>Quitar tramo</button
-    >
+    <div class="actions">
+      <button type="button" class="secondary" onclick={() => onEdit(edit.insertSection(scenario, i + 1), { kind: "section", index: i + 1 })}>+ Tramo</button>
+      <button type="button" class="secondary" disabled={s.lengthM < 2} onclick={() => onEdit(edit.splitSection(scenario, i), { kind: "section", index: i })}>Dividir</button>
+      <button
+        type="button"
+        class="secondary danger"
+        disabled={scenario.sections.length <= 1}
+        onclick={() => onEdit(edit.removeSection(scenario, i), { kind: "section", index: Math.max(0, i - 1) })}>🗑 Quitar tramo</button
+      >
+    </div>
   {/if}
 </aside>
 
@@ -188,5 +196,7 @@
   details[open] { padding-bottom: 4px; }
   summary { cursor: pointer; color: var(--accent); font-size: 14px; margin-bottom: 10px; }
   .secondary { justify-self: start; min-height: 44px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); cursor: pointer; }
+  .actions { display: flex; flex-wrap: wrap; gap: 6px; }
+  .danger { color: var(--warn); }
   .secondary:disabled { opacity: 0.5; cursor: default; }
 </style>

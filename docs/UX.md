@@ -55,8 +55,10 @@
   the lay plus margins (12 m before the truck, 16 m after the nozzle for its
   stream), 50 m wide at least. The first fit is measured on mount, not
   assumed.
-- **Constant-size overlays.** Gauges, labels, handles and the nozzle keep
-  their screen size at any zoom; hoses and the engine scale with the world.
+- **Constant-size overlays.** Labels, handles and the nozzle keep their
+  screen size at any zoom; hoses and the engine scale with the world.
+  Gauges shrink with the zoom below 80 %, down to 75 % of their size (owner,
+  2026-10-15: at a fitted phone zoom full-size gauges covered the truck).
 - **Controls below the drawing,** never over it: zoom readout,
   − / + / Ajustar.
 - **Tap vs drag.** A press that moves less than 6 px is a tap: it selects
@@ -216,8 +218,8 @@ welcome tour is interactive.
 
 | Gesture | Desktop | Phone / tablet |
 |---|---|---|
-| Pan | drag empty canvas; wheel / trackpad | one finger on empty canvas or on a hose |
-| Zoom | Ctrl + wheel, pinch on trackpad, − / + | pinch, − / + |
+| Pan | drag empty canvas or a hose; wheel / trackpad | one finger on empty canvas or a hose; two fingers |
+| Zoom | Ctrl + wheel, pinch on trackpad, − / + | pinch (two fingers pan and zoom together), − / + |
 | Fit | "Ajustar" | "Ajustar", double tap on empty canvas |
 | Select | click | tap (moves < 6 px) |
 | Move a coupling or the nozzle | drag its handle | drag its handle, at once (no hold) |
@@ -229,11 +231,11 @@ welcome tour is interactive.
 - **On a phone the page does not scroll at all** (§4's layout, now
   required): the pump strip at the top, the canvas filling the rest, and a
   bottom sheet over it. Everything else lives in the sheet.
-- **Fit shows the whole lay, truck and nozzle included**, never starting
-  scrolled to one end; the vertical fit uses the lay's height, not the
-  whole building, and floors above are reached by panning. Below a
-  legible zoom (truck about 60 px long) it stops shrinking and the person
-  pans.
+- **Fit shows the whole lay, truck and nozzle included,** and a lay wider
+  than the canvas starts at the truck. A canvas taller than the lay adds
+  building above and ground below in equal parts, so the lay sits in the
+  middle, not at the foot. Detail is reached by pinching, not by a
+  minimum zoom.
 - **Gauges never cover the equipment.** The pump's gauge sits above the
   truck; the pump's pressure also stays in the top strip.
 

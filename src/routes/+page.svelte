@@ -1,11 +1,12 @@
 <script lang="ts">
-  import { parseScenario, solveScenario, type Scenario } from "$hydraulics/scenario.ts";
+  import { isAuto, parseScenario, solveScenario, type Scenario } from "$hydraulics/scenario.ts";
   import Breakdown from "$lib/components/Breakdown.svelte";
   import BudgetBar from "$lib/components/BudgetBar.svelte";
   import Canvas from "$lib/components/Canvas.svelte";
   import Concepts from "$lib/components/Concepts.svelte";
   import Inspector from "$lib/components/Inspector.svelte";
   import PumpPanel from "$lib/components/PumpPanel.svelte";
+  import Sheet, { CLOSED_PX, type SheetState } from "$lib/components/Sheet.svelte";
   import * as edit from "$lib/edit.ts";
   import type { Selection } from "$lib/selection.ts";
 
@@ -22,6 +23,22 @@
   // Replaced whole by each edit (lib/edit.ts), never mutated in place.
   let scenario: Scenario = $state.raw(presets[0].scenario);
   let selection: Selection = $state({ kind: "nozzle" });
+
+  // Phones (UX.md §8): the page does not scroll; a bottom sheet holds the
+  // inspector and results, and opens at peek when something is selected.
+  let windowWidth = $state(1200);
+  const phone = $derived(windowWidth < 600);
+  let sheet: SheetState = $state("closed");
+
+  function select(s: Selection, open = true) {
+    selection = s;
+    if (open && sheet === "closed") sheet = "peek";
+  }
+
+  function structural(next: Scenario, then?: Selection) {
+    apply(next);
+    if (then) select(then);
+  }
 
   // Undo and redo (UX.md §2). Every edit goes through `apply`; a burst of edits
   // with the same key (one drag, one typed field) is one step.
@@ -109,14 +126,42 @@
 </script>
 
 <svelte:head><title>Simulador hidráulico</title></svelte:head>
-<svelte:window onkeydown={onKey} />
+<svelte:window onkeydown={onKey} bind:innerWidth={windowWidth} />
 
-<div class="app">
+{#snippet side()}
+  <Inspector {scenario} {selection} onchange={(s) => apply(s, `inspector:${JSON.stringify(selection)}`)} onSelect={select} onEdit={structural} />
+  <button type="button" class="add" onclick={addSection}>+ Añadir tramo al final</button>
+  {#if phone}
+    <button type="button" class="add" onclick={() => apply(edit.setAutoFittings(scenario, !isAuto(scenario)))}>
+      Accesorios automáticos: {isAuto(scenario) ? "sí" : "no"}
+    </button>
+  {/if}
+{/snippet}
+
+{#snippet results()}
+  <div bind:this={budgetEl}><BudgetBar {result} {reference} /></div>
+  <details class="card">
+    <summary>Ver cálculo ({result.terms.length} fórmulas) · física y CGBVP 2019</summary>
+    <table>
+      <thead><tr><th></th><th>Física</th><th>CGBVP 2019 (ref.)</th></tr></thead>
+      <tbody>
+        <tr><td>Caudal</td><td>{result.flowGpm.toFixed(1)} gpm</td><td>{reference.flowGpm.toFixed(1)} gpm</td></tr>
+        <tr><td>Accesorios</td><td>{result.terms.some((t) => t.lawId === "appliance.fixed" && t.inputs.lossPsi === null) ? "sin dato" : `${result.fittingLossPsi.toFixed(1)} psi`}</td><td>{reference.fittingLossPsi.toFixed(1)} psi</td></tr>
+        <tr><td>Presión en pitón</td><td>{result.nozzlePressurePsi.toFixed(1)} psi</td><td>{reference.nozzlePressurePsi.toFixed(1)} psi</td></tr>
+        <tr><td>Presión requerida</td><td>{result.requiredPumpPressurePsi.toFixed(1)} psi</td><td>{reference.requiredPumpPressurePsi.toFixed(1)} psi</td></tr>
+      </tbody>
+    </table>
+    <Breakdown terms={result.terms} methodId={scenario.methodId} />
+  </details>
+  <Concepts {scenario} {result} />
+{/snippet}
+
+<div class="app" class:phone style:--sheet-closed={`${CLOSED_PX}px`}>
   <header class="top">
     <h1>Simulador hidráulico</h1>
     <div class="history">
-      <button type="button" onclick={undo} disabled={past.length === 0} title="Deshacer (Ctrl+Z)">↶ Deshacer</button>
-      <button type="button" onclick={redo} disabled={future.length === 0} title="Rehacer (Ctrl+Shift+Z)">↷ Rehacer</button>
+      <button type="button" onclick={undo} disabled={past.length === 0} aria-label="Deshacer" title="Deshacer (Ctrl+Z)">↶<span class="word"> Deshacer</span></button>
+      <button type="button" onclick={redo} disabled={future.length === 0} aria-label="Rehacer" title="Rehacer (Ctrl+Shift+Z)">↷<span class="word"> Rehacer</span></button>
     </div>
     <select value={presetId} onchange={(e) => choosePreset(e.currentTarget.value)} aria-label="Escenario inicial">
       {#each presets as p (p.id)}<option value={p.id}>{p.scenario.name}</option>{/each}
@@ -130,8 +175,10 @@
       {scenario}
       {result}
       {selection}
+      {phone}
       resetKey={`${presetId}#${loads}`}
-      onSelect={(s) => (selection = s)}
+      onSelect={select}
+      onTapEmpty={() => (sheet = "closed")}
       onMove={(i, runM, elevationM) => apply(edit.moveCoupling(scenario, i, { runM, elevationM }), `move:${i}`)}
       onToggleLock={(i) => apply(edit.toggleLengthLock(scenario, i))}
       onHoseSize={(i, id) => apply(edit.setSectionHose(scenario, i, id))}
@@ -139,38 +186,23 @@
       onToggleFitting={(j, kind) => apply(edit.toggleFitting(scenario, j, kind))}
       onAutoFittings={(on) => apply(edit.setAutoFittings(scenario, on))}
       onToggleNozzle={() => apply(edit.setNozzleOpen(scenario, !scenario.nozzle.open))}
-      onEdit={(next, select) => {
-        apply(next);
-        if (select) selection = select;
-      }}
+      onEdit={structural}
     />
   </div>
 
-  <div class="side">
-    <Inspector {scenario} {selection} onchange={(s) => apply(s, `inspector:${JSON.stringify(selection)}`)} onSelect={(s) => (selection = s)} />
-    <button type="button" class="add" onclick={addSection}>+ Añadir tramo al final</button>
-  </div>
-
-  <div class="results">
-    <div bind:this={budgetEl}><BudgetBar {result} {reference} /></div>
-    <details class="card">
-      <summary>Ver cálculo ({result.terms.length} fórmulas) · física y CGBVP 2019</summary>
-      <table>
-        <thead><tr><th></th><th>Física</th><th>CGBVP 2019 (ref.)</th></tr></thead>
-        <tbody>
-          <tr><td>Caudal</td><td>{result.flowGpm.toFixed(1)} gpm</td><td>{reference.flowGpm.toFixed(1)} gpm</td></tr>
-          <tr><td>Accesorios</td><td>{result.terms.some((t) => t.lawId === "appliance.fixed" && t.inputs.lossPsi === null) ? "sin dato" : `${result.fittingLossPsi.toFixed(1)} psi`}</td><td>{reference.fittingLossPsi.toFixed(1)} psi</td></tr>
-          <tr><td>Presión en pitón</td><td>{result.nozzlePressurePsi.toFixed(1)} psi</td><td>{reference.nozzlePressurePsi.toFixed(1)} psi</td></tr>
-          <tr><td>Presión requerida</td><td>{result.requiredPumpPressurePsi.toFixed(1)} psi</td><td>{reference.requiredPumpPressurePsi.toFixed(1)} psi</td></tr>
-        </tbody>
-      </table>
-      <Breakdown terms={result.terms} methodId={scenario.methodId} />
-    </details>
-    <Concepts {scenario} {result} />
-  </div>
+  {#if !phone}
+    <div class="side">{@render side()}</div>
+    <div class="results">{@render results()}</div>
+  {/if}
 </div>
 
-{#if !budgetVisible}
+{#if phone}
+  <Sheet {sheet} onSheet={(s) => (sheet = s)}>
+    {#snippet summary()}<BudgetBar {result} {reference} compact />{/snippet}
+    {@render side()}
+    {@render results()}
+  </Sheet>
+{:else if !budgetVisible}
   <div class="dock"><BudgetBar {result} {reference} compact /></div>
 {/if}
 
@@ -210,9 +242,20 @@
     .app { grid-template-columns: minmax(0, 1fr); grid-template-areas: "top" "pump" "canvas" "side" "results"; }
     
   }
-  @media (max-width: 599px) {
-    .app { padding: 8px 8px 90px; gap: 8px; grid-template-areas: "top" "pump" "canvas" "results" "side"; }
-    
-    .side :global(.inspector) { border-radius: 16px 16px 0 0; box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.12); }
+  /* Phones (UX.md §8): one screen, no page scroll; the sheet sits below the canvas. */
+  .app.phone {
+    height: 100dvh;
+    overflow: hidden;
+    padding: 8px 8px calc(var(--sheet-closed) + 4px);
+    gap: 6px;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "top" "pump" "canvas";
+    grid-template-rows: auto auto minmax(0, 1fr);
   }
+  .app.phone .top { flex-wrap: nowrap; }
+  .app.phone .top h1, .app.phone .word { display: none; }
+  .app.phone .history { order: 2; margin-left: 0; }
+  .app.phone .history button { min-width: 44px; padding: 0; font-size: 20px; }
+  .app.phone .top select { flex: 1; min-width: 0; }
+  .app.phone .canvas { min-height: 0; }
 </style>

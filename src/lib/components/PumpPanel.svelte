@@ -35,7 +35,7 @@
     onchange={(p) => onchange(edit.setSourcePressure(scenario, p))}
   />
   <button class="chip" type="button" onclick={() => onchange(edit.setSourcePressure(scenario, result.requiredPumpPressurePsi))}>
-    Aplicar requerida · {f(result.requiredPumpPressurePsi)} psi
+    <span class="long">Aplicar requerida · </span><span class="short">Requerida </span>{f(result.requiredPumpPressurePsi)}<span class="long"> psi</span>
   </button>
   <div class="flow" aria-live="polite">
     <div class="big">{f(result.flowGpm)} <small>gpm</small></div>
@@ -58,10 +58,13 @@
   .big { font-size: 34px; font-weight: 800; line-height: 1; }
   .big small { font-size: 15px; color: var(--panel-muted); font-weight: 600; }
   .state { border-radius: 999px; padding: 5px 12px; font-size: 13px; font-weight: 600; background: var(--ok-bg); color: var(--ok-ink); }
+  .short { display: none; }
   .state.warn { background: #5c1d1d; color: #ffc9c9; }
   @media (max-width: 600px) {
-    .dial, .title, .chip { display: none; }
+    .dial, .title, .long { display: none; }
+    .chip { padding: 6px 10px; font-size: 13px; }
     .pump { padding: 8px 10px; gap: 8px; }
     .big { font-size: 28px; }
+    .short { display: inline; }
   }
 </style>
