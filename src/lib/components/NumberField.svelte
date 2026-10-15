@@ -10,6 +10,7 @@
     digits = 1,
     dark = false,
     hideLabel = false,
+    compact = false,
     onchange,
   }: {
     label: string;
@@ -20,13 +21,15 @@
     digits?: number;
     dark?: boolean;
     hideLabel?: boolean;
+    /** Narrower input, for the phone's pump strip. */
+    compact?: boolean;
     onchange: (value: number) => void;
   } = $props();
 
   const round = (n: number) => Number(n.toFixed(digits));
 </script>
 
-<div class="field" class:dark>
+<div class="field" class:dark class:compact>
   {#if !hideLabel}<span class="label">{label}</span>{/if}
   <div class="row">
     {#if bigStep}<button type="button" onclick={() => onchange(round(value - bigStep.size))}>−{bigStep.label}</button>{/if}
@@ -61,4 +64,6 @@
   .dark button:active { background: var(--panel-line); }
   .dark input { background: var(--panel-well); border-color: var(--panel-line); color: var(--panel-ink); font-size: 20px; width: 6.5rem; }
   .dark .unit { color: var(--panel-muted); }
+  .compact input { width: 4.6rem; padding: 0 6px; }
+  .compact .unit { margin: 0; font-size: 13px; }
 </style>

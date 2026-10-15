@@ -1,7 +1,7 @@
 <script lang="ts">
   import { tick } from "svelte";
   import { HOSE_SIZES, type FittingKind } from "$hydraulics/references.ts";
-  import { isAuto, joints, type Scenario } from "$hydraulics/scenario.ts";
+  import { joints, type Scenario } from "$hydraulics/scenario.ts";
   import type { SeriesResult } from "$hydraulics/series.ts";
   import {
     PX_PER_M,
@@ -40,9 +40,9 @@
     onHoseSize,
     onLength,
     onToggleFitting,
-    onAutoFittings,
     onEdit,
     phone = false,
+    wide = false,
     onTapEmpty,
     onDeselect,
   }: {
@@ -63,12 +63,12 @@
     onLength: (sectionIndex: number, lengthM: number) => void;
     /** Place or remove a fitting at a joint (0 = pump outlet). */
     onToggleFitting: (joint: number, kind: FittingKind) => void;
-    /** "Accesorios automáticos" on or off (UX.md §2). */
-    onAutoFittings: (on: boolean) => void;
     /** A structural edit (insert, split, join, remove), and what to select after it. */
     onEdit: (next: Scenario, select?: Selection) => void;
     /** Phone layout (UX.md §8): the canvas fills its container and the bottom sheet replaces the floating toolbars. */
     phone?: boolean;
+    /** Desktop three-column layout (UX.md §4): the canvas takes the window's height. */
+    wide?: boolean;
     /** A tap on empty canvas (the phone's sheet closes). */
     onTapEmpty?: () => void;
     /** The floating toolbars' ×. */
@@ -80,7 +80,6 @@
   let viewWidth = $state(0);
   let viewHeight = $state(0);
   let windowHeight = $state(800);
-  let windowWidth = $state(1200);
   let scroller: HTMLDivElement | undefined = $state();
   /** Below this the constant-size gauges crowd each other; the canvas scrolls sideways instead. */
   const MIN_FIT_ZOOM = 0.12;
@@ -115,9 +114,9 @@
   const fitted = $derived(fitBounds(scenario.sections, floorM));
   // The canvas takes the height the window has (UX.md §2): the lay sits on the
   // ground at the bottom and the rest is building above it, so a rising hose
-  // can be dragged up. Side by side, the page above the canvas is about 240 px and the floating pressure bar (page) 70 px.
+  // can be dragged up. Side by side, the header above the canvas and its toolbar take about 150 px and the floating pressure bar 70 px.
   const canvasHeight = $derived(
-    phone ? Math.max(200, viewHeight) : Math.max(260, windowWidth >= 1024 ? windowHeight - 310 : windowHeight * 0.5),
+    phone ? Math.max(200, viewHeight) : Math.max(260, wide ? windowHeight - 220 : windowHeight * 0.5),
   );
   const fitZoom = $derived.by(() => {
     if (viewWidth === 0) return 1;
@@ -425,7 +424,6 @@
 
 <svelte:window
   bind:innerHeight={windowHeight}
-  bind:innerWidth={windowWidth}
   onpointermove={gestureMove}
   onpointerup={gestureUp}
   onpointercancel={gestureUp}
@@ -662,14 +660,6 @@
   </div>
   <!-- Controls live below the drawing, never over it. -->
   <div class="toolbar">
-  <button
-    type="button"
-    class="auto-fit"
-    hidden={phone}
-    class:on={isAuto(scenario)}
-    aria-pressed={isAuto(scenario)}
-    onclick={() => onAutoFittings(!isAuto(scenario))}
-  >Accesorios automáticos: {isAuto(scenario) ? "sí" : "no"}</button>
   {#if missing.length > 0}
     <button type="button" class="missing-note" onclick={() => onSelect({ kind: "joint", index: missing[0].index })}>
       ⚠ Falta adaptador en {missing.map((j) => (j.index === 0 ? "la salida" : j.index === last ? "el pitón" : `acople ${j.index}`)).join(", ")}
@@ -748,8 +738,7 @@
   .len { font-weight: 700; min-width: 3.5rem; text-align: center; }
   .toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 8px 10px; border-top: 1px solid var(--line); }
   .badge { font-size: 12px; color: var(--muted); margin-left: auto; }
-  .auto-fit, .missing-note { min-height: 44px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); font-weight: 600; font-size: 13px; cursor: pointer; }
-  .auto-fit.on { border-color: var(--fitting); color: var(--fitting); }
+  .missing-note { min-height: 44px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); font-weight: 600; font-size: 13px; cursor: pointer; }
   .missing-note { border-color: var(--warn); color: var(--warn); }
   .joint-bar { justify-items: stretch; padding: 10px; }
   .hose-bar { padding-right: 34px; }

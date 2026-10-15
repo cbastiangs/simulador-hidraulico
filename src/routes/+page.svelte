@@ -27,8 +27,34 @@
 
   // Phones (UX.md §8): the page does not scroll; a bottom sheet holds the
   // inspector and results, and opens at peek when something is selected.
-  let windowWidth = $state(1200);
-  const phone = $derived(windowWidth < 600);
+  // Read from media queries, not innerWidth: a phone can report its 980 px
+  // layout width when the page starts and send no resize once it settles.
+  let phone = $state(false);
+  // Desktop (UX.md §4): pump panel in a left column beside the truck, selection on the right.
+  let wide = $state(false);
+  $effect(() => {
+    const queries = [matchMedia("(max-width: 599.98px)"), matchMedia("(min-width: 1024px)")];
+    const sync = () => ([phone, wide] = queries.map((q) => q.matches));
+    sync();
+    queries.forEach((q) => q.addEventListener("change", sync));
+    return () => queries.forEach((q) => q.removeEventListener("change", sync));
+  });
+  let pumpFolded = $state(false);
+  $effect(() => {
+    try {
+      const stored = localStorage.getItem("panel.pump");
+      // Under 1280 px an open pump column leaves the canvas too narrow: it starts folded.
+      pumpFolded = stored ? stored === "folded" : !matchMedia("(min-width: 1280px)").matches;
+    } catch {
+      pumpFolded = !matchMedia("(min-width: 1280px)").matches;
+    }
+  });
+  function foldPump(folded: boolean) {
+    pumpFolded = folded;
+    try {
+      localStorage.setItem("panel.pump", folded ? "folded" : "open");
+    } catch {}
+  }
   let sheet: SheetState = $state("closed");
 
   function select(s: Selection, open = true) {
@@ -135,16 +161,20 @@
 </script>
 
 <svelte:head><title>Simulador hidráulico</title></svelte:head>
-<svelte:window onkeydown={onKey} bind:innerWidth={windowWidth} />
+<svelte:window onkeydown={onKey} />
+
+{#snippet line()}
+  <section class="line-tools" aria-label="Línea">
+    <button type="button" class="add" onclick={addSection}>+ Añadir tramo al final</button>
+    <button type="button" class="add" class:on={isAuto(scenario)} aria-pressed={isAuto(scenario)} onclick={() => apply(edit.setAutoFittings(scenario, !isAuto(scenario)))}>
+      Accesorios automáticos: {isAuto(scenario) ? "sí" : "no"}
+    </button>
+  </section>
+{/snippet}
 
 {#snippet side()}
   <Inspector {scenario} {selection} onClose={deselect} onchange={(s) => apply(s, `inspector:${JSON.stringify(selection)}`)} onSelect={select} onEdit={structural} />
-  <button type="button" class="add" onclick={addSection}>+ Añadir tramo al final</button>
-  {#if phone}
-    <button type="button" class="add" onclick={() => apply(edit.setAutoFittings(scenario, !isAuto(scenario)))}>
-      Accesorios automáticos: {isAuto(scenario) ? "sí" : "no"}
-    </button>
-  {/if}
+  {#if !wide}{@render line()}{/if}
 {/snippet}
 
 {#snippet results()}
@@ -165,7 +195,7 @@
   <Concepts {scenario} {result} />
 {/snippet}
 
-<div class="app" class:phone style:--sheet-closed={`${CLOSED_PX}px`}>
+<div class="app" class:phone class:wide class:folded={pumpFolded} style:--sheet-closed={`${CLOSED_PX}px`}>
   <header class="top">
     <h1>Simulador hidráulico</h1>
     <div class="history">
@@ -177,7 +207,10 @@
     </select>
   </header>
 
-  <div class="pump"><PumpPanel {scenario} {result} onchange={(s) => apply(s, "pump")} /></div>
+  <div class="pump">
+    <PumpPanel {scenario} {result} onchange={(s) => apply(s, "pump")} column={wide} collapsed={pumpFolded} onCollapse={foldPump} strip={phone} onOpen={() => select({ kind: "pump" })} />
+    {#if wide && !pumpFolded}{@render line()}{/if}
+  </div>
 
   <div class="canvas">
     <Canvas
@@ -185,6 +218,7 @@
       {result}
       {selection}
       {phone}
+      {wide}
       resetKey={`${presetId}#${loads}`}
       onSelect={select}
       onTapEmpty={deselect}
@@ -194,7 +228,6 @@
       onHoseSize={(i, id) => apply(edit.setSectionHose(scenario, i, id))}
       onLength={(i, m) => apply(edit.setSectionLength(scenario, i, m), `length:${i}`)}
       onToggleFitting={(j, kind) => apply(edit.toggleFitting(scenario, j, kind))}
-      onAutoFittings={(on) => apply(edit.setAutoFittings(scenario, on))}
       onToggleNozzle={() => apply(edit.setNozzleOpen(scenario, !scenario.nozzle.open))}
       onEdit={structural}
     />
@@ -209,7 +242,13 @@
 {#if phone}
   <Sheet {sheet} onSheet={(s) => (sheet = s)}>
     {#snippet summary()}<BudgetBar {result} {reference} compact />{/snippet}
-    {@render side()}
+    {#if selection?.kind === "pump"}
+      <!-- The phone's pump strip is a summary; the whole panel opens here (UX.md §8.2). -->
+      <PumpPanel {scenario} {result} onchange={(s) => apply(s, "pump")} column onClose={deselect} />
+      {@render line()}
+    {:else}
+      {@render side()}
+    {/if}
     {@render results()}
   </Sheet>
 {:else if !budgetVisible}
@@ -224,10 +263,17 @@
     padding: var(--gap) var(--gap) 90px;
     max-width: 2000px;
     margin: 0 auto;
-    grid-template-columns: minmax(0, 1fr) 340px;
-    grid-template-areas: "top top" "pump pump" "canvas side" "results side";
-    grid-template-rows: auto auto auto 1fr;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "top" "pump" "canvas" "side" "results";
   }
+  /* Desktop: pump | canvas and results | selection; the side columns stay in view while the results scroll. */
+  .app.wide {
+    grid-template-columns: 300px minmax(0, 1fr) 340px;
+    grid-template-areas: "top top top" "pump canvas side" "pump results side";
+    grid-template-rows: auto auto 1fr;
+  }
+  .app.wide.folded { grid-template-columns: 64px minmax(0, 1fr) 340px; }
+  .app.wide .pump, .app.wide .side { position: sticky; top: var(--gap); align-self: start; max-height: calc(100dvh - 2 * var(--gap)); overflow: auto; }
   .dock { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; padding: 8px var(--gap) calc(8px + env(safe-area-inset-bottom)); background: var(--bg); box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.15); }
   .dock > :global(*) { max-width: 1976px; margin: 0 auto; }
   .top { grid-area: top; display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; justify-content: space-between; }
@@ -236,7 +282,9 @@
   .history button { height: 44px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); font-weight: 600; cursor: pointer; }
   .history button:disabled { opacity: 0.4; cursor: default; }
   .top select { height: 44px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); padding: 0 10px; max-width: 100%; }
-  .pump { grid-area: pump; }
+  .pump { grid-area: pump; display: grid; gap: var(--gap); align-content: start; }
+  .line-tools { display: grid; gap: 8px; }
+  .add.on { border-color: var(--fitting); color: var(--fitting); }
   .canvas { grid-area: canvas; min-width: 0; }
   .side { grid-area: side; display: grid; gap: var(--gap); align-content: start; }
   .results { grid-area: results; display: grid; gap: var(--gap); min-width: 0; }
@@ -248,10 +296,6 @@
   td, th { padding: 6px 8px; text-align: right; border-bottom: 1px solid var(--line); }
   td:first-child, th:first-child { text-align: left; }
 
-  @media (max-width: 1023px) {
-    .app { grid-template-columns: minmax(0, 1fr); grid-template-areas: "top" "pump" "canvas" "side" "results"; }
-    
-  }
   /* Phones (UX.md §8): one screen, no page scroll; the sheet sits below the canvas. */
   .app.phone {
     height: 100dvh;

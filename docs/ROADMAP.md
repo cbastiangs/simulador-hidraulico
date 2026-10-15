@@ -144,6 +144,18 @@ down; opening an outlet makes the pump pressure sag in RPM mode, or the
 governor hold it until capacity runs out; the tank empties at the current
 flow.
 
+**On screen (owner, 2026-10-16):** the truck lives in the pump panel (UX.md
+§4), a full panel rather than a bar, in this order: **Camión** (pick a truck
+file; built-in trucks are read-only and "Clonar" makes an editable copy, the
+same rule as methods), **Bomba** (discharge pressure, apply required, flow
+and its share of the pump's capacity, the pump × line chart), **Control**
+(pressure governor or RPM mode only, for now: no relief valve, which would
+need its own law in `MODEL.md` first), **Descargas** (each outlet: size,
+fittings, valve open or shut, which line it feeds), **Abastecimiento** (tank,
+time left). The panel's structure ships with the polish (Bomba and one
+discharge, with what the engine has today); each M3 section joins it when
+its engine work lands, never shown greyed out before.
+
 M11-1 and M11-5 become two files once their pump specs are known. A generic
 1000 gpm pump ships first, labelled generic.
 

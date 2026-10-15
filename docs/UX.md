@@ -76,7 +76,7 @@
   inspector panel, since tapping the nozzle works the bale. Fittings are drawn
   at the joint in their own colour and move with it. An adapter is only
   offered where coupling sizes differ. No loose items and no toolbox drag for
-  now. **Accesorios automáticos** (a switch under the canvas, on by default):
+  now. **Accesorios automáticos** (a switch in the Línea section, §4; on by default):
   on, every mismatch gets an adapter, drawn dashed and not removable while the
   switch is on; off, adapters are placed by hand (turning it off keeps the
   ones it had derived), and a mismatch without one shows a red "!" at the
@@ -159,18 +159,40 @@
   - **Stream:** grows and collapses with the flow; shape follows the
     pattern.
 - **Pump panel:** discharge gauge, pressure (typed, ±1, ±10, slider), the
-  "apply required pressure" control, and the flow, large.
+  "apply required pressure" control, and the flow, large; the outlets
+  below; truck, governor and tank with M3 (§4, ROADMAP §6).
 - **Controls:** no unstyled browser defaults in the main UI. Segmented
   controls for small choice sets, ± steppers for numbers, sheets or side
   panels for inspectors.
 
 ## 4. Layout
 
-| Width | Pump panel | Canvas | Inspector | Results and formulas |
+| Width | Pump panel | Canvas | Selection (inspector) | Results and formulas |
 |---|---|---|---|---|
-| ≥ 1024 px | top bar | centre | right column | below canvas, collapsible |
+| ≥ 1024 px | left column, foldable to a rail | centre | right column | below canvas, collapsible |
 | 600–1023 px | top bar | full width | below canvas | below inspector |
-| < 600 px | compact strip (pressure, flow) | full width, the rest of the screen; the page does not scroll (§8) | bottom sheet that slides up on selection (§8.2) | in the sheet, collapsible |
+| < 600 px | one-row strip (pressure ±, flow); tapping the flow opens the whole panel in the sheet | full width, the rest of the screen; the page does not scroll (§8) | bottom sheet that slides up on selection (§8.2) | in the sheet, collapsible |
+
+**Panels (owner, 2026-10-16).**
+
+- **The truck is always at the canvas's left edge** and water reads left to
+  right, so the pump panel sits on the left, beside it. Its side is fixed;
+  swapping sides is a grid change if testers ask for it.
+- **Pump panel (left):** the truck and pump configuration, sections in
+  ROADMAP §6's order; today Bomba (gauge, pressure, apply required, flow,
+  state) and Descargas (the one outlet: size, fittings). Below it, **Línea**:
+  settings for the whole line (add a hose at the end, automatic fittings;
+  the method picker joins here). On tablets Línea sits under the inspector;
+  on phones, in the sheet.
+- **Fold:** "◂" folds the pump panel to a 64 px rail (mini gauge, psi, gpm);
+  "▸" opens it. Remembered per browser; with no choice stored it starts
+  folded under 1280 px, where an open column leaves the canvas too narrow.
+- **Selection panel (right):** never hidden, so selecting does not resize
+  and refit the canvas; shows "Nada seleccionado" and the parts list when
+  nothing is (§2).
+- Both side columns stay in view while the results below the canvas scroll.
+- Layout follows media queries, not `innerWidth`: a phone can report its
+  980 px layout width while loading and never send a resize.
 
 ## 5. Visual style
 
