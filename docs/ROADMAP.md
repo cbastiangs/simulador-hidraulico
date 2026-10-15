@@ -1,9 +1,10 @@
 # Roadmap
 
 > 2026-10-14. Sets what the simulator is, how it is built, and the order of
-> work. `PLAN-simulador.md` stays the authority on the hydraulic model,
-> constants and sources (§2–§4, §6). Its sequencing (§9) and fd-app plumbing
-> (§1, §5, §8) are superseded here wherever the two disagree.
+> work. `MODEL.md` is the authority on the hydraulic model, constants and
+> sources; `PLAN-simulador.md` stays the historical record (its §2–§4, §6
+> are now `MODEL.md`). Its sequencing (§9) and fd-app plumbing (§1, §5, §8)
+> are superseded here wherever the two disagree.
 
 ## 1. What it is
 
@@ -40,11 +41,15 @@ demonstrable in a few taps from a preset.
 
 **Keep:**
 
-- **Flow is solved, never typed in** (PLAN §2). It is the core of the
-  flow-vs-pressure idea.
+- **Flow is solved, never typed in** (PLAN §2; `MODEL.md` §1–§2). The solver
+  returns the **delivered** flow; a **target** flow used for planning rides
+  the same pressure budget and never becomes an input to the forward solve.
+  It is the core of the flow-vs-pressure idea.
 - **Element laws solved together**; the pressure budget (PDP = NP + FL + EP
   + appliances) is a main visual.
-- **Methods swap constants, never laws** (`cgbvp-2019` vs `physical`).
+- **Methods are selectable, sourced profiles** (plus user-defined ones);
+  `cgbvp-2019` is a read-only comparison, never a selectable preset
+  (`MODEL.md` §4).
 - **Pure TypeScript engine, tested against published tables.**
 - **Station units inside** (m, in, psi, gpm; laws convert their own published
   constants), other display units at the screen's edge.
@@ -147,11 +152,24 @@ M11-1 and M11-5 become two files once their pump specs are known. A generic
 ### 7.1 Element laws + solver
 
 Each element reports Δp(Q) (hose, coupling, appliance, nozzle, valve) or
-p(Q) (pump). All are monotone in Q. A single path is solved by bisection on
-Q; a tree from one pump by bisection on pump pressure with each branch
-solved inside it. `solveAttackLine` stays as a wrapper and its closed form
-as the test oracle. EPANET stays the oracle for true networks later
-(PLAN §6).
+p(Q) (pump). The equations are the steady-state, pressure-dependent,
+conservation-based hydraulics of EPA's EPANET manual (`MODEL.md` §2); the
+algorithm is separate. For a supported law the residual is continuous and,
+in the supported regime, strictly monotone, so a **sign-changing bracket**
+gives a unique root — the condition bisection needs (`MODEL.md` §2).
+**Default lane:** a single path is solved by bisection on Q; a tree from one
+pump by nested bisection. `solveAttackLine` stays as a wrapper and its
+closed form as the test oracle. The future EPANET-style **Global Gradient
+Algorithm (GGA)** is planned **only** for general networks (loops,
+reconverging feeds) and is **not implemented now**; the tree solver is not
+in the runtime yet either (`MODEL.md` §2).
+
+The **target-flow planning direction** (`MODEL.md` §2) is planned
+on the same equations: evaluate `P_required(Q_target)` from the same budget
+and, once pump limits exist (M3), solve the actual delivered flow the source
+sustains — flow stays the output. Before the stepped `us-training` forward
+solve ships, the solver must handle its no-root gap as an unsatisfied balance
+rather than returning an exact root (`MODEL.md` §2, §3.10).
 
 ### 7.2 Nozzles
 
@@ -167,12 +185,16 @@ Envelope, outlets, discharge valves, governor modes, tank.
 
 ### 7.4 Branching
 
-Wyes, siamese, reducers and couplings. Under `cgbvp-2019`, fixed losses (p.
-45: 5/10/25/40 psi). Under `us-training`, the Colorado chart's stepped rule
-(MODEL.md §3.10). Under `physical`, a K or manufacturer curve once a source
-is chosen. **In-line fittings (reducer, adapter, valve) come first, before
-branching** (§11, decision 5): they are a fixed series loss and need no tree
-solver.
+Wyes, siamese, reducers and couplings. The default (`physical`) uses
+**equipment-specific data**: a sourced K or manufacturer ΔP–Q curve for the
+actual device, else explicitly unmodelled ("sin dato" — not a measured
+zero). `cgbvp-2019` (fixed losses, p. 45: 5/10/25/40 psi) and `us-training`
+(the Colorado chart's stepped rule, `MODEL.md` §3.10) are training
+**conventions**. The stepped rule is a discontinuity: a forward-flow
+simulation must report a gap where no root exists rather than silently
+returning one (`MODEL.md` §2, §3.10). **In-line fittings (reducer, adapter,
+valve) come first, before branching** (§11, decision 5): they are a series
+loss and need no tree solver.
 
 ### 7.4b Standpipes
 
@@ -327,9 +349,14 @@ automatic nozzles, branching.
    editable in the app; a user's edits live in the scenario document. Linking
    to fd-app's station data comes later. Every built-in names its source, or
    says "generic" when it has none.
-3. **Method:** `physical` is the default; `cgbvp-2019` is always shown beside
-   it as the reference, with the difference. **Every number the app shows can
-   name its source** (`references.ts` SOURCES; a "Fuentes" panel in the app).
+3. **Method:** the default is the simulator model (`physical`, legacy id), a
+   source-based descriptive default ("Modelo del simulador"; `MODEL.md` §4).
+   Selectable: `physical`, `us-training` (Colorado DFPC 2020) and user-defined
+   methods — **planned design**, not runtime state (only `physical` and
+   `cgbvp-2019` are implemented). `cgbvp-2019` is always shown beside the
+   selection as a **read-only comparison**, never a selectable preset.
+   **Every number the app shows can name its source** (`references.ts`
+   SOURCES; a "Fuentes" panel in the app).
 4. **Hosting and licence:** deferred.
 
 ### Fittings and methods (owner, 2026-10-15)
@@ -345,13 +372,25 @@ automatic nozzles, branching.
    by hand; a mismatch without one is flagged and no water flows until you
    place it. Presets and first load
    use on; an off-by-default challenge mode may come later.
-7. **Third method, `us-training`:** the US teaching model (Colorado DFPC
-   pump chart: 0.5 psi/ft elevation, 0/10 psi appliances at 350 gpm, 25 psi
-   master streams and standpipes). Selectable beside `physical` and
-   `cgbvp-2019`; the reference shown beside the selection stays `cgbvp-2019`.
-   Labelled a training convention: the web search found no measured data for
-   wyes, siamese, reducers or valves, only for monitors and eductors
-   (MODEL.md §9). Not combined per constant: a method is a bundle.
+7. **US training profile, `us-training`: adopted** (owner, 2026-10-15). The
+   US teaching model, `published` to the **Colorado DFPC Driver/Operator
+   Pumper Chart, January 2020, p. 1** — the primary chart, not a secondary
+   summary or a generic "certified IFSTA" model (`MODEL.md` §3.10, §4;
+   [E15]). Its clauses: elevation 0.5 psi/ft; generic appliances 0 psi up to
+   350 gpm then 10 psi (strictly `> 350`); master stream and aerial waterway
+   25 psi each; **standpipe a whole-system allowance of 25 psi**, independent
+   of floors (elevation separate). The 10 psi is a training allowance, not a
+   universal physical loss, and the profile covers only the components §3.10
+   lists. Selectable beside `physical`; the reference shown beside the
+   selection stays `cgbvp-2019` and is read-only. Measured data is thin and
+   device-specific (monitors, eductors, and one wildland wye test;
+   `MODEL.md` §9), so the default `physical` uses equipment-specific data and
+   leaves unknown losses explicitly unmodelled rather than assuming zero,
+   and it never silently swaps in a training allowance (`MODEL.md` §4). A
+   user may clone and edit any profile, including its per-component supported
+   rules or values, with the versioned full configuration saved in the
+   scenario document. This is planned design; only `physical` and
+   `cgbvp-2019` are implemented.
 
 ### Extinguishment (owner, 2026-10-15)
 

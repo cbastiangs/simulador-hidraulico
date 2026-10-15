@@ -919,9 +919,12 @@ Priority data collection:
 https://www.epa.gov/water-research/epanet  
 Supports use of network conservation, pipe head-loss laws, minor losses, pumps, valves, tanks/reservoirs, pressure-dependent demands and emitters.
 
-**[E2] US EPA — EPANET 2.2 User Manual.**  
-https://nepis.epa.gov/Exe/ZyPURL.cgi?Dockey=P10113EM.TXT  
-Supports `q = C p^γ` emitters with γ≈0.5 for nozzles/sprinklers, pipe head-loss options, pump curves and coupled hydraulic solving.
+**[E2] US EPA — EPANET 2.2 User Manual (2020).**\
+https://nepis.epa.gov/Exe/ZyPURL.cgi?Dockey=P10113EM.TXT (old NEPIS copy)\
+Official chapter pages:\
+https://usepa.github.io/EPANET2.2/3_network_model.html — §3.1 emitters `q = C p^γ`, γ ≈ 0.5 for nozzles (an open nozzle uses the emitter, not a capped municipal pressure-dependent demand); empirical pipe coefficients; minor losses `h_L = K·v²/(2g)` and table 3.3; GPV headloss curves; §3.3 mass and energy conservation.\
+https://usepa.github.io/EPANET2.2/12_analysis_algorithms.html — §12.1 eq. 12.1–12.4 (link headloss/energy and node continuity), the Global Gradient Algorithm, residual/convergence checks.\
+EPA is the hydraulic **framework** source (equations and algorithm structure); it is not the source of the fire-service coefficients above, and it supplies **no 10/25 psi appliance numbers**.
 
 **[E3] Hydraulic Institute — Pump Principles / NPSH.**  
 https://datatool.pumps.org/pump-fundamentals/pump-principles  
@@ -935,6 +938,12 @@ Gives `NR = 1.57 D² NP` for smooth bore and `NR = 0.0505 GPM√NP` for fog/comb
 **[E5] Elkhart Brass — technical/performance data.**  
 https://elkhartbrass.com/wp-content/uploads/catalog-f9-T-G.pdf  
 https://old.elkhartbrass.com/downloads.php?d=performance  
+Wye ΔP–Q charts (2.5″ inlet × two 1.5″ outlets), both ports /
+one port:\
+https://elkhartbrass.com/wp-content/uploads/B100B100AB100NBOTH-PORTS.pdf\
+https://elkhartbrass.com/wp-content/uploads/B100B100AB100NONE-PORT.pdf\
+Method note (total static pressure drop, ΔP_S = H_F + ΔP_V):\
+https://old.elkhartbrass.com/files/aa/downloads/performance/Interpreting%20Flow%20Data.pdf\
 Supports smooth-bore discharge relation and use of product-specific pressure-loss/flow/reach curves.
 
 **[E6] IAPWS — vapor pressure of water.**  
@@ -957,6 +966,32 @@ Demonstrates that actual pumps are characterized by model-specific performance c
 **[E10] NFPA 1911 committee report — fire-pump test points.**  
 https://www.nfpa.org/api/files?path=%2Ffiles%2FAboutTheCodes%2F1911%2F1911_F2016_FDA-AAA_FD_FRStatements.pdf  
 Contains the 150 psi / 100%, 200 psi / 70%, 250 psi / 50% fire-pump test sequence cited in substance by the manual.
+
+**[E11] USDA Forest Service, SDTDC — Haston & McKenzie, "Friction Loss in Wildland Hose Lays" (Tech Tip 0651 1309), December 2006.**\
+https://www.fs.usda.gov/eng/pubs/pdf/hi_res/06511309hi.pdf\
+Appendix C p. 11 states the empirical form `FL = C·(Q/100)²·(L/100)`, with C depending on hose type, condition and flow. p. 4 measures 1½″ appliance losses at 50 gpm: wye valve 0.46 psi, hose-line tee 0.05 psi, tee with valve 0.77 psi, and recommends omitting appliance loss for **wildland hose lays** — not universal structural flow or generic valve losses, and not a Q-curve. Do not generalise these 50 gpm wildland measurements to high structural flows. The source neither validates nor disproves a training allowance of 10 psi at 350+ gpm (50 gpm is outside that range): an omitted, unmeasured loss is not automatically more accurate than an explicit, labelled allowance. Its "published" coefficients (1½″ 24, 1¾″ 15.5) differ from its practical-use values (35 and 14); we do not adopt the practical values globally.
+
+**[E12] Bay District VFD — "The Rural Hitch Using the Humat Valve", field test dated 2021-12-10.**\
+https://www.gotbigwater.com/files/news/518/Humat%20Rural%20Hitch.pdf\
+p. 7 tabulates (Q gpm, loss psi): straight box waterway (504, 4), (873, 6), (1158, 13); clapper (582, 14), (840, 39), (1158, 45). p. 8's additional 40 psi above 750 gpm is the report's **operational allowance**, not a constant measured difference from the box curve. Measured at these points only, not universal siamese values. (An earlier "~2 psi at 500–900 gpm" was a misreading.)
+
+**[E13] SciPy — `scipy.optimize.bisect` documentation.**\
+https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.bisect.html\
+Numerical-method reference only: bisection needs a continuous f with opposite signs at the ends, and returns a root. No SciPy runtime dependency.
+
+**[E14] Pump Forge — pump discharge pressure calculator (public page).**\
+https://pump-forge.com/tools/pump-discharge-pressure-calculator (read 2026-10-15)\
+A **comparison** source only: an independent public calculator, not a primary standard and not authority for IFSTA/NFPA. Its attribution of the method to IFSTA is the site's own claim; the primary IFSTA handbook was not inspected.\
+It takes a **target gpm and returns a required PDP** — the target-flow planning direction, not a forward solve.\
+Its inline JavaScript shows `FL = C·(gpm/100)²·(len_ft/100)`; elevation 0.434 psi/ft; wye and siamese each 10 psi gated by `data-min-gpm="350"` with the test `gpm >= min` (so exactly 350 gpm adds the allowance, unlike Colorado's strict `> 350`); standpipe and aerial/deck gun each 25 psi; total PDP rounded. C = 15.5, 8, 2, 0.8, 0.2, 0.08 for 1.75, 2, 2.5, 3, 4, 5 in.\
+Evidence about the **public calculator page only**: the site claims the same engine powers its private simulator, which was not inspected. We do not blend it with our profile; a user may reproduce its numbers through a custom profile. No proprietary formula is adopted.
+
+**[E15] Colorado DFPC — Driver/Operator Pumper Chart, January 2020.**\
+https://cdpsdocs.state.co.us/dfpc/Website2.0/Sections/PQUAT/Proctor/DOPumper%20Chart%20Jan%202020.pdf\
+Primary training authority for the adopted `us-training` profile (`coloradoPumperChart` in `references.ts`).\
+p. 1 prints, verbatim: "Appliances + 10 psi > 350 gpm", "Master streams + 25 psi", "Aerial waterway + 25 psi", "Standpipes + 25 psi", "Elevation +/- 5 for every 10' gain or loss" (i.e. 0.5 psi/ft).\
+p. 2 prints `CQ²L` with the C table (1.5″ 24, 1.75″ 15.5, 2.5″ 2, 3″ with 2.5″ couplings 0.8, 3″ with 3″ couplings 0.677, 4″ 0.2, 5″ 0.08) and `GPM = 29.7·d²·√NP`.\
+The chart is a Colorado state training document and does not itself claim national generality, so we label the profile "Colorado 2020" rather than a generic US or IFSTA standard. Its appliance wording is generic ("Appliances"): mapping reducers, adapters and in-line valves into that category is **our simulator training convention**, not measured device data and not primary IFSTA verification (the IFSTA handbook was not inspected). The numeric clauses are verified from the chart itself and are **not** pending IFSTA. The source has unrelated typos; we adopt the named equations/coefficient table, not the whole chart indiscriminately.
 
 ## Evidence-strength note
 
