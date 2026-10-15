@@ -345,8 +345,7 @@ than a fog nozzle at 100 psi (185 gpm: 69 vs 93 lbf).
   350 gpm; Master streams + 25 psi; Standpipes + 25 psi" (`published`,
   read in text 2026-10-15; `coloradoPumperChart` in `references.ts`). The
   chart names "appliances" generically; applying it to a reducer or a valve
-  is our reading (`verify`). The threshold is strictly "> 350" in the chart
-  and "at least 350" in other training material.
+  is our reading (`verify`). The threshold is strictly "> 350" in the chart.
   The loss is a step in Q: it never falls as flow rises, so bisection
   (§2) still converges, but at the step there can be pump pressures with no
   exact flow. The screen labels it ("regla de 350 gpm") instead of hiding
@@ -479,9 +478,8 @@ geometry or crashes (see AGENTS.md).
 | Envelope above rated flow | `pump.envelope` | M3 | A real pump curve (Hale [E9]; M11-1/M11-5 plates) |
 | Hazen–Williams form and C for steel | `pipe.hazen-williams` | M4 | NFPA 13/14 |
 | PRV set points | `valve.prv` | M4 | NFPA 14; manufacturer data |
-| Appliance K or curves | `appliance.k` | M4 | Manufacturer data [E5]. Best lead: Elkhart's wye pressure-loss PDFs (B100 series; host unreachable 2026-10-15) |
+| Appliance K or curves | `appliance.k` | M4 | Manufacturer data [E5] |
 | "Appliances" rule applied to reducers and valves | `appliance.fixed` | next | IFSTA Pumping Apparatus chapter on fireground hydraulics; the Colorado chart says only "Appliances" |
-| Standpipe +25 (Colorado) vs +10 (Golder Ranch, snippet only) | `appliance.fixed` | next | NFPA 14 or the source text |
 | Monitor loss: use Elkhart's *total static pressure drop*, not friction loss alone (Python 299-11, friction only: 11/18/24 psi at 750/1000/1250 gpm) | `appliance.fixed` / monitor | M2–M4 | Elkhart catalog f9 05-43 and Python pressure-drop chart (read 2026-10-15) |
 | Eductor: Elkhart 240 water bypass 2/6/11 psig at 60/95/125 gpm; foam mode needs 200 psi in, ≤ 130 psi out (≥ 70 psi drop, inferred), not CGBVP's flat 40 | `appliance.fixed` / eductor | M4 | Elkhart manual 98069000 Rev A, pp. 2–3 (read 2026-10-15) |
 | Hydrant curve form | `supply.hydrant` | later | NFPA 291 [E8] |
