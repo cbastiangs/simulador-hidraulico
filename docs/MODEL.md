@@ -223,6 +223,42 @@ manufacturer curve (TFT, Akron, Elkhart [E5]). Teaching point: an
 under-pumped automatic nozzle shows a good pressure while flowing less than
 expected.
 
+**A rating is a point, not a state** (owner's question, 2026-10-15). A
+selectable nozzle's ring picks one of several fixed openings. Each is rated
+as a pair, "Q_r gpm at NP_r psi" (TFT QuadraFog 30/60/95/125 gpm at 100 psi),
+sized so that opening passes Q_r when the pressure at its inlet is NP_r. The
+rated pressure is the same for every setting of that nozzle; the nozzle
+pressure you actually get is not. It is whatever the line leaves at the
+solved flow: NP = NP_r · (Q/Q_r)². Same pump, same hose, only the ring
+turned (30 m of 1½″, C = 24, pump 125 psi, level, hand arithmetic from §3.1
+and §3.3):
+
+| Ring | Flow Q | NP at the inlet | Friction | Hose speed | Tip speed | Pump psi for NP = 100 |
+|---|---|---|---|---|---|---|
+| shut | 0 | 125 (static) | 0 | 0 | 0 | |
+| 125 | 119 gpm | 91 psi | 34 | 6.6 m/s | 35 m/s | 137 |
+| 95 | 96 gpm | 103 | 22 | 5.3 m/s | 38 m/s | 121 |
+| 60 | 64 gpm | 115 | 10 | 3.6 m/s | 40 m/s | 109 |
+| 30 | 33 gpm | 122 | 3 | 1.8 m/s | 41 m/s | 102 |
+
+Lowering the ring makes a smaller opening, which raises the pressure behind
+it **for a given pump pressure**; that is not what the rating states. The
+rating only says which opening each position is. Over-pumping a 30 setting at
+the 125 setting's pump pressure (137 psi) gives NP 134 (+34 %) and Q 35 gpm
+(+16 %): mild, because Q ∝ √NP. A selectable nozzle does not hold NP; only an
+automatic one does (below).
+
+**Law versus claim.** Law (`physics`): Q = k·√NP for one fixed opening;
+continuity; v = √(2gh). Claim (`published`, `verify`): that each ring position
+has its own k such that it gives its labelled gpm at the rated pressure, and
+that it keeps following Q ∝ √NP away from the rating. The manufacturer's
+sheets give the rating pair; the ones consulted give no flow-versus-pressure
+table off the rating, and none says where the rating pressure is measured
+(§3.13: taken as the flowing pressure at the nozzle inlet, `convention`).
+The rating pressure is per nozzle: TFT GF3D2S is rated at 75 psi, Akron
+Turbojet 1720 lists 100 and 75. The app labels rating values as the
+manufacturer's and results as calculated.
+
 ### 3.6 Nozzle reaction: `nozzle.reaction` ⏳ M2
 
 | Nozzle | Law | Basis |
@@ -310,6 +346,32 @@ than a fog nozzle at 100 psi (185 gpm: 69 vs 93 lbf).
   pressure moves the flow and shapes the stream.**
 - Its own folder (`src/extinguishment/`), never imported by the hydraulics.
 
+### 3.13 Pressures and speed: vocabulary
+
+Three quantities that are often confused: **pressure** (psi), **flow**
+(gpm, a volume per minute) and **speed** (m/s). A teaching aid and a rule for
+labels on screen; no new law.
+
+| Term (screen) | Meaning | Where in the model |
+|---|---|---|
+| **Presión estática** | pressure with no flow (nozzle shut): pump pressure minus height | §3.2; a shut nozzle already shows it at every gauge |
+| **Presión de flujo / residual** | pressure at a point while water flows: static minus the friction so far | each coupling's gauge |
+| **Presión en el pitón (NP)** | the flowing pressure at the nozzle **inlet**, behind the opening ("backpressure"). Ratings and the laws of §3.3–§3.5 use it. `convention`, `verify` where each manufacturer measures it | last node of the solver |
+| **Presión a la salida** | the jet leaves into the air: **atmospheric**, 0 psi gauge, for every setting. The pressure has become speed | not modelled; nothing to show |
+| **Caudal (gpm)** | volume per minute, Q = A·v; a solved output, never an input | solver |
+| **Velocidad** | in a hose v = 0.4085·Q/d² (§3.7); at the tip v = 12.18·√NP ft/s, which depends on NP only | §3.7 (tip part not drawn yet) |
+| **Reacción** | force on the hands (§3.6) | ⏳ M2 |
+
+Rules that follow:
+- At low flow friction falls to nothing, so **flowing pressure approaches
+  static pressure**: a healthy gauge says little about how much water arrives.
+- A lower ring setting gives a **faster, thinner** jet (tip speed ∝ √NP) that
+  carries less water: speed is not flow.
+- "Required pressure" in the app (`requiredPumpPressurePsi`) is the **pump**
+  discharge pressure at which the nozzle gets its rated flow at its rated
+  pressure: rated NP + friction at the rated flow + height. It is not the
+  nozzle's rating.
+
 ## 4. Methods
 
 A method swaps constants, never laws.
@@ -370,6 +432,8 @@ geometry or crashes (see AGENTS.md).
 |---|---|---|---|
 | Freeman constant 29.7 | `nozzle.smooth-bore` | M2 | IFSTA Pumping Apparatus Driver/Operator |
 | Flow independent of pattern on combination nozzles | `nozzle.selectable` (pattern) | M2 | TFT / Akron / Elkhart [E5] |
+| Where each manufacturer measures the rated pressure (inlet while flowing?) | `nozzle.fixed-orifice` | M2 | TFT / Akron / Elkhart test notes [E5]; NFPA 1964 |
+| Selectable nozzle off its rating: does each ring position follow Q ∝ √NP? | `nozzle.selectable` | M2 | Flow-versus-pressure curves from the manufacturer, or a flow test |
 | Automatic nozzle behaviour at its limits | `nozzle.automatic` | M2 | TFT / Akron / Elkhart [E5] curves |
 | Standpipe outlet design pressure | `supply.fixed-pressure` presets | M2 | NFPA 14, by edition |
 | Envelope above rated flow | `pump.envelope` | M3 | A real pump curve (Hale [E9]; M11-1/M11-5 plates) |

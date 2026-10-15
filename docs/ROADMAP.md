@@ -32,6 +32,7 @@ demonstrable in a few taps from a preset.
 | Elevation | Drag the nozzle up in the side view: elevation loss appears even with the nozzle closed. |
 | Diameter and couplings | Hoses are drawn to diameter. Swap 1-1/2" for 2-1/2" and friction falls ~12× (published C, ≈ d⁵). 3" with 2-1/2" couplings: +18 % friction. |
 | Smooth bore vs fog | A/B compare: flow law, nozzle pressure, reaction per gpm. An under-pumped automatic nozzle shows a good pressure while flowing too little. |
+| Selectable nozzle | A rating is a point, not a state: turn the ring down at a fixed pump and the nozzle pressure rises while the flow falls (MODEL §3.5). Pressure, flow and speed are three different things (§3.13): the 30 gpm jet is faster and thinner. |
 | Pump capacity | Open a second outlet: the operating point slides down the pump's capacity envelope and every line feels it. |
 | GPM extinguishes | An optional view: delivered gpm × heat absorbed per gpm against a fire's heat release (§7.6). |
 
