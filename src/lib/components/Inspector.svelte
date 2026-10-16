@@ -11,6 +11,8 @@
   import Actions from "./Actions.svelte";
   import JointControls from "./JointControls.svelte";
   import NumberField from "./NumberField.svelte";
+  import NozzleCloseUp from "./NozzleCloseUp.svelte";
+  import { prefs, setControls } from "$lib/prefs.svelte.ts";
 
   // Edits what is selected on the canvas (UX.md §3, design/main-screen.html).
   // Every change goes through lib/edit.ts and comes back as a new scenario.
@@ -96,14 +98,20 @@
       <p>{nozzleKind} · {n.ratedPressurePsi} psi nominal{n.specId === null ? " · personalizado" : " · genérico"}</p>
     </header>
 
-    {#if short}
-      <p class="warn" role="status">
-        ⚠ {result.nozzlePressurePsi.toFixed(0)} psi en el pitón, por debajo de sus {n.ratedPressurePsi} psi nominales: da
-        {result.flowGpm.toFixed(0)} gpm, no {n.ratedFlowGpm}. Sube la presión o toca «Ajustar».
-      </p>
-    {/if}
-
     <!-- Operating controls first, so they show at the phone sheet's peek (UX.md §10.7, UX-03); choosing the model is configuration and comes after. -->
+    <!-- Drawn (Close-up) or plain controls, by preference; both complete (UX.md §10.1). -->
+    <div class="style-switch">
+      <button type="button" onclick={() => setControls(prefs.controls === "drawn" ? "plain" : "drawn")}>{prefs.controls === "drawn" ? "Ver controles simples" : "Ver pitón dibujado"}</button>
+    </div>
+    {#if prefs.controls === "drawn"}
+      <NozzleCloseUp
+        nozzle={n}
+        flowGpm={result.flowGpm}
+        onOpen={(open) => onchange(edit.setNozzleOpen(scenario, open))}
+        onSetting={(q) => onchange(edit.setNozzleSetting(scenario, q))}
+        onPattern={(p) => onchange(edit.setNozzlePattern(scenario, p))}
+      />
+    {:else}
     <section class="operate" aria-label="Operar el pitón">
       <div>
         <div class="label">Manija</div>
@@ -139,6 +147,15 @@
         <div class="ends"><span>Chorro directo</span><span>Niebla amplia</span></div>
       </div>
     </section>
+    {/if}
+
+    <!-- After the controls, so it appearing mid-turn doesn't move them under the finger. -->
+    {#if short}
+      <p class="warn" role="status">
+        ⚠ {result.nozzlePressurePsi.toFixed(0)} psi en el pitón, por debajo de sus {n.ratedPressurePsi} psi nominales: da
+        {result.flowGpm.toFixed(0)} gpm, no {n.ratedFlowGpm}. Sube la presión o toca «Ajustar».
+      </p>
+    {/if}
 
     <div>
       <div class="label">Modelo</div>
@@ -218,6 +235,8 @@
   .inspector { position: relative; background: var(--surface); border-radius: var(--radius); padding: 14px; display: grid; gap: 14px; align-content: start; min-width: 0; }
   .inspector > * { min-width: 0; }
   .operate { display: grid; gap: 10px; }
+  .style-switch { display: flex; justify-content: flex-end; margin: -8px 0 -6px; }
+  .style-switch button { min-height: 36px; padding: 0 4px; border: 0; background: transparent; color: var(--accent); font-size: 13px; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
   header h3 { margin: 0; font-size: 16px; padding-right: 40px; }
   .close { position: absolute; top: 6px; right: 6px; width: 44px; height: 44px; border: 0; border-radius: 8px; background: transparent; font-size: 22px; color: var(--muted); cursor: pointer; }
   .close:hover { background: var(--band); color: var(--ink); }

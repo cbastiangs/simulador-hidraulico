@@ -535,6 +535,14 @@ falling short." The features named live in the proposed patterns (§10.1):
   animated gallonage ring, an animated pattern collar and open/close: a
   **Close-up** whose controls are **Operate**. The bale's own motion is the
   confirmation (the existing `Tween`s are the seed).
+  **Built (2026-10-17)** in the nozzle's panel (side panel; the sheet on a
+  phone), not a modal: the bale taps or pulls and snaps; the gallonage ring
+  and the pattern collar turn with an up/down drag (numbers follow the
+  finger); arrow keys work on each; a readout with ‹ › under each control
+  covers every state too. A link above it ("Ver controles simples" / "Ver
+  pitón dibujado") switches to the plain controls and is remembered per
+  browser (`view.controls`). The under-pressure warning sits after the
+  controls, so it appearing mid-turn never moves them under the finger.
 - **Full truck-specs editor** and **preset trucks** with pump and discharge
   diameters: **Configure** and **Choose** (`ROADMAP` §6, M3).
 - **Left-click action menu: not added (owner, 2026-10-16).** It would
