@@ -23,7 +23,6 @@
     result,
     onAction,
     onClose,
-    pumpInPanel = false,
   }: {
     scenario: Scenario;
     /** Null: nothing selected; the panel lists what can be. */
@@ -37,8 +36,6 @@
     onAction: (action: Action, target: Target) => void;
     /** The header's ×: clear the selection. */
     onClose: () => void;
-    /** Desktop with the pump column open: the pump and its outlet are edited there, not repeated here. */
-    pumpInPanel?: boolean;
   } = $props();
 
   const last = $derived(scenario.sections.length - 1);
@@ -64,27 +61,22 @@
   {/if}
   {#if selection === null}
     <header>
-      <h3>Nada seleccionado</h3>
-      <p>Toca una parte de la línea para editarla. Clic derecho o mantener pulsado: más opciones.</p>
+      <h3>Partes</h3>
+      <p>Toca una parte, aquí o en el dibujo, para editarla. Clic derecho o mantener pulsado: más opciones.</p>
     </header>
     <nav class="parts" aria-label="Partes de la línea">
-      <button type="button" onclick={() => onSelect({ kind: "pump" })}>Bomba · salida</button>
+      <button type="button" onclick={() => onSelect({ kind: "pump" })}>Bomba · descargas</button>
       {#each scenario.sections as s, i (i)}
         <button type="button" onclick={() => onSelect({ kind: "section", index: i })}>Tramo {i + 1} · {s.lengthM} m de {s.diameterIn.toString().replace(".5", "½")}″</button>
         {#if i < last}<button type="button" class="joint" onclick={() => onSelect({ kind: "joint", index: i + 1 })}>Acople {i + 1}</button>{/if}
       {/each}
       <button type="button" onclick={() => onSelect({ kind: "nozzle" })}>Pitón · {scenario.nozzle.open ? "abierto" : "cerrado"}</button>
     </nav>
-  {:else if pumpInPanel && (selection.kind === "pump" || (selection.kind === "joint" && selection.index === 0))}
-    <header>
-      <h3>{selection.kind === "pump" ? "Bomba" : "Salida de la bomba"}</h3>
-      <p>Presión, tamaño de salida y accesorios: en el panel de bomba, a la izquierda.</p>
-    </header>
   {:else if selection.kind === "pump"}
     {@const outlet = scenario.source.outletSizeIn}
     <header>
-      <h3>Bomba · salida de descarga</h3>
-      <p>La presión se ajusta en el panel de bomba.</p>
+      <h3>Bomba · descargas</h3>
+      <p>Descarga 1 → línea de {scenario.sections.length} {scenario.sections.length === 1 ? "tramo" : "tramos"} · la presión, arriba</p>
     </header>
     <div>
       <div class="label">Tamaño de la salida</div>

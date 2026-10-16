@@ -36,7 +36,7 @@
   // Read from media queries, not innerWidth: a phone can report its 980 px
   // layout width when the page starts and send no resize once it settles.
   let phone = $state(false);
-  // Desktop (UX.md §4): pump panel in a left column beside the truck, selection on the right.
+  // Desktop (UX.md §4): one panel on the right, the pump header atop it.
   let wide = $state(false);
   $effect(() => {
     const queries = [matchMedia("(max-width: 599.98px)"), matchMedia("(min-width: 1024px)")];
@@ -44,29 +44,6 @@
     sync();
     queries.forEach((q) => q.addEventListener("change", sync));
     return () => queries.forEach((q) => q.removeEventListener("change", sync));
-  });
-  let pumpFolded = $state(false);
-  $effect(() => {
-    try {
-      const stored = localStorage.getItem("panel.pump");
-      // Under 1280 px an open pump column leaves the canvas too narrow: it starts folded.
-      pumpFolded = stored ? stored === "folded" : !matchMedia("(min-width: 1280px)").matches;
-    } catch {
-      pumpFolded = !matchMedia("(min-width: 1280px)").matches;
-    }
-  });
-  function foldPump(folded: boolean) {
-    pumpFolded = folded;
-    try {
-      localStorage.setItem("panel.pump", folded ? "folded" : "open");
-    } catch {}
-  }
-  // With the column open on desktop the pump is edited there only: the
-  // selection panel points to it instead of repeating its controls.
-  const pumpInPanel = $derived(wide && !pumpFolded);
-  const pumpSelected = $derived.by(() => {
-    const s = selection;
-    return s?.kind === "pump" || (s?.kind === "joint" && s.index === 0);
   });
   let sheet = $state<SheetState>("closed");
   let windowHeight = $state(800);
@@ -245,8 +222,8 @@
 {/snippet}
 
 {#snippet side()}
-  <Inspector {scenario} {selection} {pumpInPanel} floorM={edit.floorOf(scenario)} onClose={deselect} onchange={(s) => apply(s, `inspector:${JSON.stringify(selection)}`)} onSelect={select} requiredPsi={result.requiredPumpPressurePsi} {result} onAction={runAction} />
-  {#if !wide}{@render line()}{/if}
+  {#if selection === null}{@render line()}{/if}
+  <Inspector {scenario} {selection} floorM={edit.floorOf(scenario)} onClose={deselect} onchange={(s) => apply(s, `inspector:${JSON.stringify(selection)}`)} onSelect={select} requiredPsi={result.requiredPumpPressurePsi} {result} onAction={runAction} />
 {/snippet}
 
 {#snippet results()}
@@ -268,7 +245,7 @@
   <Concepts {scenario} {result} />
 {/snippet}
 
-<div class="app" class:phone class:wide class:folded={pumpFolded} style:--sheet-closed={`${CLOSED_PX}px`}>
+<div class="app" class:phone class:wide style:--sheet-closed={`${CLOSED_PX}px`}>
   <header class="top">
     <h1>Simulador hidráulico</h1>
     <div class="history">
@@ -287,18 +264,11 @@
     </details>
   </header>
 
-  {#if !(wide && pumpFolded)}
-    <div class="pump">
-      <PumpPanel {scenario} {result} onchange={(s) => apply(s, "pump")} column={wide} onCollapse={foldPump} strip={phone} selected={pumpInPanel && pumpSelected} onClose={pumpInPanel && pumpSelected ? deselect : undefined} onOpen={() => select({ kind: "pump" })} />
-      {#if wide}{@render line()}{/if}
-    </div>
+  {#if !wide}
+    <div class="pump"><PumpPanel {scenario} {result} onchange={(s) => apply(s, "pump")} strip={phone} onOpen={() => select({ kind: "pump" })} /></div>
   {/if}
 
   <div class="canvas">
-    {#if wide && pumpFolded}
-      <!-- The folded column's stand-in: the pump stays in hand (UX.md §4). -->
-      <div class="float-pump"><PumpPanel {scenario} {result} onchange={(s) => apply(s, "pump")} float onCollapse={foldPump} /></div>
-    {/if}
     <Canvas
       {scenario}
       {result}
@@ -323,7 +293,10 @@
   </div>
 
   {#if !phone}
-    <div class="side">{@render side()}</div>
+    <div class="side">
+      {#if wide}<div class="head"><PumpPanel {scenario} {result} onchange={(s) => apply(s, "pump")} head /></div>{/if}
+      {@render side()}
+    </div>
     <div class="results">{@render results()}</div>
   {/if}
 </div>
@@ -331,13 +304,7 @@
 {#if phone}
   <Sheet {sheet} onSheet={(s) => (sheet = s)}>
     {#snippet summary()}<BudgetBar {result} {reference} referenceLabel={refName} compact />{/snippet}
-    {#if selection?.kind === "pump"}
-      <!-- The phone's pump strip is a summary; the whole panel opens here (UX.md §8.2). -->
-      <PumpPanel {scenario} {result} onchange={(s) => apply(s, "pump")} column onClose={deselect} />
-      {@render line()}
-    {:else}
-      {@render side()}
-    {/if}
+    {@render side()}
     {@render results()}
   </Sheet>
 {:else if !budgetVisible}
@@ -355,17 +322,15 @@
     grid-template-columns: minmax(0, 1fr);
     grid-template-areas: "top" "pump" "canvas" "side" "results";
   }
-  /* Desktop: pump | canvas and results | selection; the side columns stay in view while the results scroll. */
+  /* Desktop: canvas and results | the panel, which stays in view while the results scroll. */
   .app.wide {
-    grid-template-columns: 300px minmax(0, 1fr) 340px;
-    grid-template-areas: "top top top" "pump canvas side" "pump results side";
+    grid-template-columns: minmax(0, 1fr) 360px;
+    grid-template-areas: "top top" "canvas side" "results side";
     grid-template-rows: auto auto 1fr;
   }
-  .app.wide.folded {
-    grid-template-columns: minmax(0, 1fr) 340px;
-    grid-template-areas: "top top" "canvas side" "results side";
-  }
-  .app.wide .pump, .app.wide .side { position: sticky; top: var(--gap); align-self: start; max-height: calc(100dvh - 2 * var(--gap)); overflow: auto; }
+  .app.wide .head { position: sticky; top: 0; z-index: 5; }
+  /* Shorter than the viewport by the bottom padding, so it can stay stuck to the end of the page. */
+  .app.wide .side { position: sticky; top: var(--gap); align-self: start; max-height: calc(100dvh - var(--gap) - 90px); overflow: auto; }
   .dock { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; padding: 8px var(--gap) calc(8px + env(safe-area-inset-bottom)); background: var(--bg); box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.15); }
   .dock > :global(*) { max-width: 1976px; margin: 0 auto; }
   .top { grid-area: top; display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; justify-content: space-between; }
@@ -388,8 +353,7 @@
   .seg button { min-height: 40px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); font-weight: 600; font-size: 13px; cursor: pointer; text-transform: none; letter-spacing: 0; color: var(--ink); }
   .seg .on { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
   .line-tools h2 { margin: 0; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
-  .canvas { grid-area: canvas; min-width: 0; position: relative; }
-  .float-pump { position: absolute; top: 8px; left: 8px; z-index: 4; max-width: calc(100% - 16px); }
+  .canvas { grid-area: canvas; min-width: 0; }
   .side { grid-area: side; display: grid; gap: var(--gap); align-content: start; }
   .results { grid-area: results; display: grid; gap: var(--gap); min-width: 0; }
   .card { background: var(--surface); border-radius: var(--radius); padding: 12px 14px; }

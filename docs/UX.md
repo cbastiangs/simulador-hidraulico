@@ -81,7 +81,7 @@
   switch is on; off, adapters are placed by hand (turning it off keeps the
   ones it had derived), and a mismatch without one shows a red "!" at the
   joint, a "Falta adaptador" button under the canvas, and "Línea sin
-  conectar" on the pump panel: no water flows until it is placed. Fitting
+  conectar" on the pump header: no water flows until it is placed. Fitting
   losses get their own segment and legend line in the pressure split, with
   the CGBVP value beside "sin dato". Under `us-training` the 350 gpm step will
   be labelled.
@@ -89,9 +89,9 @@
   nothing selected. A tap selects; tapping what is already selected keeps
   it. Nothing selected again: tap or click empty canvas, Esc, or the **×**
   on the selection panel and on the floating toolbars. On a phone,
-  deselecting also closes the sheet. With nothing selected the selection
-  panel says "Nada seleccionado" and lists the line's parts (pump, each
-  hose and coupling, nozzle) as buttons, for discovery and the keyboard.
+  deselecting also closes the sheet. With nothing selected the panel's
+  body shows Línea and "Partes", the line's parts (pump, each hose and
+  coupling, nozzle) as buttons, for discovery and the keyboard.
 - **Building the line (owner, 2026-10-15).** Hoses are added, split, joined
   and removed on the canvas; nothing needs the inspector:
   - **Context menu:** right click, or a press held still for 0.5 s on touch,
@@ -157,50 +157,45 @@
   - **Pattern collar:** straight stream ↔ wide fog. Drawn on the stream.
   - **Stream:** grows and collapses with the flow; shape follows the
     pattern.
-- **Pump panel:** discharge gauge, pressure (typed, ±1, ±10, slider), the
-  "apply required pressure" control, and the flow, large; the outlets
-  below; truck, governor and tank with M3 (§4, ROADMAP §6).
+- **Pump header:** discharge gauge, pressure (typed, ±), the "apply
+  required pressure" control, and the flow, large, always in view (§4).
+  The outlets are the pump's detail; truck, governor and tank join it with
+  M3 (ROADMAP §6).
 - **Controls:** no unstyled browser defaults in the main UI. Segmented
   controls for small choice sets, ± steppers for numbers, sheets or side
   panels for inspectors.
 
 ## 4. Layout
 
-| Width | Pump panel | Canvas | Selection (inspector) | Results and formulas |
+| Width | Pump header | Canvas | Panel body (selection, Línea) | Results and formulas |
 |---|---|---|---|---|
-| ≥ 1024 px | left column, foldable to a rail | centre | right column | below canvas, collapsible |
-| 600–1023 px | top bar | full width | below canvas | below inspector |
-| < 600 px | one-row strip (pressure ±, flow); tapping the flow opens the whole panel in the sheet | full width, the rest of the screen; the page does not scroll (§8) | bottom sheet that slides up on selection (§8.2) | in the sheet, collapsible |
+| ≥ 1024 px | atop the right panel, stuck while it scrolls | left, the rest of the width | right panel, 360 px | below canvas, collapsible |
+| 600–1023 px | bar above the canvas | full width | below canvas | below the panel |
+| < 600 px | one-row strip (pressure ±, Req., flow); tapping the flow selects the pump | full width, the rest of the screen; the page does not scroll (§8) | bottom sheet that slides up on selection (§8.2) | in the sheet, collapsible |
 
-**Panels (owner, 2026-10-16).**
+**One panel (owner, 2026-10-16).** The matrix in §10 is the screen's
+schema: every row has **one home** in the panel, and every other place a
+control appears (floating toolbar, context menu) is a shortcut to that home
+(§10.5). Two panels, a fold and a floating pump card were tried the same day
+and dropped: the pump was edited in two places and line settings in three.
 
-- **The truck is always at the canvas's left edge** and water reads left to
-  right, so the pump panel sits on the left, beside it. Its side is fixed;
-  swapping sides is a grid change if testers ask for it.
-- **Pump panel (left):** the truck and pump configuration, sections in
-  ROADMAP §6's order; today Bomba (gauge, pressure, apply required, flow,
-  state) and Descargas (the one outlet: size, fittings). Below it, **Línea**:
-  settings for the whole line (add a hose at the end, automatic fittings;
-  the method picker joins here). On tablets Línea sits under the inspector;
-  on phones, in the sheet.
-- **Fold:** "◂" folds the pump panel away and the canvas takes its width;
-  a **floating pump control** stands in for it in the canvas's top-left
-  corner (owner, 2026-10-16: the pump pressure must stay in hand): mini
-  gauge, pressure ±, "Req." (apply required), flow and nozzle pressure.
-  "▸" on it opens the panel. It is the one exception to "controls live
-  below the drawing": the corner is sky in every preset (checked: it covers
-  no hose, coupling, gauge or truck). Remembered per browser; with no choice
-  stored it starts folded under 1280 px, where an open column leaves the
-  canvas too narrow.
-- **No control in two places (owner, 2026-10-16).** With the panel open,
-  selecting the truck or the pump outlet marks the pump panel (accent
-  outline, × to deselect) and the selection panel only says where to edit
-  it, plus the pump's actions. Folded, the selection panel shows the outlet
-  size and fittings, since nothing else on screen does.
-- **Selection panel (right):** never hidden, so selecting does not resize
-  and refit the canvas; shows "Nada seleccionado" and the parts list when
-  nothing is (§2).
-- Both side columns stay in view while the results below the canvas scroll.
+- **One side panel, on the right**, the convention for a properties panel
+  (Figma, CAD, EPANET) and closest to the hoses being edited. Left is a
+  one-line grid change; the walkthrough and the tests with firefighters
+  ask which side they look to.
+- **Header: the pump**, always in view, because discharge pressure is the
+  control a lay is set with. Gauge, pressure, "Req." (apply required),
+  flow and the state. Tablets put it above the canvas, phones as the strip;
+  the body goes below the canvas or in the sheet.
+- **Body: what is selected.** Nothing: **Línea** (name, method, compare,
+  floor height, add a hose at the end, automatic fittings) and the parts
+  list. The truck or the pump outlet: the pump's detail (Descargas: outlet
+  size, fittings; Camión, Control and Abastecimiento with M3). A hose, a
+  coupling, the nozzle: its editor, with × back to Línea.
+- **Under the canvas:** view only (zoom, Vista). **Header of the page:**
+  undo, scenario, ⋯.
+- The panel is never hidden, so selecting does not resize and refit the
+  canvas; it stays in view while the results scroll.
 - Layout follows media queries, not `innerWidth`: a phone can report its
   980 px layout width while loading and never send a resize.
 
@@ -302,12 +297,12 @@ actions; "inspector" = the side column (desktop) or the sheet at full.
 | | length lock | hose toolbar, menu | sheet at peek |
 | | move a coupling (run, height) | drag; arrow keys; typed in inspector | drag; typed in sheet |
 | Fittings | adapter, valve at a joint | coupling toolbar | sheet at peek |
-| | Accesorios automáticos | switch under the canvas | sheet, full |
+| | Accesorios automáticos | panel, Línea | sheet, Línea |
 | Nozzle | open / shut the bale | tap the nozzle | tap the nozzle |
 | | model, gallonage, pattern, typed rating | inspector | sheet at peek |
-| Pump | pressure (typed, ±1, ±10, slider) | pump panel | top strip: ± ; sheet: all |
-| | apply required pressure | pump panel | top strip |
-| | discharge outlet size | tap the engine → toolbar | tap the engine → sheet |
+| Pump | pressure (typed, ±) | panel header | top strip |
+| | apply required pressure | panel header ("Req.") | top strip ("Req.") |
+| | discharge outlet size | tap the engine → panel body | tap the engine or the strip's flow → sheet |
 | Scenario | load a preset | header | header menu |
 | | undo, redo | header; Ctrl+Z, Ctrl+Shift+Z | header icons |
 | Read | gauges, flow, pressure split | canvas, panel, floating bar | canvas, top strip, sheet |

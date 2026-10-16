@@ -148,11 +148,12 @@ down; opening an outlet makes the pump pressure sag in RPM mode, or the
 governor hold it until capacity runs out; the tank empties at the current
 flow.
 
-**On screen (owner, 2026-10-16):** the truck lives in the pump panel (UX.md
-§4), a full panel rather than a bar, in this order: **Camión** (pick a truck
+**On screen (owner, 2026-10-16):** the truck lives in the pump's detail, the
+panel body shown when the truck is selected (UX.md §4: one panel, the pump
+header always above it), in this order: **Camión** (pick a truck
 file; built-in trucks are read-only and "Clonar" makes an editable copy, the
-same rule as methods), **Bomba** (discharge pressure, apply required, flow
-and its share of the pump's capacity, the pump × line chart), **Control**
+same rule as methods), **Bomba** (the header's pressure, apply required and flow,
+plus its share of the pump's capacity and the pump × line chart), **Control**
 (pressure governor or RPM mode only, for now: no relief valve, which would
 need its own law in `MODEL.md` first), **Descargas** (each outlet: size,
 fittings, valve open or shut, which line it feeds), **Abastecimiento** (tank,
