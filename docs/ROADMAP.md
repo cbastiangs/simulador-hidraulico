@@ -164,6 +164,23 @@ its engine work lands, never shown greyed out before.
 M11-1 and M11-5 become two files once their pump specs are known. A generic
 1000 gpm pump ships first, labelled generic.
 
+**The owner's truck (owner, 2026-10-16, from memory; pump unknown).** A
+Spartan Metro Star pumper of the CGBVP fleet. Pump make, model and rating
+not remembered: a research pass on the Peru fleet's specs is under way, and
+until a source gives them the pump stays the generic 1000 gpm one.
+
+| | As remembered |
+|---|---|
+| Intakes | 2 × 6″ and 2 × 2½″, one of each per side |
+| Side discharges | 2 × 2½″ per side (4) |
+| Preconnects | 2 × 1½″, on top |
+| Deck gun | 1, on top; 2½″ remembered, may be larger |
+| Rear discharge | 1 × 2½″ |
+| Tank | 1000 US gal |
+
+This is the first built-in truck file when M3 lands, and the layout the
+pump close-up (UX.md §10.6) draws: 8 discharges, 4 intakes.
+
 ## 7. Engine work, in order
 
 ### 7.1 Element laws + solver
