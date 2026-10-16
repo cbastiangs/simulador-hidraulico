@@ -8,7 +8,10 @@
 
 1. **Operate equipment like equipment.** A nozzle has a bale you flick, a
    gallonage ring you turn, a pattern collar. A pump has a panel. Never a
-   checkbox or a bare form for an equipment state.
+   checkbox for an equipment state. **The drawn equipment is optional
+   (owner, 2026-10-17):** the plain controls (fields, ± buttons, chips) stay,
+   and both ways are fully functional — every state reachable in one is
+   reachable in the other (§10.1 Operate).
 2. **Every number three ways:** type it, step it (± buttons), or drag it
    on the canvas where that makes sense. Typed values are exact; drags snap.
 3. **The canvas never moves on its own.** Scales are fixed; only the person
@@ -420,7 +423,7 @@ The gap they expose is **fidelity and motion**, not reach.
 
 | Pattern | What it is | Rule |
 |---|---|---|
-| **Operate** | work a piece of equipment: the bale, a discharge's push-pull valve, the gallonage ring, the pattern collar, the governor | the piece is drawn as equipment, never a checkbox; the control's own motion confirms the actuation (≈150–250 ms); a typed/± value sits beside it |
+| **Operate** (owner, 2026-10-17: approved, optional) | work a piece of equipment: the bale, a discharge's push-pull valve, the gallonage ring, the pattern collar, the governor | the piece is drawn as equipment, never a checkbox; the control's own motion confirms the actuation (≈150–250 ms); a typed/± value sits beside it. **Optional, both complete:** a View choice switches between the drawn equipment and the plain controls (fields, ±, chips), remembered per browser; each covers every action of that piece, so neither is a fallback and no state is reachable only one way |
 | **Close-up** | an enlarged, realistic view of one piece (the nozzle, the pump) where its Operating controls live | entered from the element; draws the real thing large; one piece at a time; returns to the canvas (a sheet on a phone, a panel or modal when wide) |
 | **Configure** | edit a data definition: a truck's pump, discharges and diameters; a cloned method; a catalog row | built-ins are read-only, cloned to edit; saved as data (a truck file), not scenario state; never silently changes an open scenario |
 | **Choose** | pick a named item: a truck, a preset, a nozzle model, a method | show its identity and the one fact that tells it apart (e.g. "3″ (2½″)"); the current choice is visible without opening the picker |
