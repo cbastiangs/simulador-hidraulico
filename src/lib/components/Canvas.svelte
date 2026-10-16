@@ -280,7 +280,13 @@
 
   // The fill reserves the bottom inset for the ground caption (§10.8); during a
   // press the frozen fill is used so the mapping cannot shift under the pointer.
-  const filled = $derived(frozen?.filled ?? fillViewport(bounds, viewWidth, viewHeight, zoom, BOTTOM_INSET_PX));
+  // Half a view of building past the nozzle, so centring on it (the start
+  // view no longer fits a long lay) never shows the world's edge.
+  const filled = $derived.by(() => {
+    if (frozen) return frozen.filled;
+    const f = fillViewport(bounds, viewWidth, viewHeight, zoom, BOTTOM_INSET_PX);
+    return { ...f, maxX: Math.max(f.maxX, bounds.maxX + viewWidth / (2 * PX_PER_M * zoom)) };
+  });
   const layout = $derived(
     layoutWorld(
       scenario.sections,

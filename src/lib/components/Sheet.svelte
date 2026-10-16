@@ -1,7 +1,7 @@
 <script lang="ts" module>
   export type SheetState = "closed" | "peek" | "full";
   /** Height of the closed sheet; the page keeps this much free below the canvas. */
-  export const CLOSED_PX = 72;
+  export const CLOSED_PX = 80;
   /** Each state's height in a window this tall. */
   export const sheetHeights = (windowHeight: number): Record<SheetState, number> => ({
     closed: CLOSED_PX,
@@ -29,7 +29,9 @@
   } = $props();
 
   let windowHeight = $state(800);
-  const heights = $derived(sheetHeights(windowHeight));
+  /** The closed sheet grows to its summary when that runs to two lines (UX-07), never below CLOSED_PX. */
+  let gripHeight = $state(0);
+  const heights = $derived({ ...sheetHeights(windowHeight), closed: Math.max(CLOSED_PX, Math.ceil(gripHeight)) });
 
   let drag: { y: number; from: number; moved: boolean } | null = $state(null);
   let dragHeight = $state(0);
@@ -72,6 +74,8 @@
 <section class="sheet" class:dragging={drag} style:height={`${height}px`} aria-label="Panel">
   <div
     class="grip"
+    class:room={sheet !== "closed"}
+    bind:offsetHeight={gripHeight}
     role="button"
     tabindex="0"
     aria-label={sheet === "closed" ? "Abrir panel" : "Cerrar panel"}
@@ -80,16 +84,28 @@
     onpointermove={move}
     onpointerup={up}
     onpointercancel={up}
-    onkeydown={(e) => e.key === "Enter" && onSheet(sheet === "closed" ? "peek" : "closed")}
+    onkeydown={(e) => {
+      if (e.key !== "Enter" && e.key !== " ") return;
+      e.preventDefault();
+      onSheet(sheet === "closed" ? "peek" : "closed");
+    }}
   >
     <span class="bar"></span>
     {@render summary()}
   </div>
-  <div class="body" bind:this={body}>
+  <!-- Expand / shrink, always at hand: a button beside the grip, not after the results (UX-03). -->
+  {#if sheet !== "closed"}
+    <button
+      type="button"
+      class="expand"
+      aria-label={sheet === "full" ? "Reducir panel" : "Ampliar panel"}
+      title={sheet === "full" ? "Reducir panel" : "Ampliar panel"}
+      onclick={() => onSheet(sheet === "full" ? "peek" : "full")}>{sheet === "full" ? "▾" : "▴"}</button
+    >
+  {/if}
+  <!-- Closed, the body is out of view: out of Tab order and the accessibility tree too (UX-07). -->
+  <div class="body" bind:this={body} inert={sheet === "closed"}>
     {@render children()}
-    {#if sheet === "peek"}
-      <button type="button" class="more" onclick={() => onSheet("full")}>Ver todo ▴</button>
-    {/if}
   </div>
 </section>
 
@@ -99,5 +115,6 @@
   .grip { flex: none; padding: 6px 10px 8px; touch-action: none; cursor: grab; display: grid; gap: 6px; }
   .bar { justify-self: center; width: 40px; height: 5px; border-radius: 3px; background: var(--muted); opacity: 0.5; }
   .body { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; padding: 0 8px 12px; display: grid; gap: 8px; align-content: start; }
-  .more { min-height: 44px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); font-weight: 600; cursor: pointer; }
+  .grip.room { padding-right: 50px; }
+  .expand { position: absolute; top: 4px; right: 4px; width: 44px; height: 44px; border: 0; border-radius: 8px; background: transparent; color: var(--muted); font-size: 16px; cursor: pointer; }
 </style>

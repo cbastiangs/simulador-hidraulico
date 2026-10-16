@@ -657,9 +657,24 @@ and buttons stay 44 px, so flow changes no longer move the canvas.
 **Checks.** `pnpm test` 39 pass, `pnpm typecheck` 0 errors/warnings, `pnpm
 build` pass.
 
-**Separate review items.** Inspector hierarchy, budget contrast and closed-sheet
-focus (UX-03/06/07) remain open. §10.7 is the historical pre-polish review; the
-verified results above supersede its observations where they differ.
+**Separate review items.** Budget contrast (UX-06), the dock over the
+1024 panel (UX-05) and equipment-like controls (UX-08) remain open. §10.7 is
+the historical pre-polish review; the verified results above supersede its
+observations where they differ.
+
+**Fixed after the review (2026-10-16).**
+- **UX-03:** the nozzle panel puts its operating controls first (Manija,
+  anillo, Patrón, grouped as "Operar el pitón"), then the model, height,
+  advanced settings and fittings. At peek all three are on screen at 390 ×
+  844 (pattern y764–796) and 360 × 740. Expand / shrink is a ▴ / ▾ button
+  beside the sheet's grip, not after the results; the sheet's button is
+  "Ampliar panel", since "Ver todo" now names the canvas's whole-lay view.
+- **UX-07:** the closed sheet grows to its summary when it runs to two lines
+  (the zero-flow explanation fits whole), never below 80 px (was 72, which
+  clipped the bar by 4 px). The closed body is `inert`, so Tab cannot reach
+  hidden fields; the grip opens on Enter and Space.
+- The start view (§8.1) no longer fits a long lay, so the world extends half
+  a view past the nozzle: centring on it never shows the world's edge.
 
 **Evidence.** Screenshots of the current actual app (no mock-ups) under
 `/tmp/opencode/hydraulics-ux-uiXnS6/`: `svg-final-390.png`,

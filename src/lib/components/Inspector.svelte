@@ -95,6 +95,50 @@
       <p>{nozzleKind} · {n.ratedPressurePsi} psi nominal{n.specId === null ? " · personalizado" : " · genérico"}</p>
     </header>
 
+    {#if short}
+      <p class="warn" role="status">
+        ⚠ {result.nozzlePressurePsi.toFixed(0)} psi en el pitón, por debajo de sus {n.ratedPressurePsi} psi nominales: da
+        {result.flowGpm.toFixed(0)} gpm, no {n.ratedFlowGpm}. Sube la presión o toca «Ajustar».
+      </p>
+    {/if}
+
+    <!-- Operating controls first, so they show at the phone sheet's peek (UX.md §10.7, UX-03); choosing the model is configuration and comes after. -->
+    <section class="operate" aria-label="Operar el pitón">
+      <div>
+        <div class="label">Manija</div>
+        <div class="lever" role="radiogroup" aria-label="Manija">
+          <button type="button" role="radio" aria-checked={!n.open} class:on={!n.open} onclick={() => onchange(edit.setNozzleOpen(scenario, false))}>Cerrado</button>
+          <button type="button" role="radio" aria-checked={n.open} class:on={n.open} onclick={() => onchange(edit.setNozzleOpen(scenario, true))}>Abierto</button>
+        </div>
+      </div>
+
+      {#if n.kind === "selectable"}
+        <div>
+          <div class="label">Caudal (anillo) · gpm</div>
+          <div class="seg" role="radiogroup" aria-label="Caudal">
+            {#each n.settingsGpm as q (q)}
+              <button type="button" role="radio" aria-checked={q === n.ratedFlowGpm} class:on={q === n.ratedFlowGpm} onclick={() => onchange(edit.setNozzleSetting(scenario, q))}>{q}</button>
+            {/each}
+          </div>
+        </div>
+      {/if}
+
+      <div>
+        <div class="label">Patrón</div>
+        <input
+          class="pattern"
+          type="range"
+          min="0"
+          max="1"
+          step="0.01"
+          aria-label="Patrón: chorro directo a niebla amplia"
+          value={n.pattern}
+          oninput={(e) => onchange(edit.setNozzlePattern(scenario, e.currentTarget.valueAsNumber))}
+        />
+        <div class="ends"><span>Chorro directo</span><span>Niebla amplia</span></div>
+      </div>
+    </section>
+
     <div>
       <div class="label">Modelo</div>
       <div class="seg wrap" role="radiogroup" aria-label="Modelo de pitón">
@@ -105,46 +149,6 @@
       </div>
     </div>
 
-    {#if short}
-      <p class="warn" role="status">
-        ⚠ {result.nozzlePressurePsi.toFixed(0)} psi en el pitón, por debajo de sus {n.ratedPressurePsi} psi nominales: da
-        {result.flowGpm.toFixed(0)} gpm, no {n.ratedFlowGpm}. Sube la presión o toca «Ajustar».
-      </p>
-    {/if}
-
-    <div>
-      <div class="label">Manija</div>
-      <div class="lever" role="radiogroup" aria-label="Manija">
-        <button type="button" role="radio" aria-checked={!n.open} class:on={!n.open} onclick={() => onchange(edit.setNozzleOpen(scenario, false))}>Cerrado</button>
-        <button type="button" role="radio" aria-checked={n.open} class:on={n.open} onclick={() => onchange(edit.setNozzleOpen(scenario, true))}>Abierto</button>
-      </div>
-    </div>
-
-    {#if n.kind === "selectable"}
-      <div>
-        <div class="label">Caudal (anillo) · gpm</div>
-        <div class="seg" role="radiogroup" aria-label="Caudal">
-          {#each n.settingsGpm as q (q)}
-            <button type="button" role="radio" aria-checked={q === n.ratedFlowGpm} class:on={q === n.ratedFlowGpm} onclick={() => onchange(edit.setNozzleSetting(scenario, q))}>{q}</button>
-          {/each}
-        </div>
-      </div>
-    {/if}
-
-    <div>
-      <div class="label">Patrón</div>
-      <input
-        class="pattern"
-        type="range"
-        min="0"
-        max="1"
-        step="0.01"
-        aria-label="Patrón: chorro directo a niebla amplia"
-        value={n.pattern}
-        oninput={(e) => onchange(edit.setNozzlePattern(scenario, e.currentTarget.valueAsNumber))}
-      />
-      <div class="ends"><span>Chorro directo</span><span>Niebla amplia</span></div>
-    </div>
 
     <NumberField
       label="Altura"
@@ -212,6 +216,7 @@
 <style>
   .inspector { position: relative; background: var(--surface); border-radius: var(--radius); padding: 14px; display: grid; gap: 14px; align-content: start; min-width: 0; }
   .inspector > * { min-width: 0; }
+  .operate { display: grid; gap: 10px; }
   header h3 { margin: 0; font-size: 16px; padding-right: 40px; }
   .close { position: absolute; top: 6px; right: 6px; width: 44px; height: 44px; border: 0; border-radius: 8px; background: transparent; font-size: 22px; color: var(--muted); cursor: pointer; }
   .close:hover { background: var(--band); color: var(--ink); }
