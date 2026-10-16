@@ -164,10 +164,18 @@ its engine work lands, never shown greyed out before.
 M11-1 and M11-5 become two files once their pump specs are known. A generic
 1000 gpm pump ships first, labelled generic.
 
-**The owner's truck (owner, 2026-10-16, from memory; pump unknown).** A
-Spartan Metro Star pumper of the CGBVP fleet. Pump make, model and rating
-not remembered: a research pass on the Peru fleet's specs is under way, and
-until a source gives them the pump stays the generic 1000 gpm one.
+**The owner's truck (owner, 2026-10-16, from memory).** A Spartan Metro
+Star pumper of the CGBVP fleet: 70 units (56, then 14) built by Spartan ERV
+around 2013–2014. **Pump: Darley, 1250 gpm**, model not stated (Gestión,
+2013, "Empresa Spartan ERV dotará a bomberos peruanos 70 autobombas"; a
+press article, not a spec sheet). Its NFPA 1901 points follow from the
+rating: 1250 gpm at 150 psi, 875 at 200, 625 at 250. Not found in any
+source (2026-10-16 search, English and Spanish; Spartan's Peru brochure is
+generic marketing): the tank size, the deck gun, and the intake and
+discharge layout, so the table below stays the owner's memory. Not to be
+confused with the 2021 Pierce pumper for Peru (Navistar, Waterous 1250 gpm,
+1000 gal, foam), a different apparatus. Next sources: the SEACE
+procurement for the 70 units, or the unit's own pump plate.
 
 | | As remembered |
 |---|---|
