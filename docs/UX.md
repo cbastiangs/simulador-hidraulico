@@ -43,7 +43,9 @@
   building: floor bands continue up, and a coupling or the nozzle can be
   dragged to any visible floor. The height does not change with the lay, so
   nothing jumps when editing. Floor labels
-  hide when floors are under 20 px apart.
+  name every 1st, 2nd, 5th, 10th… floor, whichever keeps two labels at
+  least 22 px apart (owner, 2026-10-16; replaces hiding them all under
+  20 px, which left a phone with none); "Planta baja" is always named.
 - **Slack is always visible.** A hose in the air sags; slack on the floor
   (it cannot hang) is drawn piled in arches along the chord, taller when the
   chord is short. Drawing only; the label says "holgura x m".
@@ -267,9 +269,16 @@ welcome tour is interactive.
   bottom sheet over it. Everything else lives in the sheet.
 - **Fit shows the whole lay, truck and nozzle included,** and a lay wider
   than the canvas starts at the truck. A canvas taller than the lay adds
-  building above and ground below in equal parts, so the lay sits in the
-  middle, not at the foot. Detail is reached by pinching, not by a
-  minimum zoom.
+  building above only, so the ground stays at the foot (owner, 2026-10-16:
+  the floor line sat in the middle of the screen; replaces "equal parts").
+- **Free movement and a lockable camera** (owner, 2026-10-16). No native
+  scrolling and no scroll bars: the canvas is a camera over the world. Drag
+  empty canvas (or a hose) to pan, wheel or trackpad to pan, Ctrl + wheel or
+  pinch to zoom. The camera may leave the world, but 48 px of it always
+  stays in view. **Lock** (button, or Y) keeps the camera on the selection,
+  or on the truck when nothing is selected, like a game's locked camera;
+  any manual pan unlocks. "Ajustar", a double tap and a new lay return to
+  the fitted view. Detail is reached by pinching, not by a minimum zoom.
 - **Gauges never cover the equipment.** The pump's gauge sits above the
   truck; the pump's pressure also stays in the top strip.
 
@@ -366,6 +375,23 @@ each surface lives on desktop and phone.
 | **View** | how the canvas looks: zoom, fit, gauges shown, hose scale | changes no number; remembered per browser |
 | **Global** | header: preset, undo / redo, help | the same everywhere |
 
+**Proposed additions (2026-10-16, for the owner to confirm).** The owner's
+target features — a realistic pump panel with animated push-pull discharges,
+an enlarged nozzle panel with an animated gallonage ring and pattern collar,
+a full truck-specs editor, and preset trucks with pump and discharge
+diameters — are the patterns below applied to equipment, not new objects.
+The gap they expose is **fidelity and motion**, not reach.
+
+| Pattern | What it is | Rule |
+|---|---|---|
+| **Operate** | work a piece of equipment: the bale, a discharge's push-pull valve, the gallonage ring, the pattern collar, the governor | the piece is drawn as equipment, never a checkbox; the control's own motion confirms the actuation (≈150–250 ms); a typed/± value sits beside it |
+| **Close-up** | an enlarged, realistic view of one piece (the nozzle, the pump) where its Operating controls live | entered from the element; draws the real thing large; one piece at a time; returns to the canvas (a sheet on a phone, a panel or modal when wide) |
+| **Configure** | edit a data definition: a truck's pump, discharges and diameters; a cloned method; a catalog row | built-ins are read-only, cloned to edit; saved as data (a truck file), not scenario state; never silently changes an open scenario |
+| **Choose** | pick a named item: a truck, a preset, a nozzle model, a method | show its identity and the one fact that tells it apart (e.g. "3″ (2½″)"); the current choice is visible without opening the picker |
+| **Compare** | two states side by side (A/B): a method, a nozzle kind, before/after | both sides draw the same document shape; differences are marked, not narrated |
+| **Motion** | how a change is shown moving: needles, ring, stream, valve | motion confirms what a person changed; water is the one thing that may move on its own; off under `prefers-reduced-motion` |
+| **Diagnose** | why the result is blocked or zero: a missing adapter, a pump that can't reach a height, a closed line | say what and where, at the element and in the result; never silently show zero or a bare error |
+
 ### 10.2 Matrix
 
 ✅ built · ◻ missing, polish (§10c) · ⏳ later, with its milestone · ✕ not
@@ -376,9 +402,9 @@ allowed, with the reason.
 | **Scenario** | preset ✅; blank line ✅ ("Línea nueva", header ⋯) | rename ✅ (Línea) | — | reset to preset ✅ (header ⋯, undoable) | — | share link ⏳ (deferred); cloud save ⏳ (paid) |
 | **Method** | clone a built-in ⏳ | edit a clone ⏳; built-ins ✕ (read-only) | — | delete a clone ⏳ | sources ✅ ("Fuentes" card) | pick "Método" ✅; "Comparar con" ✅ (Línea; per browser, off when equal to Método) |
 | **Pump** | ✕ (a line needs a source) | pressure ✅, apply required ✅, outlet size ✅; spec ⏳ M3 | ✕ | ✕ | flow, state ✅ | — |
-| **Truck** | ⏳ M3 | discharges open / shut, tank ⏳ M3; partial valves ⏳ (`valve.partial`) | ✕ | ✕ | capacity ⏳ M3 | — |
+| **Truck** | choose a truck file / preset ⏳ M3; clone a built-in ⏳ M3 | discharges open / shut, tank ⏳ M3; partial valves ⏳ (`valve.partial`); **specs editor** (pump, discharge sizes and diameters) ⏳ M3 | ✕ | ✕ | capacity ⏳ M3 | presets carry pump and discharge diameters ⏳ M3 |
 | **Hose** | insert, split ✅ | size, length, lock ✅ | its couplings move it | remove, join ✅ | its friction loss ✅ (panel) | true-scale thickness ✅ (Vista; default exaggerated, badge "grosor ×11") |
-| **Coupling** | with a hose ✅ | fittings ✅ | drag ✅ | join the two hoses ✅ | pressure here, lost before it ✅ (tap its gauge) | — |
+| **Coupling** | with a hose ✅ | fittings ✅ | drag ✅; first-drag camera stability ✅ (§10.8) | join the two hoses ✅ | pressure here, lost before it ✅ (tap its gauge) | — |
 | **Fitting** | adapter, valve ✅ | ✕ (a kind has one loss) | moves with its coupling | ✅ | its loss and basis ✅ | auto fittings switch ✅ |
 | **Nozzle** | ✕ (a line ends in one) | bale ✅, model ✅ (chips at the top of its panel), ring ✅, typed rating ✅; smooth-bore tips ⏳ M2 | drag ✅ | ✕ | rating vs actual ✅ (mark on its gauge, warning in its panel under 95 %) | — |
 | **Stream** | — | pattern ✅; aim ⏳ M2 | — | — | jet speed ✅; reach ⏳ M2 (illustrative) | — |
@@ -391,6 +417,10 @@ allowed, with the reason.
 | **Help** | — | — | — | — | tour ◻ (§8.4) | — |
 
 ### 10.3 Phone walkthrough of the built tasks
+
+> **Historical (2026-10-16).** This walkthrough recorded the first pass over
+> the built tasks and its fixes were applied (§10.4). It is kept as history.
+> The latest review of the current build is §10.7.
 
 Each task on a 390 px phone, against the current build. At every step: would
 they know what to do, would they see how, would they understand the result?
@@ -454,3 +484,168 @@ same way: one undo step, then the selection it names. Rules:
 
 Joint 0 (the pump outlet) takes the pump's actions. A new feature adds
 entries here rather than buttons in components.
+
+### 10.6 Where the target features land (owner, 2026-10-16)
+
+The owner's read: "we have most of it, but UX and aesthetics is where we are
+falling short." The features named live in the proposed patterns (§10.1):
+
+- **Realistic pump panel** (gauges, push-pull discharge valves, animated):
+  **Close-up** + **Operate**, on the pump panel's `ROADMAP` §6 sections.
+- **Nozzle panel as a modal** with the nozzle drawn as in real life, an
+  animated gallonage ring, an animated pattern collar and open/close: a
+  **Close-up** whose controls are **Operate**. The bale's own motion is the
+  confirmation (the existing `Tween`s are the seed).
+- **Full truck-specs editor** and **preset trucks** with pump and discharge
+  diameters: **Configure** and **Choose** (`ROADMAP` §6, M3).
+- **Left-click action menu: not added (owner, 2026-10-16).** It would
+  duplicate the panel, which already carries every action (§10.5 rule 3);
+  right-click / long-press is the shortcut. A primary-button menu on an
+  element would also collide with "Selecting never edits". Revisit only if a
+  target's actions outgrow the panel.
+- **Search / filter:** only when a list (trucks, catalog) is long; not yet.
+
+**Principle recorded:** equipment realism and motion are first-class, not
+decoration — but every motion must reflect a real state. An animated control
+that implies a behaviour the model does not have is worse than a plain one
+(the guardrail of `compatibility-vs-physics.md`, applied to the screen).
+
+### 10.7 Current-build UX review (2026-10-16)
+
+> **Status: review; the fixes below are proposed and not implemented, and the
+> §10.1 additions remain unapproved.** Records what the current build does and
+> what to change.
+
+**Method.** A fresh external production build (with current uncommitted canvas/geometry
+work) walked in Chromium 153 headless at 390×844 touch
+emulation and 1024×768 desktop, plus 360×780 responsive, dark,
+`prefers-reduced-motion` and keyboard checks. Not a real-phone study. Snapshot
+app JS `_app/immutable/nodes/2.CgWPKC2r.js`; `pnpm test` 37 pass, `pnpm typecheck`
+0 errors/warnings, `pnpm build` pass; product `src` matches the snapshot, no
+UI/engine/test edits.
+
+**Observed working.** T1 hose diameter changes updated friction/flow. T2
+nozzle selection kept the open state; ring 125 gave 117.4 gpm/88.2 psi with a
+clear under-rating warning; pattern changed spray without moving 95 gpm. T3
+typed height 9 m + required 152.8 psi delivered 125 gpm; nozzle touch-drag
+6→9 m worked (nozzle/typed success, distinct from the coupling-drag regression
+UX-01). T4 built 3 sections (2×2½″ then 1½″) with 1 auto adapter. T7
+comparison 95.1 vs 93.0 gpm, required 131.6 vs 137.1 psi, reachable. T8
+remove+undo restored 2. Pan/pinch/fit and long-press worked; no page-scroll
+escape; console error log empty.
+
+| ID | Priority | Observed | Proposed polish |
+|---|---|---|---|
+| UX-01 | P1 | Fresh 390 preset *Ataque*: first coupling at 0 m moved up 12.2 px (~3 m at 0.29037 zoom) over 12 touchmove events; a 267.8 px camera jump at drag start; final height −3 m, opposite the intent. Canvas auto-centering runs after `onSelect` on drag start. | Suspend centering while pressing/dragging; keep world/zoom/camera stable through the gesture, refit after release; any explicit camera lock must be deliberate. First priority; not a law defect. |
+| UX-02 | P1 | At 390 "+" ends x208.6, "Req." starts x199.7 (8.9 px overlap). At 360 the strip is 364.6 px in 344 px so flow clips; 95→117 gpm wraps the unit and grows the strip ~20 px, moving the canvas; 152.8 is not fully visible. | Reserve stable space for whole values, non-wrapping flow/unit, 44 px targets; constrain at 360/390 without shrinking targets. No extra controls. |
+| UX-03 | P1 | At 390 the nozzle ring (y814–858) is partly below 844 and the pattern (y896–928) fully below; model picker and bale take the first screen; "Ver todo" at y1840, after inspector+results. | Operating controls (bale/ring/pattern) before model/configuration, visible at peek; expand/collapse in a persistent header; advanced settings/fittings/formulas secondary. Current laws; no partial-valve work. |
+| UX-04 | P1 | At default fit the first ground coupling centre (y674.9) is only 11.9 px above the scroller bottom (686.8), so hose labels +22 px and the 22 px handle radius clip; "Bomba", "Planta baja" and hose text overlap. | Constant-screen overlay insets/layers; avoid collisions. Keep ground-at-foot and free camera, not a forced centered scene. |
+| UX-05 | P2 | At 1024 the selected first-hose toolbar sits at x−21.6, width 427; first diameter chips clip at x12; selecting a low hose shifts the world and exposes a large empty rectangle. | Clamp the toolbar to the visible canvas; minimize auto-centering to real occlusion; keep background continuity on pan. Free manual camera stays allowed. |
+| UX-06 | P2 | 12 px white text contrast: light-theme nozzle blue 4.20:1 / orange 2.48:1; dark-theme nozzle blue 2.48:1 / orange 2.48:1. Narrow segments clip labels and the elevation value. | Contrasting text/fills; place names/readouts outside slices too narrow, keeping proportional widths honest; small text target 4.5:1. |
+| UX-07 | P2 | After closing the nozzle, the 95 px grip/summary clips in the 72 px closed sheet, cutting the zero-flow explanation; Tab from the grip focuses an invisible Nombre input at y840–884 on an 844 screen. | Fit the closed summary; hide/inert the closed body from focus/accessibility; Enter+Space on the grip, restore focus. Give camera-lock/flow-opening affordances visible purpose on touch (recommendation, not a missing-glyph bug: the headless font lacks emoji). |
+| UX-08 | P2 | Most functionality exists but controls look like generic forms (design assessment, not breakage). | Group by operation with a flat technical nozzle graphic, ring ticks/setting, pattern glyphs and coherent selection states; distinguish "Ajuste nominal" from solved delivered flow; label "Req.", pump opening and camera lock. Truck editor/multi-discharge/partial valves stay M3; no new law or fake partial-valve animation. Detailed work follows stability/layout fixes. |
+
+**Proposed order.** 1. Drag/camera (UX-01) and the stable pump strip
+(UX-02). 2. Sheet operating hierarchy (UX-03), annotations/toolbars (UX-04/05),
+closed-sheet focus (UX-07). 3. Legibility (UX-06), consistent equipment
+graphics and nozzle motion (UX-08); then truck/nozzle modules.
+
+**Manual acceptance (not new UI tests).** First coupling dragged up 3 m ends
+at +3 m, no camera jump; step/typed pressure 132/152.8/399.9 and flows
+0/95/117/125 fully readable without a header jump at 360/390;
+bale/ring/pattern visible and reachable at peek, expand always discoverable;
+annotations, toolbars and dock do not overlap controls at 390/1024; the
+closed sheet cannot focus hidden fields; repeat T1–T8, keep the 37 numerical
+tests unchanged.
+
+**Secondary.** At 1024 the dock (y693) overlaps lower right-panel actions
+(bottom y709–720); reserve dock clearance in the side scroller (fits UX-05).
+Under reduced motion particles stop but the budget transition stays 250 ms;
+the proposed common motion policy should cover gauges/stream/sheet/camera
+(existing proposal, not new approval).
+
+**Doc alignment follow-up.** Older sections keep stale nozzle-tap wording
+(§2, §8.3, §8.4) and an absolute no-auto-camera principle §8.1 qualifies;
+align later, don't rewrite now.
+
+**Evidence.** Session screenshots are outside the repo at
+`/tmp/opencode/hydraulics-ux-uiXnS6/`: `phone-initial.png`, `phone-nozzle.png`,
+`phone-coupling-drag.png`, `phone-360.png`, `phone-closed-line.png`,
+`desktop-hose.png`, `desktop-dock-overlap.png`, `desktop-dark.png`. Current-app
+screenshots, no mock-ups; no binaries committed.
+
+### 10.8 SVG behavior polish (2026-10-16)
+
+> **Status: implemented and browser-verified.** The canvas/geometry work is in
+> the working tree and was walked in a browser at 390×844 and 1024×768, with
+> additional checks at 360 px, 300% zoom, dark and
+> `prefers-reduced-motion`. The verified results below supersede the §10.7
+> observations, which stand as the historical pre-polish review. New
+> sheet hierarchy, budget contrast and focus findings (UX-03/06/07) are **not** marked
+> fixed.
+
+**Gesture stability over a coupling.** While a coupling (or the nozzle) is
+pressed and dragged, the camera mapping, the drawing bounds and the zoom are
+**frozen** for the whole gesture: no auto-centering or re-mapping mid-drag.
+Pointer deltas map to the station's run and height. The freeze is of the
+camera, not of the model — the gauges, results and stream keep reflecting the
+live solve as the numbers change. The root cause was
+`src/lib/components/Canvas.svelte`, which auto-centered after `onSelect` on
+drag start — not `src/lib/actions.ts`. After release, fit/follow may resume,
+deliberately.
+
+**Verified result (UX-01 corrected).** First coupling dragged 0 → +3 m with a
+stable camera at **both** widths; undo returns to 0. A coupling can be raised
+24 m into the visible sky. A 30 m hose folded to zero horizontal run stays finite;
+dragging it back 4 m recovers. The same drawn geometry drives the hose path,
+the hit path, the highlight and the particles; the reducer face seam error is
+**< 0.001 screen px**. At 300% a painted 5″→1½″ reducer is clickable beyond
+its 44 px handle. `pointercancel` causes no accidental selection.
+
+**One shared hose contour.** A single sampled, smoothed contour drives the
+visible path, the pointer/hit path, the selection outline and the particles,
+so they cannot disagree. The contour is trimmed by arc length at each end;
+fitting faces are anchored explicitly with their tangents, removing seams.
+Internal rigid joints bend on the bisector axis; pump and nozzle horizontal
+ports keep their current orientation (the hose meets them horizontally).
+
+**Locked-hose reach and slack.** A hose that cannot extend shows Spanish
+`Límite de manguera`; the actively dragged coupling is drawn distinctly from
+a merely selected one. Slack — sag and floor arches — is **drawing only**: it
+adds no hydraulic law or loss, and real length/elevation edits still reach the
+engine. Sag and floor arches blend continuously, with no hard switch at 0.5 m,
+and endpoint geometry stays finite.
+
+**Zero-run.** A zero-run hose that still stores hose draws compact schematic
+coils (drawing radius capped at 0.75 m, up to 8 turns) — not a physical
+bend-radius or loss model. Only truly zero-length degenerate geometry collapses
+to a point; the finite guard is what prevents `NaN`.
+
+**Touch, overlays and labels.** Touch targets are at least 44 px, and
+overlapping handles resolve to the nearest coupling. Captions and default
+toolbars fit the canvas (desktop toolbar 20…447 inside canvas 12…625); the
+ground caption uses a fixed-screen bottom inset while the ground stays near
+the foot. Gauge and readout boxes avoid contours and one another; background
+floor labels yield when they collide, and crowded hoses get compact labels.
+
+**Water and reduced motion.** The stream's phase is aligned across sections on
+one shared timeline (CSS `startTime` 0), cycle-normalized across diameters, so
+a multi-section lay reads as one stream; velocity stays engine-derived. Under
+`prefers-reduced-motion`, Canvas particles and the camera are reduced — the
+claim is limited to Canvas, not every component tween.
+
+**Prerequisite (UX-02), verified.** Stable pump-strip sizing holds: pressure
+132 / 152.8 / 399.9 is fully readable at 360 and 390, the strip stays 60 px
+and buttons stay 44 px, so flow changes no longer move the canvas.
+
+**Checks.** `pnpm test` 39 pass, `pnpm typecheck` 0 errors/warnings, `pnpm
+build` pass.
+
+**Separate review items.** Inspector hierarchy, budget contrast and closed-sheet
+focus (UX-03/06/07) remain open. §10.7 is the historical pre-polish review; the
+verified results above supersede its observations where they differ.
+
+**Evidence.** Screenshots of the current actual app (no mock-ups) under
+`/tmp/opencode/hydraulics-ux-uiXnS6/`: `svg-final-390.png`,
+`svg-final-1024.png`, `svg-final-coil.png`, `svg-final-slack.png`,
+`svg-final-fitting-300.png`, `svg-final-360.png`, `svg-final-dark.png`.

@@ -64,6 +64,9 @@
   .dark button:active { background: var(--panel-line); }
   .dark input { background: var(--panel-well); border-color: var(--panel-line); color: var(--panel-ink); font-size: 20px; width: 6.5rem; }
   .dark .unit { color: var(--panel-muted); }
-  .compact input { width: 4.6rem; padding: 0 6px; }
-  .compact .unit { margin: 0; font-size: 13px; }
+  .compact .row { gap: 4px; }
+  .compact input { width: 4.125rem; padding: 0 2px; font-size: 18px; appearance: textfield; -moz-appearance: textfield; }
+  .compact input::-webkit-outer-spin-button,
+  .compact input::-webkit-inner-spin-button { appearance: none; -webkit-appearance: none; margin: 0; }
+  .compact .unit { margin: 0; font-size: 12px; }
 </style>

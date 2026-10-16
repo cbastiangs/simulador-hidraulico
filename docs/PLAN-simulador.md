@@ -54,6 +54,14 @@ licence, code is "all rights reserved" by default. What bears on the choice:
   scenario) and the screens, and those live in fd-app either way.
 - **The code layout doesn't change with the choice.**
 
+**Embedding, recorded 2026-10-16 (`ROADMAP.md` §11, decisions 10–11).** The
+standalone app is now SvelteKit + `adapter-static`, so the assumptions above
+("a route in fd-app", "props from a host page") are historical and
+superseded by the roadmap. If the simulator goes into fd-app, the options are
+an **iframe** with a `postMessage` bridge, a **Svelte widget inside a React
+wrapper**, or a **native React** rewrite; the engine stays a plain package
+either way. The licence question is still the open one, not the stack.
+
 ## 2. The model
 
 Moved to **`MODEL.md`** (2026-10-14): every law, its constants, units,

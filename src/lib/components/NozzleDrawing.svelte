@@ -54,7 +54,7 @@
     onclick={onToggle}
     onkeydown={(e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), onToggle())}
   >
-    <circle class="hit" cx="10" cy="-32" r="16" />
+    <circle class="hit" cx="10" cy="-32" r="22" />
     <g transform={`rotate(${bale.current} 10 -6)`}>
       <line class="lever" x1="10" y1="-6" x2="10" y2="-30" />
       <circle class="knob" cx="10" cy="-30" r="4" />

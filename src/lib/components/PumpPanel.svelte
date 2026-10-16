@@ -59,12 +59,13 @@
       unit="psi"
       onchange={(p) => onchange(edit.setSourcePressure(scenario, p))}
     />
-    <button class="chip small" type="button" title="Aplicar presión requerida" onclick={() => onchange(edit.setSourcePressure(scenario, result.requiredPumpPressurePsi))}>
-      Req. {result.requiredPumpPressurePsi.toFixed(0)}
+    <button class="chip small" type="button" title="Aplicar presión requerida" aria-label="Aplicar presión requerida" onclick={() => onchange(edit.setSourcePressure(scenario, result.requiredPumpPressurePsi))}>
+      <span class="req-label">Req.</span>
+      <span class="req-value">{result.requiredPumpPressurePsi.toFixed(0)}</span>
     </button>
     <button type="button" class="flow-open" aria-label="Bomba: salida y accesorios" onclick={onOpen}>
       <span class="big">{result.flowGpm.toFixed(0)} <small>gpm</small></span>
-      <span class="mini" class:warn-text={warn}>{missing.length > 0 ? "Sin conectar" : result.state === "flowing" ? `pitón ${result.nozzlePressurePsi.toFixed(0)} psi` : result.state === "nozzle-closed" ? "Cerrado" : "No llega"}</span>
+      <span class="mini" class:warn-text={warn}>{missing.length > 0 ? "Sin conectar" : result.state === "flowing" ? `pitón ${result.nozzlePressurePsi.toFixed(0)} psi` : result.state === "nozzle-closed" ? "Cerrado" : "No llega"}{" "}<span class="chev" aria-hidden="true">›</span></span>
     </button>
   </section>
 {:else if head}
@@ -82,6 +83,7 @@
         label="Presión de descarga"
         hideLabel
         dark
+        compact
         value={scenario.source.pressurePsi}
         unit="psi"
         onchange={(p) => onchange(edit.setSourcePressure(scenario, p))}
@@ -132,14 +134,18 @@
   .head { padding: 10px 12px; display: grid; grid-template-columns: 64px 1fr; gap: 10px 12px; align-items: center; }
   .head .flow { margin: 0; }
   .kicker { font-size: 12px; font-weight: 600; color: var(--panel-muted); }
-  .head .controls { grid-column: 1 / -1; display: flex; gap: 8px; align-items: center; justify-content: space-between; }
+  .head .controls { grid-column: 1 / -1; display: grid; grid-template-columns: max-content max-content; gap: 8px; align-items: center; justify-content: space-between; }
+  .head .controls .chip { white-space: nowrap; }
 
-  .strip { padding: 6px 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-  .flow-open { display: grid; justify-items: end; gap: 2px; min-height: 44px; padding: 2px 6px; border: 0; border-radius: 8px; background: transparent; color: var(--panel-ink); cursor: pointer; }
-  .flow-open .big { font-size: 22px; }
-  .flow-open .big small { font-size: 12px; }
+  .strip { min-height: 60px; width: 100%; min-width: 0; padding: 6px 8px; display: grid; grid-template-columns: max-content 48px minmax(0, 1fr); align-items: center; gap: 6px; }
+  .flow-open { display: grid; justify-items: end; gap: 2px; min-width: 0; min-height: 44px; padding: 2px; border: 0; border-radius: 8px; background: transparent; color: var(--panel-ink); cursor: pointer; }
+  .flow-open .big { font-size: 21px; white-space: nowrap; }
+  .flow-open .big small { font-size: 11px; }
   .mini { font-size: 11px; color: var(--ok-ink); white-space: nowrap; }
-  .chip.small { min-height: 40px; padding: 4px 10px; font-size: 13px; }
+  .chev { color: var(--panel-muted); }
+  .chip.small { width: 48px; min-width: 48px; min-height: 44px; padding: 4px 2px; font-size: 13px; display: grid; justify-items: center; align-content: center; gap: 1px; line-height: 1; }
+  .req-label { font-size: 10px; font-weight: 600; color: var(--panel-muted); }
+  .req-value { font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; background: var(--panel-line); border-radius: 999px; padding: 1px 6px; min-width: 24px; text-align: center; }
   .warn-text { color: #ffc9c9; }
 
   @media (max-width: 600px) {

@@ -438,3 +438,29 @@ and couplings, PLT-11's load chart.
 9. **Cloud saves and permanent lays are the planned paid feature.** The
    share link stays free beside them. Accounts, storage and pricing are not
    designed yet, and they bring back PLAN §1's licence and hosting question.
+
+### Stack and embedding (2026-10-16)
+
+10. **UI framework: Svelte 5 stays; React only on a committed native
+    integration.** A read-only audit measured the framework-dependent code
+    (2,626 lines; the year's largest files are `Canvas.svelte` and
+    `+page.svelte`) and confirmed that `src/hydraulics/`, the geometry and
+    the 37 tests are framework-free, so they move untouched. It found no
+    size, performance or WebGL reason to migrate: the build is ≈71 kB
+    gzipped, the canvas handles tens of elements on SVG, and a WebGL layer
+    can be driven from either framework. A rewrite is estimated at 6–10
+    person-days but would re-open the canvas gestures, sheet, fit and
+    mobile behaviour that `AGENTS.md` deliberately covers with **no UI
+    tests**, so it would be re-verified by hand. **Trigger:** the owner
+    approves the simulator sharing fd-app's components, auth context and
+    station data **in-process**. **Not triggers:** embedding alone (11), or
+    eventual WebGL.
+11. **Embedding in fd-app, in preference order** (analysis recorded, not
+    yet chosen): (a) **iframe** with a small `postMessage` bridge — the
+    roadmap's "iframe or web component" (§1), CSS isolated, at the cost of
+    a bridge and a correctly-sized frame; (b) a **Svelte widget inside a
+    React wrapper** — JS properties and callbacks, no frame, two runtimes;
+    (c) **native React** (10's trigger). The equipment→scenario adapter,
+    save/load and the state crossing are needed under all three, so React
+    removes the bridge boilerplate, not the domain work. The licence
+    question (PLAN §1) is still the open one, not the stack.
