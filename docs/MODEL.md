@@ -77,6 +77,20 @@ the engine is planned to establish a finite bracket and recheck the pressure
 residual at the returned root. Neither is implemented yet, and the code has
 no closed-source object.
 
+**Built for the 350 gpm step (2026-10-16).** `solveSeriesLine` checks the
+step before searching: at the step's flow Qs it takes the pressure left
+over without the allowance (Q ≤ Qs counts none), `spare`. If
+0 < spare < the allowance (10 psi × the fittings), no flow balances: the
+result keeps `state: "flowing"`, reports `flowGpm = Qs` **as the step, not
+a root**, and sets `unsatisfied` to { stepGpm, sparePsi, stepPsi, lowPsi,
+highPsi }, the pump-pressure band that lands in the step. The gauges are
+walked without the allowance, so the leftover shows at the nozzle; the
+terms then do not add up to the pump pressure, and the screen says so
+("sin caudal exacto", the band, and the pressures that leave it). Outside
+the band the residual is continuous on its side of the step and bisection
+finds the root as before. Tested against hand arithmetic
+(`tests/series.test.mjs`).
+
 The stepped `us-training` appliance rule (§3.10) is exactly such a gap: for a
 pump pressure that falls **inside** the 10 psi step, no balanced positive
 root exists, so the forward model must report an **unsatisfied balance**
@@ -462,8 +476,8 @@ than a fog nozzle at 100 psi (185 gpm: 69 vs 93 lbf).
   does **not** guarantee an exact root — at the step there can be pump
   pressures with no solution. The screen labels the rule ("regla de 350
   gpm") rather than hiding it, and the no-root gap is handled as an
-  unsatisfied balance (§2). This is a **planned constraint, not something
-  the current code enforces**, and no arbitrary fallback number is used.
+  unsatisfied balance (§2), built 2026-10-16 for the generic appliance;
+  no arbitrary fallback number is used.
 
   All of these are **training conventions, not measurements.** None of the
   training sources found cites a test; the CGBVP and US figures disagree
@@ -497,9 +511,14 @@ than a fog nozzle at 100 psi (185 gpm: 69 vs 93 lbf).
   rule above: 0 / 10 psi above 350 gpm, 25 psi master stream, aerial
   waterway and whole standpipe system), **labelled as a training
   allowance**, not a measurement. A device curve, once adopted, replaces the
-  allowance for that device and says so; the two are never added. Runtime:
-  today's code still counts "sin dato" (0) under `physical`; the allowance
-  ships with the no-root handling of §2, which the 350 gpm step needs.
+  allowance for that device and says so; the two are never added.
+  **Built (2026-10-16, owner: "show that they only count at 350 gpm +"):**
+  `physical` (Modelo base) has `fittingStep` { 350 gpm, 10 psi, Colorado }
+  in `references.ts`, applied to every reducer, adapter and in-line valve as
+  the law `appliance.step`; the 25 psi master-stream, aerial and standpipe
+  allowances wait for those elements. The coupling panel says "0 psi hasta
+  350 gpm; 10 psi por encima" and whether it counts at the current flow,
+  never "sin dato".
 
 ### 3.11 Standpipes ⏳ M2 (outlet), M4 (system)
 
@@ -711,7 +730,7 @@ geometry or crashes (see AGENTS.md).
 | Appliance K or curves | `appliance.k` | M4 | Elkhart B-100 wye ΔP–Q chart, both ports / one port (2.5″ × 1.5″) [E5]; read as **total static pressure drop** (ΔP_S = H_F + ΔP_V), not friction loss alone |
 | Wildland 1½″ appliance measurements at 50 gpm | `appliance.k` / `appliance.fixed` | M4 | USDA FS SDTDC wildland-hose-lay test: 1½″ wye valve 0.46 / tee 0.05 / tee+valve 0.77 psi at 50 gpm ([E11]; specific to that lay, not universal structural flow or generic valve loss) |
 | Siamese loss is flow- and waterway-dependent | `appliance.k` | M4 | Humat Rural Hitch field test ([E12], 2021-12-10): straight box waterway (Qgpm, psi) = (504,4)/(873,6)/(1158,13); clapper (582,14)/(840,39)/(1158,45). The report's +40 psi above 750 gpm is an operational allowance, not a measured difference |
-| Generic training "Appliances" mapping (reducers, adapters, in-line valves → 0/10 psi) | `appliance.fixed` | M4 | Adopted simulator mapping (§3.10); numeric allowance from Colorado [E15] p. 1. Implement the labelled mapping and test the 350 gpm boundary / no-root gap |
+| Generic training "Appliances" mapping (reducers, adapters, in-line valves → 0/10 psi) | `appliance.step` | built 2026-10-16 | Adopted simulator mapping (§3.10); numeric allowance from Colorado [E15] p. 1. The 350 gpm boundary and the no-root gap are tested |
 | Monitor loss: use Elkhart's *total static pressure drop*, not friction loss alone (Python 299-11, friction only: 11/18/24 psi at 750/1000/1250 gpm) | `appliance.fixed` / monitor | M2–M4 | Elkhart catalog f9 05-43 and Python pressure-drop chart (read 2026-10-15) |
 | Eductor: Elkhart 240 water bypass 2/6/11 psig at 60/95/125 gpm; foam mode needs 200 psi in, ≤ 130 psi out (≥ 70 psi drop, inferred), not CGBVP's flat 40 | `appliance.fixed` / eductor | M4 | Elkhart manual 98069000 Rev A, pp. 2–3 (read 2026-10-15) |
 | Hydrant curve form | `supply.hydrant` | later | NFPA 291 [E8] |

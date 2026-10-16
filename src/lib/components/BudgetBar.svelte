@@ -18,10 +18,15 @@
       nozzle: sum("nozzle.fixed-orifice"),
       friction: sum("hose.friction"),
       elevation: sum("elevation"),
-      fittings: sum("appliance.fixed"),
+      fittings: sum("appliance.fixed") + sum("appliance.step"),
     };
   });
-  const fittingCount = $derived(result.terms.filter((t) => t.lawId === "appliance.fixed").length);
+  const fittingCount = $derived(result.terms.filter((t) => t.lawId === "appliance.fixed" || t.lawId === "appliance.step").length);
+  /** The method's stepped allowance, when it uses one: "0 up to 350 gpm, 10 psi above". */
+  const step = $derived.by(() => {
+    const t = result.terms.find((t) => t.lawId === "appliance.step");
+    return t?.lawId === "appliance.step" ? t.inputs : null;
+  });
   const noData = $derived(result.terms.some((t) => t.lawId === "appliance.fixed" && t.inputs.lossPsi === null));
   const total = $derived(parts.nozzle + parts.friction + parts.fittings + Math.max(0, parts.elevation));
   const pct = (v: number) => `${total > 0 ? (Math.max(0, v) / total) * 100 : 0}%`;
@@ -37,6 +42,13 @@
       {#if parts.fittings > 0}<div class="fittings" style:width={pct(parts.fittings)}>{f(parts.fittings)}</div>{/if}
       {#if parts.elevation > 0}<div class="elevation" style:width={pct(parts.elevation)}>{f(parts.elevation)}</div>{/if}
     </div>
+    {#if result.unsatisfied && !compact}
+      {@const g = result.unsatisfied}
+      <p class="gap" role="status">
+        ⚠ Regla de 350 gpm: entre {g.lowPsi.toFixed(0)} y {g.highPsi.toFixed(0)} psi en la bomba no hay caudal exacto. A {g.stepGpm} gpm sobran
+        {f(g.sparePsi)} psi sin la pérdida de los acoples y faltan {f(g.stepPsi - g.sparePsi)} con ella; la barra no suma la bomba.
+      </p>
+    {/if}
     {#if !compact}<ul class="legend">
       <li>
         <span class="swatch nozzle"></span>
@@ -51,7 +63,7 @@
           <span class="swatch fittings"></span>
           <span>
             <b>Accesorios {noData ? "sin dato" : `${f(parts.fittings)} psi`}</b> ·
-            {fittingCount} {fittingCount === 1 ? "accesorio" : "accesorios"} (adaptadores, válvulas){noData ? ": el modelo base no tiene un valor publicado, cuenta 0" : ""}
+            {fittingCount} {fittingCount === 1 ? "accesorio" : "accesorios"} (reducciones, válvulas){noData ? ": el método no tiene un valor publicado, cuenta 0" : ""}{#if step}: {step.stepPsi} psi cada uno solo por encima de {step.aboveGpm} gpm (regla de 350 gpm, Colorado); ahora {f(result.flowGpm)} gpm{/if}
             {#if reference}· {referenceLabel}: {f(reference.fittingLossPsi)}{/if}
           </span>
         </li>
@@ -78,6 +90,7 @@
   .row { display: flex; justify-content: space-between; gap: 12px; color: var(--muted); font-size: 14px; }
   .row b { color: var(--ink); }
   .small { font-size: 13px; color: var(--muted); margin: 0; }
+  .gap { margin: 0; font-size: 13px; font-weight: 600; color: var(--warn); }
   .bar { display: flex; height: 28px; border-radius: 6px; overflow: hidden; font-size: 12px; font-weight: 700; color: #fff; background: var(--band); }
   .bar div { display: flex; align-items: center; padding: 0 8px; white-space: nowrap; overflow: hidden; transition: width 250ms; }
   .legend { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 13px; color: var(--muted); }

@@ -10,12 +10,15 @@
     joint,
     onToggle,
     titled = true,
+    flowGpm = 0,
   }: {
     scenario: Scenario;
     joint: number;
     onToggle: (kind: FittingKind) => void;
     /** False where a header above already names the coupling. */
     titled?: boolean;
+    /** The line's flow now, for a stepped allowance's "counts now / doesn't". */
+    flowGpm?: number;
   } = $props();
 
   const j = $derived(joints(scenario)[joint]);
@@ -28,8 +31,7 @@
     j.upIn === undefined || j.downIn === undefined ? "Adaptador" : j.downIn < j.upIn ? "Reducción" : "Ampliación",
   );
   const hasAdapter = $derived(j.auto || j.placed.includes("adapter"));
-  const loss = $derived(METHODS[scenario.methodId].fittingLossPsi);
-  const reference = METHODS["cgbvp-2019"].fittingLossPsi!;
+  const method = $derived(METHODS[scenario.methodId]);
 </script>
 
 <div class="joint">
@@ -63,7 +65,14 @@
   {/if}
 
   <p class="note">
-    Pérdida por accesorio: {loss ? `${loss.adapter} psi (fija)` : "sin dato en el modelo base, cuenta 0"} · CGBVP p. 45: {reference.adapter} psi.
+    {#if method.fittingLossPsi}
+      Pérdida: {method.fittingLossPsi.adapter} psi fija mientras fluye (CGBVP p. 45).
+    {:else if method.fittingStep}
+      {@const s = method.fittingStep}
+      Pérdida: 0 psi hasta {s.aboveGpm} gpm; {s.lossPsi} psi por encima (regla de 350 gpm, Colorado). Ahora {flowGpm.toFixed(0)} gpm: {flowGpm > s.aboveGpm ? `cuenta ${s.lossPsi} psi` : "no cuenta"}.
+    {:else}
+      Pérdida: sin dato para este método, cuenta 0.
+    {/if}
     {#if isAuto(scenario) && j.mismatch}Desactiva «Accesorios automáticos» para colocarlo a mano.{/if}
   </p>
 </div>

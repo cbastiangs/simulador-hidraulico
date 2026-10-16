@@ -86,7 +86,12 @@
   named by what it is** (owner, 2026-10-16) — "Reducción 2½″ → 1½″",
   "Ampliación …", "Válvula 2½″", or a plain "Acople 2½″" — in the parts
   list, the panel, the menu, the gauge readings and the calculation
-  (`src/lib/names.ts`). The nozzle joint is edited in the nozzle's
+  (`src/lib/names.ts`). **Its loss is stated, never "sin dato"** (owner,
+  2026-10-16): under Modelo base "0 psi hasta 350 gpm; 10 psi por encima
+  (regla de 350 gpm, Colorado)" and whether it counts at the current flow;
+  under CGBVP "5 psi fija". Inside the step, where no flow balances
+  (MODEL.md §2), the pump's state says "En el escalón de 350 gpm · sin
+  caudal exacto" and gives the pressures that leave it. The nozzle joint is edited in the nozzle's
   inspector panel. Fittings are drawn
   at the joint in their own colour and move with it. An adapter is only
   offered where coupling sizes differ. No loose items and no toolbox drag for
@@ -302,8 +307,11 @@ welcome tour is interactive.
   empty canvas (or a hose), a trackpad swipe or Shift + wheel to pan; the
   mouse wheel zooms around the pointer, like a map (owner, 2026-10-16), and
   so does a pinch. A trackpad is told from a wheel by sideways motion or
-  fine steps. The camera may leave the world, but 48 px of it always
-  stays in view. **Lock** (button, or Y) keeps the camera on the selection,
+  fine steps. **The camera stays inside the world** (owner, 2026-10-16:
+  zooming out showed empty space above and left of the truck; replaces "may
+  leave the world, 48 px stays"): the world always fills the view, so the
+  truck's edge is the left limit, the ground the bottom, and a zoom or a
+  resize pulls the camera back in. **Lock** (button, or Y) keeps the camera on the selection,
   or on the truck when nothing is selected, like a game's locked camera;
   any manual pan unlocks. A new lay returns to the start view; "Ver todo"
   and a double tap to the whole lay.

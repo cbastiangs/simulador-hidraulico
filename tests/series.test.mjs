@@ -151,3 +151,37 @@ test("an impossible line is rejected instead of solved", () => {
     RangeError,
   );
 });
+
+test("Colorado's appliance allowance: 0 up to 350 gpm, 10 psi above, and no balanced flow inside the step", () => {
+  // Colorado DFPC pumper chart, p. 1: "Appliances + 10 psi > 350 gpm" (MODEL.md §3.10).
+  // 100 ft of 2½" (C = 2) with one reducer at the nozzle; nozzle rated 100 psi at 400 gpm.
+  // FL(Q) = 2·(Q/100)²; NP(Q) = 100·(Q/400)².
+  const big = { ratedFlowGpm: 400, ratedPressurePsi: 100, open: true };
+  const line = (pumpPressurePsi) => ({
+    pumpPressurePsi,
+    sections: [{ hose: hose(100, 2), endElevationM: 0 }],
+    nozzle: big,
+    fittings: [{ joint: 1, kind: "adapter" }],
+  });
+  const step = (r) => r.terms.find((t) => t.lawId === "appliance.step");
+
+  // Above 350: at 400 gpm, 100 + 32 + 10 = 142 psi.
+  const above = solveSeriesLine(line(142), METHODS.physical);
+  near(above.requiredPumpPressurePsi, 142);
+  near(above.flowGpm, 400, 1e-6);
+  assert.equal(step(above).valuePsi, 10);
+  assert.equal(above.unsatisfied, null);
+
+  // Below: 100 psi = Q²·(2/10⁴ + 100/400²) = 0.000825·Q², so Q = 348.15 gpm, no allowance.
+  const below = solveSeriesLine(line(100), METHODS.physical);
+  near(below.flowGpm, Math.sqrt(100 / 0.000825), 1e-6);
+  assert.equal(step(below).valuePsi, 0);
+
+  // At 350 gpm without the allowance the line needs 24.5 + 76.5625 = 101.0625 psi, with it
+  // 111.0625. At 106 psi: 4.9375 psi to spare without, 5.0625 short with: no balanced flow.
+  const inside = solveSeriesLine(line(106), METHODS.physical);
+  assert.equal(inside.flowGpm, 350);
+  near(inside.unsatisfied.sparePsi, 4.9375);
+  near(inside.unsatisfied.lowPsi, 101.0625);
+  near(inside.unsatisfied.highPsi, 111.0625);
+});

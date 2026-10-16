@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { jointName, jointNameIn } from "$lib/names.ts";
   import { tick, untrack } from "svelte";
   import { HOSE_SIZES, type FittingKind } from "$hydraulics/references.ts";
   import { joints, type Scenario } from "$hydraulics/scenario.ts";
@@ -15,6 +14,7 @@
     type Bounds,
     type PathAttachment,
   } from "$lib/geometry/world.ts";
+  import { jointName, jointNameIn } from "$lib/names.ts";
   import type { Selection } from "$lib/selection.ts";
     import ContextMenu from "./ContextMenu.svelte";
   import Actions from "./Actions.svelte";
@@ -130,18 +130,30 @@
   /** Programmatic moves glide; a finger or wheel moves it directly. */
   let glide = $state(false);
   let glideTimer: ReturnType<typeof setTimeout> | undefined;
-  const EDGE_PX = 48;
-
-  /** Move the camera; the world may leave the view but never all of it: EDGE_PX stays visible. */
+  /**
+   * Move the camera, kept inside the world (owner, 2026-10-16: zooming out
+   * showed empty space above and left of the truck). The world always fills
+   * the view (fillViewport), so the view never shows past its edges.
+   */
   function moveCamera(x: number, y: number, smooth = false) {
     const stageW = layout.widthPx * zoom;
     const stageH = layout.heightPx * zoom + coverPx;
-    camX = Math.min(stageW - EDGE_PX, Math.max(EDGE_PX - viewWidth, x));
-    camY = Math.min(stageH - EDGE_PX, Math.max(EDGE_PX - viewHeight, y));
+    camX = Math.min(Math.max(0, stageW - viewWidth), Math.max(0, x));
+    camY = Math.min(Math.max(0, stageH - viewHeight), Math.max(0, y));
     clearTimeout(glideTimer);
     glide = smooth && !reducedMotion;
     if (glide) glideTimer = setTimeout(() => (glide = false), 300);
   }
+
+  // A zoom or resize that shrinks the world pulls the camera back inside it.
+  $effect(() => {
+    const maxX = Math.max(0, layout.widthPx * zoom - viewWidth);
+    const maxY = Math.max(0, layout.heightPx * zoom + coverPx - viewHeight);
+    untrack(() => {
+      if (camX < 0 || camX > maxX) camX = Math.min(maxX, Math.max(0, camX));
+      if (camY < 0 || camY > maxY) camY = Math.min(maxY, Math.max(0, camY));
+    });
+  });
 
   /** The home view: the truck at the canvas's left edge, the ground at the foot. */
   async function goHome() {
@@ -1274,7 +1286,7 @@
           bind:clientHeight={jointBarH}
         >
           <button type="button" class="bar-close" aria-label="Quitar selección (Esc)" title="Quitar selección (Esc)" onclick={onDeselect}>×</button>
-          <JointControls {scenario} joint={selection.index} onToggle={(kind) => onToggleFitting(selection.index, kind)} />
+          <JointControls {scenario} flowGpm={result.flowGpm} joint={selection.index} onToggle={(kind) => onToggleFitting(selection.index, kind)} />
           <Actions target={selection} {scenario} requiredPsi={result.requiredPumpPressurePsi} place="quick" {onAction} />
         </div>
       {/if}

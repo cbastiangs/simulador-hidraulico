@@ -40,7 +40,14 @@
   const f = (n: number) => n.toFixed(1);
   // A missing adapter (manual fittings) leaves the line unconnected: say so rather than "nozzle closed".
   const missing = $derived(missingAdapters(scenario));
-  const warn = $derived(result.state !== "flowing" || missing.length > 0);
+  const gap = $derived(result.unsatisfied);
+  const warn = $derived(result.state !== "flowing" || missing.length > 0 || gap !== null);
+  // Inside the 350 gpm step no flow balances (MODEL.md §2): say so, and how to leave it.
+  const gapTip = $derived(
+    gap
+      ? `Regla de 350 gpm: entre ${gap.lowPsi.toFixed(0)} y ${gap.highPsi.toFixed(0)} psi no hay caudal exacto. A ${gap.stepGpm} gpm sobran ${gap.sparePsi.toFixed(1)} psi sin la pérdida de los acoples y faltan ${(gap.stepPsi - gap.sparePsi).toFixed(1)} con ella. Baja a ${Math.floor(gap.lowPsi)} psi o sube a ${Math.ceil(gap.highPsi)}.`
+      : "",
+  );
   const required = $derived(result.requiredPumpPressurePsi);
   const requiredTip = $derived(
     `Presión necesaria en la bomba para que el pitón reciba sus ${scenario.nozzle.ratedPressurePsi} psi: ${required.toFixed(0)} psi. Toca para aplicarla.`,
@@ -57,9 +64,11 @@
 {/snippet}
 
 {#snippet stateLine()}
-  <span class="state" class:warn>
+  <span class="state" class:warn title={gapTip || undefined}>
     {#if missing.length > 0}
       Línea sin conectar · falta adaptador
+    {:else if gap}
+      En el escalón de {gap.stepGpm} gpm · sin caudal exacto
     {:else}
       {STATE[result.state]}{result.state === "flowing" ? ` · ${result.nozzlePressurePsi.toFixed(0)} psi en pitón` : ""}
     {/if}
@@ -83,7 +92,7 @@
     </button>
     <button type="button" class="flow-open" aria-label="Bomba: salida y accesorios" onclick={onOpen}>
       <span class="big">{result.flowGpm.toFixed(0)} <small>gpm</small></span>
-      <span class="mini" class:warn-text={warn}>{missing.length > 0 ? "Sin conectar" : result.state === "flowing" ? `pitón ${result.nozzlePressurePsi.toFixed(0)} psi` : result.state === "nozzle-closed" ? "Cerrado" : "No llega"}{" "}<span class="chev" aria-hidden="true">›</span></span>
+      <span class="mini" class:warn-text={warn}>{missing.length > 0 ? "Sin conectar" : gap ? `escalón ${gap.stepGpm}` : result.state === "flowing" ? `pitón ${result.nozzlePressurePsi.toFixed(0)} psi` : result.state === "nozzle-closed" ? "Cerrado" : "No llega"}{" "}<span class="chev" aria-hidden="true">›</span></span>
     </button>
   </section>
 {:else if head}
@@ -139,6 +148,7 @@
       {@render idleButton()}
     </div>
     <p class="span hint">Ajustar: la presión necesaria para que el pitón reciba sus {scenario.nozzle.ratedPressurePsi} psi.</p>
+    {#if gap}<p class="span hint gap">{gapTip}</p>{/if}
   </section>
 {:else}
   <section class="pump" aria-label="Panel de bomba">
@@ -192,6 +202,7 @@
   .full .row { display: flex; gap: 8px; }
   .full .grow { flex: 1; }
   .full .hint { margin: -4px 0 0; font-size: 12px; color: var(--panel-muted); }
+  .full .hint.gap { color: #ffc9c9; }
   .full .flow { margin: 0; }
 
   .strip { min-height: 60px; width: 100%; min-width: 0; padding: 6px 8px; display: grid; grid-template-columns: max-content 48px minmax(0, 1fr); align-items: center; gap: 6px; }

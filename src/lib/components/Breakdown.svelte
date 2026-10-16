@@ -22,6 +22,9 @@
         ? "Sin dato publicado para el modelo base (MODEL.md §3.10)"
         : `${SOURCE_LABELS.cgbvpManual2019}, p. 45 (aproximación de entrenamiento)`;
     }
+    if (term.lawId === "appliance.step") {
+      return `${SOURCE_LABELS.coloradoPumperChart}, p. 1: «Appliances + 10 psi > 350 gpm» (asignación de entrenamiento; contar acoples como «appliances» es criterio del simulador)`;
+    }
     if (term.lawId !== "elevation") return LAWS[term.lawId].sources.map((id) => SOURCE_LABELS[id]).join(" · ");
     const source = METHODS[methodId].source;
     return source ? `${SOURCE_LABELS[source]}, p. 44` : "Hidrostática: ρ·g·h";
@@ -44,11 +47,18 @@
         <span class="formula">
           EP = k × h = {f(k, 3)} psi/m × {f(h)} m = <strong>{f(term.valuePsi)} psi</strong>
         </span>
-      {:else if term.lawId === "appliance.fixed"}
+      {:else if term.lawId === "appliance.fixed" || term.lawId === "appliance.step"}
         <span class="name">{term.kind === "adapter" && term.joint > 0 && term.joint < scenario.sections.length ? jointName(scenario, term.joint) : `${term.kind === "valve" ? "Válvula en línea" : "Adaptador"}, ${jointNameIn(scenario, term.joint)}`}</span>
+        {#if term.lawId === "appliance.step"}
+          {@const { aboveGpm: qs, stepPsi: dp, flowGpm: q } = term.inputs}
+          <span class="formula">
+            AL = 0 si Q ≤ {qs} gpm; {f(dp, 0)} psi si Q > {qs} gpm · Q = {f(q)} gpm → <strong>{f(term.valuePsi)} psi</strong>
+          </span>
+        {:else}
         <span class="formula">
           AL = {term.inputs.lossPsi === null ? "sin dato → " : ""}<strong>{f(term.valuePsi)} psi</strong>{term.inputs.lossPsi === null ? "" : " (fija mientras fluye)"}
         </span>
+        {/if}
       {:else}
         {@const { ratedPressurePsi: npr, ratedFlowGpm: qr, flowGpm: q } = term.inputs}
         <span class="name">Pitón</span>

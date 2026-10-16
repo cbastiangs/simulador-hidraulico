@@ -7,7 +7,7 @@ import type { FittingKind, SourceId } from "./references.ts";
  * never recompute anything.
  */
 
-export type LawId = "hose.friction" | "elevation" | "nozzle.fixed-orifice" | "appliance.fixed";
+export type LawId = "hose.friction" | "elevation" | "nozzle.fixed-orifice" | "appliance.fixed" | "appliance.step";
 
 export type Law = {
   id: LawId;
@@ -34,6 +34,12 @@ export const LAWS: Record<LawId, Law> = {
     model: "§3.3",
   },
   "appliance.fixed": { id: "appliance.fixed", formula: "AL = Σ pérdida fija", sources: [], model: "§3.10" },
+  "appliance.step": {
+    id: "appliance.step",
+    formula: "AL = 0 si Q ≤ Qs; ΔP si Q > Qs",
+    sources: ["coloradoPumperChart"],
+    model: "§3.10",
+  },
 };
 
 /** One applied law: its inputs in the law's units, and the pressure it accounts for. */
@@ -57,5 +63,13 @@ export type Term =
       kind: FittingKind;
       /** The method's value; null = "sin dato", counted as 0. */
       inputs: { lossPsi: number | null };
+      valuePsi: number;
+    }
+  | {
+      lawId: "appliance.step";
+      joint: number;
+      kind: FittingKind;
+      /** The step: `stepPsi` once `flowGpm` is strictly above `aboveGpm`. */
+      inputs: { aboveGpm: number; stepPsi: number; flowGpm: number };
       valuePsi: number;
     };

@@ -87,6 +87,12 @@ export type MethodId = "cgbvp-2019" | "physical";
 export type FittingKind = "adapter" | "valve";
 
 /**
+ * A stepped allowance per fitting (`appliance.step`, MODEL.md §3.10): no loss
+ * up to `aboveGpm`, `lossPsi` once the flow is strictly above it.
+ */
+export type FittingStep = { aboveGpm: number; lossPsi: number; source: SourceId };
+
+/**
  * The calculation conventions a line is solved under. Each method swaps
  * constants and data tables; the element laws stay the same (MODEL.md §4).
  */
@@ -100,6 +106,8 @@ export type Method = {
    * the method has no value ("sin dato"); the fitting is shown and counts 0.
    */
   fittingLossPsi: Record<FittingKind, number> | null;
+  /** Used when `fittingLossPsi` is null: a stepped training allowance instead of a fixed one. */
+  fittingStep: FittingStep | null;
 };
 
 export const METHODS: Record<MethodId, Method> = {
@@ -114,11 +122,21 @@ export const METHODS: Record<MethodId, Method> = {
     psiPerMeterOfHeight: 1.5,
     source: "cgbvpManual2019",
     fittingLossPsi: { adapter: 5, valve: 5 },
+    fittingStep: null,
   },
   /**
    * Hydrostatics: 62.4 lb/ft³ over 144 in²/ft² = 0.433, published as 0.434
    * psi per foot; per metre, 0.434 / 0.3048 = 1.424. No measured fitting
-   * curve has a source yet.
+   * curve has a source yet, so fittings take the Colorado chart's training
+   * allowance, labelled as one (owner, 2026-10-15; MODEL.md §3.10):
+   * "Appliances + 10 psi > 350 gpm". A reducer, adapter or in-line valve
+   * counting as an "appliance" is the simulator's mapping, not the chart's.
    */
-  physical: { id: "physical", psiPerMeterOfHeight: 0.434 / METERS_PER_FOOT, source: null, fittingLossPsi: null },
+  physical: {
+    id: "physical",
+    psiPerMeterOfHeight: 0.434 / METERS_PER_FOOT,
+    source: null,
+    fittingLossPsi: null,
+    fittingStep: { aboveGpm: 350, lossPsi: 10, source: "coloradoPumperChart" },
+  },
 };

@@ -88,7 +88,7 @@
         {/each}
       </div>
     </div>
-    <JointControls {scenario} joint={0} onToggle={(kind) => onchange(edit.toggleFitting(scenario, 0, kind))} />
+    <JointControls {scenario} flowGpm={result.flowGpm} joint={0} onToggle={(kind) => onchange(edit.toggleFitting(scenario, 0, kind))} />
   {:else if selection.kind === "nozzle"}
     {@const n = scenario.nozzle}
     <header>
@@ -167,14 +167,14 @@
       <NumberField label="Presión nominal" value={n.ratedPressurePsi} unit="psi" step={5} digits={0} onchange={(p) => onchange(edit.setNozzleRating(scenario, { ratedPressurePsi: p }))} />
     </details>
 
-    <JointControls {scenario} joint={last + 1} onToggle={(kind) => onchange(edit.toggleFitting(scenario, last + 1, kind))} />
+    <JointControls {scenario} flowGpm={result.flowGpm} joint={last + 1} onToggle={(kind) => onchange(edit.toggleFitting(scenario, last + 1, kind))} />
   {:else if selection.kind === "joint"}
     {@const j = selection.index}
     <header>
       <h3>{jointName(scenario, j)}</h3>
       <p>{j === 0 ? "Entre la bomba y el tramo 1" : `Entre el tramo ${j} y el tramo ${j + 1}`} · arrastra el acople para moverlo</p>
     </header>
-    <JointControls {scenario} joint={j} titled={false} onToggle={(kind) => onchange(edit.toggleFitting(scenario, j, kind))} />
+    <JointControls {scenario} flowGpm={result.flowGpm} joint={j} titled={false} onToggle={(kind) => onchange(edit.toggleFitting(scenario, j, kind))} />
   {:else}
     {@const i = selection.index}
     {@const s = scenario.sections[i]}
