@@ -23,6 +23,7 @@
     result,
     onAction,
     onClose,
+    pumpInPanel = false,
   }: {
     scenario: Scenario;
     /** Null: nothing selected; the panel lists what can be. */
@@ -36,6 +37,8 @@
     onAction: (action: Action, target: Target) => void;
     /** The header's ×: clear the selection. */
     onClose: () => void;
+    /** Desktop with the pump column open: the pump and its outlet are edited there, not repeated here. */
+    pumpInPanel?: boolean;
   } = $props();
 
   const last = $derived(scenario.sections.length - 1);
@@ -72,6 +75,11 @@
       {/each}
       <button type="button" onclick={() => onSelect({ kind: "nozzle" })}>Pitón · {scenario.nozzle.open ? "abierto" : "cerrado"}</button>
     </nav>
+  {:else if pumpInPanel && (selection.kind === "pump" || (selection.kind === "joint" && selection.index === 0))}
+    <header>
+      <h3>{selection.kind === "pump" ? "Bomba" : "Salida de la bomba"}</h3>
+      <p>Presión, tamaño de salida y accesorios: en el panel de bomba, a la izquierda.</p>
+    </header>
   {:else if selection.kind === "pump"}
     {@const outlet = scenario.source.outletSizeIn}
     <header>

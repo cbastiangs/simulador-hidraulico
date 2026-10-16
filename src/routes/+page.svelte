@@ -61,6 +61,13 @@
       localStorage.setItem("panel.pump", folded ? "folded" : "open");
     } catch {}
   }
+  // With the column open on desktop the pump is edited there only: the
+  // selection panel points to it instead of repeating its controls.
+  const pumpInPanel = $derived(wide && !pumpFolded);
+  const pumpSelected = $derived.by(() => {
+    const s = selection;
+    return s?.kind === "pump" || (s?.kind === "joint" && s.index === 0);
+  });
   let sheet = $state<SheetState>("closed");
   let windowHeight = $state(800);
   /** How much of the canvas the open sheet covers, so the canvas keeps the selection above it. */
@@ -238,7 +245,7 @@
 {/snippet}
 
 {#snippet side()}
-  <Inspector {scenario} {selection} floorM={edit.floorOf(scenario)} onClose={deselect} onchange={(s) => apply(s, `inspector:${JSON.stringify(selection)}`)} onSelect={select} requiredPsi={result.requiredPumpPressurePsi} {result} onAction={runAction} />
+  <Inspector {scenario} {selection} {pumpInPanel} floorM={edit.floorOf(scenario)} onClose={deselect} onchange={(s) => apply(s, `inspector:${JSON.stringify(selection)}`)} onSelect={select} requiredPsi={result.requiredPumpPressurePsi} {result} onAction={runAction} />
   {#if !wide}{@render line()}{/if}
 {/snippet}
 
@@ -280,12 +287,18 @@
     </details>
   </header>
 
-  <div class="pump">
-    <PumpPanel {scenario} {result} onchange={(s) => apply(s, "pump")} column={wide} collapsed={pumpFolded} onCollapse={foldPump} strip={phone} onOpen={() => select({ kind: "pump" })} />
-    {#if wide && !pumpFolded}{@render line()}{/if}
-  </div>
+  {#if !(wide && pumpFolded)}
+    <div class="pump">
+      <PumpPanel {scenario} {result} onchange={(s) => apply(s, "pump")} column={wide} onCollapse={foldPump} strip={phone} selected={pumpInPanel && pumpSelected} onClose={pumpInPanel && pumpSelected ? deselect : undefined} onOpen={() => select({ kind: "pump" })} />
+      {#if wide}{@render line()}{/if}
+    </div>
+  {/if}
 
   <div class="canvas">
+    {#if wide && pumpFolded}
+      <!-- The folded column's stand-in: the pump stays in hand (UX.md §4). -->
+      <div class="float-pump"><PumpPanel {scenario} {result} onchange={(s) => apply(s, "pump")} float onCollapse={foldPump} /></div>
+    {/if}
     <Canvas
       {scenario}
       {result}
@@ -348,7 +361,10 @@
     grid-template-areas: "top top top" "pump canvas side" "pump results side";
     grid-template-rows: auto auto 1fr;
   }
-  .app.wide.folded { grid-template-columns: 64px minmax(0, 1fr) 340px; }
+  .app.wide.folded {
+    grid-template-columns: minmax(0, 1fr) 340px;
+    grid-template-areas: "top top" "canvas side" "results side";
+  }
   .app.wide .pump, .app.wide .side { position: sticky; top: var(--gap); align-self: start; max-height: calc(100dvh - 2 * var(--gap)); overflow: auto; }
   .dock { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; padding: 8px var(--gap) calc(8px + env(safe-area-inset-bottom)); background: var(--bg); box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.15); }
   .dock > :global(*) { max-width: 1976px; margin: 0 auto; }
@@ -372,7 +388,8 @@
   .seg button { min-height: 40px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); font-weight: 600; font-size: 13px; cursor: pointer; text-transform: none; letter-spacing: 0; color: var(--ink); }
   .seg .on { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
   .line-tools h2 { margin: 0; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
-  .canvas { grid-area: canvas; min-width: 0; }
+  .canvas { grid-area: canvas; min-width: 0; position: relative; }
+  .float-pump { position: absolute; top: 8px; left: 8px; z-index: 4; max-width: calc(100% - 16px); }
   .side { grid-area: side; display: grid; gap: var(--gap); align-content: start; }
   .results { grid-area: results; display: grid; gap: var(--gap); min-width: 0; }
   .card { background: var(--surface); border-radius: var(--radius); padding: 12px 14px; }

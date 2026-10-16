@@ -183,9 +183,20 @@
   settings for the whole line (add a hose at the end, automatic fittings;
   the method picker joins here). On tablets Línea sits under the inspector;
   on phones, in the sheet.
-- **Fold:** "◂" folds the pump panel to a 64 px rail (mini gauge, psi, gpm);
-  "▸" opens it. Remembered per browser; with no choice stored it starts
-  folded under 1280 px, where an open column leaves the canvas too narrow.
+- **Fold:** "◂" folds the pump panel away and the canvas takes its width;
+  a **floating pump control** stands in for it in the canvas's top-left
+  corner (owner, 2026-10-16: the pump pressure must stay in hand): mini
+  gauge, pressure ±, "Req." (apply required), flow and nozzle pressure.
+  "▸" on it opens the panel. It is the one exception to "controls live
+  below the drawing": the corner is sky in every preset (checked: it covers
+  no hose, coupling, gauge or truck). Remembered per browser; with no choice
+  stored it starts folded under 1280 px, where an open column leaves the
+  canvas too narrow.
+- **No control in two places (owner, 2026-10-16).** With the panel open,
+  selecting the truck or the pump outlet marks the pump panel (accent
+  outline, × to deselect) and the selection panel only says where to edit
+  it, plus the pump's actions. Folded, the selection panel shows the outlet
+  size and fittings, since nothing else on screen does.
 - **Selection panel (right):** never hidden, so selecting does not resize
   and refit the canvas; shows "Nada seleccionado" and the parts list when
   nothing is (§2).

@@ -7,18 +7,20 @@
   import NumberField from "./NumberField.svelte";
 
   // The pump panel (UX.md §3, §4): discharge gauge, pressure typed or stepped,
-  // "apply required", and the flow, large. Three shapes: a bar above the
-  // canvas (tablet), a strip (phone), and the left column (desktop), which
-  // also holds the discharges. Truck, control and tank sections join the
+  // "apply required", and the flow, large. Four shapes: a bar above the
+  // canvas (tablet), a strip (phone), the left column (desktop), which also
+  // holds the discharges, and the floating control that stands in for the
+  // column when it is folded. Truck, control and tank sections join the
   // column with M3 (ROADMAP §6).
   let {
     scenario,
     result,
     onchange,
     column = false,
-    collapsed = false,
     onCollapse,
     strip = false,
+    float = false,
+    selected = false,
     onOpen,
     onClose,
   }: {
@@ -27,11 +29,13 @@
     onchange: (s: Scenario) => void;
     /** Desktop: the left column. */
     column?: boolean;
-    /** The column folded to a narrow rail: gauge, pressure and flow only. */
-    collapsed?: boolean;
     onCollapse?: (collapsed: boolean) => void;
     /** Phone: one row (pressure ± and flow); tapping the flow opens the whole panel in the sheet. */
     strip?: boolean;
+    /** Desktop, folded: the floating control (gauge, pressure ±, apply required, flow); ▸ opens the column. */
+    float?: boolean;
+    /** The pump is selected on the canvas: the column is where it is edited, so it carries the selection mark. */
+    selected?: boolean;
     onOpen?: () => void;
     /** In the phone's sheet: × clears the selection. */
     onClose?: () => void;
@@ -59,15 +63,29 @@
   </span>
 {/snippet}
 
-{#if column && collapsed}
-  <section class="rail" aria-label="Panel de bomba (plegado)">
+{#if float}
+  <section class="float" aria-label="Control de bomba">
     <button type="button" class="fold" aria-label="Abrir panel de bomba" title="Abrir panel de bomba" onclick={() => onCollapse?.(false)}>▸</button>
     <svg width="44" height="44" viewBox="-22 -22 44 44" aria-hidden="true"><Gauge psi={scenario.source.pressurePsi} r={20} dark label={false} /></svg>
-    <b>{scenario.source.pressurePsi.toFixed(0)}</b><small>psi</small>
-    <b class:warn-text={warn}>{result.flowGpm.toFixed(0)}</b><small>gpm</small>
+    <NumberField
+      label="Presión de descarga"
+      hideLabel
+      dark
+      compact
+      value={scenario.source.pressurePsi}
+      unit="psi"
+      onchange={(p) => onchange(edit.setSourcePressure(scenario, p))}
+    />
+    <button class="chip small" type="button" title="Aplicar presión requerida" onclick={() => onchange(edit.setSourcePressure(scenario, result.requiredPumpPressurePsi))}>
+      Req. {result.requiredPumpPressurePsi.toFixed(0)}
+    </button>
+    <span class="float-flow" aria-live="polite">
+      <b>{result.flowGpm.toFixed(0)} <small>gpm</small></b>
+      <span class="mini" class:warn-text={warn}>{missing.length > 0 ? "Sin conectar" : result.state === "flowing" ? `${result.nozzlePressurePsi.toFixed(0)} psi en pitón` : result.state === "nozzle-closed" ? "Pitón cerrado" : "No llega"}</span>
+    </span>
   </section>
 {:else if column}
-  <section class="column" aria-label="Panel de bomba">
+  <section class="column" class:selected aria-label="Panel de bomba">
     <header>
       <h2>Bomba</h2>
       {#if onCollapse}<button type="button" class="fold" aria-label="Plegar panel de bomba" title="Plegar panel de bomba" onclick={() => onCollapse(true)}>◂</button>{/if}
@@ -146,7 +164,7 @@
 {/if}
 
 <style>
-  .pump, .column, .rail, .strip { background: var(--panel); color: var(--panel-ink); border-radius: var(--radius); }
+  .pump, .column, .float, .strip { background: var(--panel); color: var(--panel-ink); border-radius: var(--radius); }
   .pump { padding: 10px 14px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px; }
   .title { display: grid; }
   .title span { font-size: 12px; color: var(--panel-muted); }
@@ -179,10 +197,12 @@
   .flow-open { display: grid; justify-items: end; gap: 2px; min-height: 44px; padding: 2px 6px; border: 0; border-radius: 8px; background: transparent; color: var(--panel-ink); cursor: pointer; }
   .flow-open .big { font-size: 26px; }
   .mini { font-size: 12px; color: var(--ok-ink); white-space: nowrap; }
-  .rail { padding: 8px 4px; display: grid; justify-items: center; gap: 2px; align-content: start; font-variant-numeric: tabular-nums; }
-  .rail .fold { margin-bottom: 8px; }
-  .rail b { font-size: 16px; margin-top: 8px; }
-  .rail small { font-size: 11px; color: var(--panel-muted); }
+  .column.selected { outline: 3px solid var(--accent); outline-offset: -3px; }
+  .float { padding: 6px 10px 6px 6px; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25); font-variant-numeric: tabular-nums; }
+  .chip.small { min-height: 40px; padding: 4px 10px; font-size: 13px; }
+  .float-flow { display: grid; justify-items: end; line-height: 1.1; }
+  .float-flow b { font-size: 20px; }
+  .float-flow small { font-size: 12px; color: var(--panel-muted); }
   .warn-text { color: #ffc9c9; }
 
   @media (max-width: 600px) {
