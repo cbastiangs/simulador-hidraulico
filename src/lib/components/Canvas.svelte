@@ -632,12 +632,15 @@
           {/if}
           <g transform={`translate(${n.x} ${n.y}) rotate(${rot}) scale(${k})`} class="fittings">
             {#if j.auto || j.placed.includes("adapter")}
-              {@const x = fittingX(i)}
-              <!-- Each face is as tall as the hose that meets it (world px → group units) -->
+              <!-- Each face is as tall as the hose that meets it (world px → group units); at the pump and the nozzle, the missing side follows the size ratio -->
               {@const half = (h: number) => hoseWidth(layout.hoses[h].thicknessPx, scenario.sections[h].diameterIn) / 2 / k}
-              {@const l = i > 0 ? half(i - 1) : i < last ? half(i) : 8}
-              {@const r = i < last ? half(i) : l}
-              <path class="adapter" class:auto={j.auto} d={`M ${x} ${-l} L ${x + 10} ${-r} L ${x + 10} ${r} L ${x} ${l} Z`}>
+              {@const ratio = (j.upIn ?? 1) / (j.downIn || 1)}
+              {@const l = i > 0 ? half(i - 1) : half(i) * ratio}
+              {@const r = i < last ? half(i) : l / ratio}
+              <!-- Long enough for the taper to read as a cone -->
+              {@const len = Math.max(10, 2.5 * Math.abs(l - r))}
+              {@const x = i > 0 && i < last ? -len / 2 : fittingX(i)}
+              <path class="adapter" class:auto={j.auto} d={`M ${x} ${-l} L ${x + len} ${-r} L ${x + len} ${r} L ${x} ${l} Z`}>
                 <title>{j.auto ? "Adaptador automático" : "Adaptador"} {sizeLabel(j.upIn ?? 0)} → {sizeLabel(j.downIn ?? 0)}</title>
               </path>
             {/if}
