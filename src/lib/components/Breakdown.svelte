@@ -1,10 +1,12 @@
 <script lang="ts">
+  import { jointName, jointNameIn } from "$lib/names.ts";
+  import type { Scenario } from "$hydraulics/scenario.ts";
   import { LAWS, type Term } from "$hydraulics/laws.ts";
   import { METHODS, type MethodId, type SourceId } from "$hydraulics/references.ts";
 
   // Each applied law, with the engine's own inputs substituted (MODEL.md §7).
   // Nothing here computes hydraulics: every number comes from a Term.
-  let { terms, methodId }: { terms: Term[]; methodId: MethodId } = $props();
+  let { terms, methodId, scenario }: { terms: Term[]; methodId: MethodId; scenario: Scenario } = $props();
 
   const SOURCE_LABELS: Record<SourceId, string> = {
     cgbvpManual2019: "Manual CGBVP 2019",
@@ -43,7 +45,7 @@
           EP = k × h = {f(k, 3)} psi/m × {f(h)} m = <strong>{f(term.valuePsi)} psi</strong>
         </span>
       {:else if term.lawId === "appliance.fixed"}
-        <span class="name">{term.kind === "valve" ? "Válvula en línea" : "Adaptador"}, {term.joint === 0 ? "salida de la bomba" : `acople ${term.joint}`}</span>
+        <span class="name">{term.kind === "adapter" && term.joint > 0 && term.joint < scenario.sections.length ? jointName(scenario, term.joint) : `${term.kind === "valve" ? "Válvula en línea" : "Adaptador"}, ${jointNameIn(scenario, term.joint)}`}</span>
         <span class="formula">
           AL = {term.inputs.lossPsi === null ? "sin dato → " : ""}<strong>{f(term.valuePsi)} psi</strong>{term.inputs.lossPsi === null ? "" : " (fija mientras fluye)"}
         </span>

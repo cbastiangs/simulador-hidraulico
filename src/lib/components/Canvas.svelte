@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { jointName, jointNameIn } from "$lib/names.ts";
   import { tick, untrack } from "svelte";
   import { HOSE_SIZES, type FittingKind } from "$hydraulics/references.ts";
   import { joints, type Scenario } from "$hydraulics/scenario.ts";
@@ -759,17 +760,7 @@
   });
   const gaugeAt = (i: number) => gauges[i];
 
-  /** Final gauge + numeric box (world px), to keep floor labels from painting through it. */
-  const gaugeBoxes = $derived(
-    gauges.map((g) => ({ x: g.x - 36 * k, y: g.y - 24 * k, w: 72 * k, h: 64 * k })),
-  );
-  const overlapsBox = (a: { x: number; y: number; w: number; h: number }, b: { x: number; y: number; w: number; h: number }) =>
-    a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
-  /** A named floor label hides only when its estimated rectangle would cross a gauge/readout box. */
-  const floorLabelVisible = (f: { y: number }) =>
-    !gaugeBoxes.some((b) => overlapsBox({ x: layout.xAt(0) + 6 * k, y: f.y, w: 130 * k, h: 14 * k }, b));
-
-  const nodeName = (i: number) => (i === 0 ? "la bomba" : i === last ? "la entrada del pitón" : `el acople ${i}`);
+  const nodeName = (i: number) => (i === 0 ? "la bomba" : jointNameIn(scenario, i));
 
   // ── One cached list of joint drawings and hose contours (UX.md §10.8) ──────
   // A joint's rigid parts are laid out along a single axis; internal joints use
@@ -1055,7 +1046,6 @@
         {#each layout.floors as f (f.elevationM)}
           {#if f.number > 0}
             <line class="floor" x1="0" x2={layout.widthPx} y1={f.y} y2={f.y} stroke-width={k} />
-            {#if f.number % labelEvery === 0 && floorLabelVisible(f)}<text class="floor-label" x={layout.xAt(0) + 6 * k} y={f.y + 14 * k}>Piso {f.number} · {f.elevationM} m</text>{/if}
           {/if}
         {/each}
         <line class="ground-line" x1="0" x2={layout.widthPx} y1={layout.groundY} y2={layout.groundY} stroke-width={1.5 * k} />
@@ -1191,7 +1181,7 @@
               stroke-width={1.5 * k}
               role="slider"
               tabindex="0"
-              aria-label={i === last ? "Pitón: tocar selecciona, arrastrar mueve" : `Acople ${i}: tocar muestra accesorios, arrastrar mueve`}
+              aria-label={i === last ? "Pitón: tocar selecciona, arrastrar mueve" : `${jointName(scenario, i)}: tocar selecciona, arrastrar mueve`}
               aria-valuenow={n.elevationM}
               aria-valuetext={`${scenario.sections[i - 1].lengthM} m de largo, ${n.elevationM} m de altura`}
               onpointerdown={(e) => down(e, i)}
@@ -1210,6 +1200,10 @@
         {/each}
 
         <!-- Gauges above the line; tap one for its reading. The nozzle comes after, so its bale takes the tap. -->
+        <!-- The height axis (owner, 2026-10-16): pinned to the view's left edge, over the drawing (a halo keeps it legible on the truck), under the gauges, which float above it. -->
+        {#each layout.floors as f (f.elevationM)}
+          {#if f.number > 0 && f.number % labelEvery === 0}<text class="floor-label axis" x={camX / zoom + 8 * k} y={f.y + 14 * k}>Piso {f.number} · {f.elevationM} m</text>{/if}
+        {/each}
         {#if showGauges}
           {#each layout.nodes as n, i (i)}
             {@const g = gaugeAt(i)}
@@ -1314,7 +1308,7 @@
   <div class="toolbar">
   {#if missing.length > 0}
     <button type="button" class="missing-note" onclick={() => onSelect({ kind: "joint", index: missing[0].index })}>
-      ⚠ Falta adaptador en {missing.map((j) => (j.index === 0 ? "la salida" : j.index === last ? "el pitón" : `acople ${j.index}`)).join(", ")}
+      ⚠ Falta adaptador en {missing.map((j) => (j.index === 0 ? "la salida" : j.index === last ? "el pitón" : `el acople ${j.index}`)).join(", ")}
     </button>
   {/if}
   {#if !phone}<span class="hint">Clic derecho o mantener pulsado: más opciones</span>{/if}
@@ -1366,6 +1360,7 @@
   .floor { stroke: var(--line); stroke-dasharray: 4 4; }
   .ground-line { stroke: var(--ink); }
   .floor-label, .tag { font-size: calc(11px * var(--k)); fill: var(--muted); pointer-events: none; }
+  .axis { paint-order: stroke; stroke: var(--bg); stroke-width: calc(3px * var(--k)); stroke-linejoin: round; }
   .tag { text-anchor: middle; font-size: calc(12px * var(--k)); }
   .pump { cursor: pointer; outline: none; }
   .truck { fill: var(--pump); }

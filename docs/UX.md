@@ -46,6 +46,11 @@
   name every 1st, 2nd, 5th, 10th… floor, whichever keeps two labels at
   least 22 px apart (owner, 2026-10-16; replaces hiding them all under
   20 px, which left a phone with none); "Planta baja" is always named.
+  **The labels are a height axis** (owner, 2026-10-16: gauges and labels
+  fought for the same spot): pinned to the view's left edge so they stay
+  while panning, never hidden for a gauge, drawn over the drawing with a
+  halo. **Gauges float above them**, lifted by a shadow, their reading
+  haloed.
 - **Slack is always visible.** A hose in the air sags; slack on the floor
   (it cannot hang) is drawn piled in arches along the chord, taller when the
   chord is short. Drawing only; the label says "holgura x m".
@@ -74,7 +79,14 @@
 - **Fittings (owner 2026-10-15).** Tapping a coupling (or the small ring at
   the pump outlet) opens a toolbar on the canvas, mirrored in the inspector,
   with that joint's adapter (named reducción/ampliación by direction, with
-  the sizes) and an in-line valve. The nozzle joint is edited in the nozzle's
+  the sizes). **No in-line valve toggle** (owner, 2026-10-16): an
+  always-open valve only adds loss, and a valve is a kind of coupling, to be
+  chosen as one when a coupling picker exists; a document that already has
+  one can still remove it, and the engine keeps the fitting. **A coupling is
+  named by what it is** (owner, 2026-10-16) — "Reducción 2½″ → 1½″",
+  "Ampliación …", "Válvula 2½″", or a plain "Acople 2½″" — in the parts
+  list, the panel, the menu, the gauge readings and the calculation
+  (`src/lib/names.ts`). The nozzle joint is edited in the nozzle's
   inspector panel. Fittings are drawn
   at the joint in their own colour and move with it. An adapter is only
   offered where coupling sizes differ. No loose items and no toolbox drag for
@@ -321,7 +333,7 @@ actions; "inspector" = the side column (desktop) or the sheet at full.
 | | hose size, length (±15 m, typed) | hose toolbar; inspector | sheet at peek |
 | | length lock | hose toolbar, menu | sheet at peek |
 | | move a coupling (run, height) | drag; arrow keys; typed in inspector | drag; typed in sheet |
-| Fittings | adapter, valve at a joint | coupling toolbar | sheet at peek |
+| Fittings | adapter at a joint | coupling toolbar | sheet at peek |
 | | Accesorios automáticos | panel, Línea | sheet, Línea |
 | Nozzle | open / shut the bale | tap the nozzle | tap the nozzle |
 | | model, gallonage, pattern, typed rating | inspector | sheet at peek |
@@ -421,7 +433,7 @@ allowed, with the reason.
 | **Truck** | choose a truck file / preset ⏳ M3; clone a built-in ⏳ M3 | discharges open / shut, tank ⏳ M3; partial valves ⏳ (`valve.partial`); **specs editor** (pump, discharge sizes and diameters) ⏳ M3 | ✕ | ✕ | capacity ⏳ M3 | presets carry pump and discharge diameters ⏳ M3 |
 | **Hose** | insert, split ✅ | size, length, lock ✅ | its couplings move it | remove, join ✅ | its friction loss ✅ (panel) | true-scale thickness ✅ (Vista; default exaggerated, badge "grosor ×11") |
 | **Coupling** | with a hose ✅ | fittings ✅ | drag ✅; first-drag camera stability ✅ (§10.8) | join the two hoses ✅ | pressure here, lost before it ✅ (tap its gauge) | — |
-| **Fitting** | adapter, valve ✅ | ✕ (a kind has one loss) | moves with its coupling | ✅ | its loss and basis ✅ | auto fittings switch ✅ |
+| **Fitting** | adapter ✅; valve: engine only, no toggle (a coupling kind later) | ✕ (a kind has one loss) | moves with its coupling | ✅ | its loss and basis ✅ | auto fittings switch ✅ |
 | **Nozzle** | ✕ (a line ends in one) | bale ✅, model ✅ (chips at the top of its panel), ring ✅, typed rating ✅; smooth-bore tips ⏳ M2 | drag ✅ | ✕ | rating vs actual ✅ (mark on its gauge, warning in its panel under 95 %) | — |
 | **Stream** | — | pattern ✅; aim ⏳ M2 | — | — | jet speed ✅; reach ⏳ M2 (illustrative) | — |
 | **Water flow** | — | ✕: flow is solved, the app's core lesson; "I want X gpm" is target planning ⏳ | — | — | flow ✅, hose speed ✅, where the pressure went ✅ | — |
@@ -641,8 +653,9 @@ to a point; the finite guard is what prevents `NaN`.
 overlapping handles resolve to the nearest coupling. Captions and default
 toolbars fit the canvas (desktop toolbar 20…447 inside canvas 12…625); the
 ground caption uses a fixed-screen bottom inset while the ground stays near
-the foot. Gauge and readout boxes avoid contours and one another; background
-floor labels yield when they collide, and crowded hoses get compact labels.
+the foot. Gauge and readout boxes avoid contours and one another; crowded
+hoses get compact labels. (Floor labels no longer yield to gauges: they are
+the height axis, §2, and gauges float above them.)
 
 **Water and reduced motion.** The stream's phase is aligned across sections on
 one shared timeline (CSS `startTime` 0), cycle-normalized across diameters, so

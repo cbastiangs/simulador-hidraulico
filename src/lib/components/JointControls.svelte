@@ -1,19 +1,29 @@
 <script lang="ts">
+  import { jointName } from "$lib/names.ts";
   import { METHODS, type FittingKind } from "$hydraulics/references.ts";
   import { isAuto, joints, type Scenario } from "$hydraulics/scenario.ts";
 
   // A joint's fittings (UX.md §2 "Fittings"): the adapter its coupling sizes
-  // need and an in-line valve. Shown on the canvas toolbar and in the inspector.
+  // need. Shown on the canvas toolbar and in the inspector.
   let {
     scenario,
     joint,
     onToggle,
-  }: { scenario: Scenario; joint: number; onToggle: (kind: FittingKind) => void } = $props();
+    titled = true,
+  }: {
+    scenario: Scenario;
+    joint: number;
+    onToggle: (kind: FittingKind) => void;
+    /** False where a header above already names the coupling. */
+    titled?: boolean;
+  } = $props();
 
   const j = $derived(joints(scenario)[joint]);
   const last = $derived(scenario.sections.length);
+  /** Inner couplings carry their sizes in the name; the ends show them beside it. */
+  const end = $derived(joint === 0 || joint === last);
   const size = (d: number) => `${d.toString().replace(".5", "½").replace(".75", "¾")}″`;
-  const place = $derived(joint === 0 ? "Salida de la bomba" : joint === last ? "Entrada del pitón" : `Acople ${joint}`);
+  const place = $derived(jointName(scenario, joint));
   const adapterName = $derived(
     j.upIn === undefined || j.downIn === undefined ? "Adaptador" : j.downIn < j.upIn ? "Reducción" : "Ampliación",
   );
@@ -23,10 +33,12 @@
 </script>
 
 <div class="joint">
+  {#if titled}
   <div class="title">
     <b>{place}</b>
-    {#if j.upIn !== undefined && j.downIn !== undefined}<span>{size(j.upIn)} → {size(j.downIn)}</span>{/if}
+    {#if end && j.upIn !== undefined && j.downIn !== undefined}<span>{size(j.upIn)} → {size(j.downIn)}</span>{/if}
   </div>
+  {/if}
 
   {#if j.mismatch}
     {#if j.missing}
@@ -45,9 +57,10 @@
     <p class="note">Mismo acople a ambos lados: no hace falta adaptador.</p>
   {/if}
 
-  <button type="button" class:on={j.placed.includes("valve")} aria-pressed={j.placed.includes("valve")} onclick={() => onToggle("valve")}>
-    {j.placed.includes("valve") ? "✓ " : "+ "}Válvula en línea (abierta)
-  </button>
+  <!-- No valve toggle (owner, 2026-10-16): an always-open valve only adds loss, and a valve is a kind of coupling, chosen as one when the picker exists. A document that already has one can still drop it. -->
+  {#if j.placed.includes("valve")}
+    <button type="button" class="on" onclick={() => onToggle("valve")}>✓ Válvula en línea (abierta) · quitar</button>
+  {/if}
 
   <p class="note">
     Pérdida por accesorio: {loss ? `${loss.adapter} psi (fija)` : "sin dato en el modelo base, cuenta 0"} · CGBVP p. 45: {reference.adapter} psi.

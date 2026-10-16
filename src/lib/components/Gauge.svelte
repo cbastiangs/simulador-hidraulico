@@ -42,12 +42,13 @@
 </g>
 
 <style>
-  .face { fill: var(--surface); stroke: var(--ink); stroke-width: 1.5; }
+  /* Gauges float above the drawing and the height axis (owner, 2026-10-16): a shadow lifts the face, a halo keeps the reading clear of what is under it. */
+  .face { fill: var(--surface); stroke: var(--ink); stroke-width: 1.5; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3)); }
   .tick { stroke: var(--ink); stroke-width: 1.5; }
   .needle { stroke: var(--needle); stroke-width: 2.5; stroke-linecap: round; }
   .hub { fill: var(--ink); }
-  .value { font-size: 13px; font-weight: 700; text-anchor: middle; fill: var(--ink); }
-  .dark .face { fill: var(--panel-well); stroke: var(--panel-line); stroke-width: 2; }
+  .value { font-size: 13px; font-weight: 700; text-anchor: middle; fill: var(--ink); paint-order: stroke; stroke: var(--surface); stroke-width: 4px; stroke-linejoin: round; }
+  .dark .face { fill: var(--panel-well); stroke: var(--panel-line); stroke-width: 2; filter: none; }
   .dark .tick { stroke: var(--panel-muted); }
   .dark .hub { fill: var(--panel-ink); }
   .negative .face { stroke: var(--warn); }

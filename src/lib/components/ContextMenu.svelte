@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { jointName } from "$lib/names.ts";
   import type { Scenario } from "$hydraulics/scenario.ts";
   import { actionsFor, labelOf, type Action, type Target } from "$lib/actions.ts";
 
@@ -29,7 +30,7 @@
 
   const title = $derived(
     target.kind === "section" ? `Tramo ${target.index + 1}`
-    : target.kind === "joint" ? (target.index === 0 ? "Salida de la bomba" : `Acople ${target.index}`)
+    : target.kind === "joint" ? jointName(scenario, target.index)
     : target.kind === "nozzle" ? "Pitón"
     : target.kind === "pump" ? "Bomba"
     : "Línea",

@@ -239,7 +239,7 @@
         <tr><td>Presión requerida</td><td>{result.requiredPumpPressurePsi.toFixed(1)} psi</td>{#if reference}<td>{reference.requiredPumpPressurePsi.toFixed(1)} psi</td>{/if}</tr>
       </tbody>
     </table>
-    <Breakdown terms={result.terms} methodId={scenario.methodId} />
+    <Breakdown terms={result.terms} methodId={scenario.methodId} {scenario} />
   </details>
   <Sources methodId={scenario.methodId} />
   <Concepts {scenario} {result} />

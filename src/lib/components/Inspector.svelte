@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { jointName } from "$lib/names.ts";
   import { NOZZLE_SPECS } from "$hydraulics/catalog.ts";
   import { HOSE_SIZES } from "$hydraulics/references.ts";
   import type { Scenario } from "$hydraulics/scenario.ts";
@@ -68,7 +69,7 @@
       <button type="button" onclick={() => onSelect({ kind: "pump" })}>Bomba · descargas</button>
       {#each scenario.sections as s, i (i)}
         <button type="button" onclick={() => onSelect({ kind: "section", index: i })}>Tramo {i + 1} · {s.lengthM} m de {s.diameterIn.toString().replace(".5", "½")}″</button>
-        {#if i < last}<button type="button" class="joint" onclick={() => onSelect({ kind: "joint", index: i + 1 })}>Acople {i + 1}</button>{/if}
+        {#if i < last}<button type="button" class="joint" onclick={() => onSelect({ kind: "joint", index: i + 1 })}>{jointName(scenario, i + 1)}</button>{/if}
       {/each}
       <button type="button" onclick={() => onSelect({ kind: "nozzle" })}>Pitón · {scenario.nozzle.open ? "abierto" : "cerrado"}</button>
     </nav>
@@ -170,10 +171,10 @@
   {:else if selection.kind === "joint"}
     {@const j = selection.index}
     <header>
-      <h3>{j === 0 ? "Salida de la bomba" : `Acople ${j}`} · accesorios</h3>
+      <h3>{jointName(scenario, j)}</h3>
       <p>{j === 0 ? "Entre la bomba y el tramo 1" : `Entre el tramo ${j} y el tramo ${j + 1}`} · arrastra el acople para moverlo</p>
     </header>
-    <JointControls {scenario} joint={j} onToggle={(kind) => onchange(edit.toggleFitting(scenario, j, kind))} />
+    <JointControls {scenario} joint={j} titled={false} onToggle={(kind) => onchange(edit.toggleFitting(scenario, j, kind))} />
   {:else}
     {@const i = selection.index}
     {@const s = scenario.sections[i]}
