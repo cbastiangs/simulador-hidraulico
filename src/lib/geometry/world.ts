@@ -93,6 +93,9 @@ export type WorldHose = {
   labelY: number;
   /** Angle of the chord, degrees, for the label. */
   angle: number;
+  /** Direction of the drawn hose where it leaves / reaches its couplings, degrees (fittings follow these). */
+  startAngle: number;
+  endAngle: number;
   thicknessPx: number;
   slackM: number;
   index: number;
@@ -196,6 +199,9 @@ export function layoutWorld(
     const slackM = Math.max(0, s.lengthM - chord);
     // Slack on the floor can't hang, so it is drawn piled up in arches.
     const piled = slackM >= 0.5 && sag < 0.25 * PX_PER_M;
+    const bent = !piled && sag > 0;
+    const deg = (dx: number, dy: number) => (Math.atan2(dy, dx) * 180) / Math.PI;
+    const chordAngle = deg(b.x - a.x, b.y - a.y);
     return {
       // Quadratic Bézier: control point twice the sag below the midpoint puts the curve's middle at the sag.
       d: piled
@@ -205,7 +211,9 @@ export function layoutWorld(
           : `M ${a.x} ${a.y} L ${b.x} ${b.y}`,
       labelX: mx,
       labelY: my + sag,
-      angle: (Math.atan2(b.y - a.y, b.x - a.x) * 180) / Math.PI,
+      angle: chordAngle,
+      startAngle: bent ? deg(mx - a.x, my + 2 * sag - a.y) : chordAngle,
+      endAngle: bent ? deg(b.x - mx, b.y - (my + 2 * sag)) : chordAngle,
       thicknessPx: Math.max(3, s.diameterIn * PX_PER_INCH),
       slackM,
       index: i,

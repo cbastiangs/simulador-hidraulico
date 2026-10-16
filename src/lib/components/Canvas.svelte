@@ -522,8 +522,8 @@
   }
   const nodeName = (i: number) => (i === 0 ? "la bomba" : i === last ? "la entrada del pitón" : `el acople ${i}`);
 
-  /** Where a joint's fittings are drawn: after the coupling ring, or just before the nozzle. */
-  const fittingX = (i: number) => (i === last ? -16 : i === 0 ? -2 : 4);
+  /** Where a joint's fittings start, along the hose: centred on the joint (so each hose meets a face), or just before the nozzle. */
+  const fittingX = (i: number) => (i === last ? -16 : i === 0 ? -2 : -5);
 </script>
 
 <svelte:window
@@ -625,15 +625,18 @@
         <!-- Couplings and their fittings (MODEL.md §3.10): adapters where coupling sizes differ, valves -->
         {#each layout.nodes as n, i (i)}
           {@const j = js[i]}
+          <!-- Fittings follow the hose's direction at this joint: leaving it, or (nozzle) arriving -->
+          {@const rot = i < last ? layout.hoses[i].startAngle : layout.hoses[i - 1].endAngle}
           {#if i > 0 && i < last}
-            <rect class="coupling" x={n.x - 3.5 * k} y={n.y - 9 * k} width={7 * k} height={18 * k} rx={1.5 * k} />
+            <rect class="coupling" x={-3.5 * k} y={-9 * k} width={7 * k} height={18 * k} rx={1.5 * k} transform={`translate(${n.x} ${n.y}) rotate(${rot})`} />
           {/if}
-          <g transform={`translate(${n.x} ${n.y}) scale(${k})`} class="fittings">
+          <g transform={`translate(${n.x} ${n.y}) rotate(${rot}) scale(${k})`} class="fittings">
             {#if j.auto || j.placed.includes("adapter")}
               {@const x = fittingX(i)}
-              {@const big = 8}
-              {@const small = 4.5}
-              {@const [l, r] = (j.downIn ?? 0) < (j.upIn ?? 0) ? [big, small] : [small, big]}
+              <!-- Each face is as tall as the hose that meets it (world px → group units) -->
+              {@const half = (h: number) => hoseWidth(layout.hoses[h].thicknessPx, scenario.sections[h].diameterIn) / 2 / k}
+              {@const l = i > 0 ? half(i - 1) : i < last ? half(i) : 8}
+              {@const r = i < last ? half(i) : l}
               <path class="adapter" class:auto={j.auto} d={`M ${x} ${-l} L ${x + 10} ${-r} L ${x + 10} ${r} L ${x} ${l} Z`}>
                 <title>{j.auto ? "Adaptador automático" : "Adaptador"} {sizeLabel(j.upIn ?? 0)} → {sizeLabel(j.downIn ?? 0)}</title>
               </path>
