@@ -1,0 +1,78 @@
+{
+  "schema": "simulador-hidraulico/scenario",
+  "version": 1,
+  "name": "Bifurcada: 2½″ + 2 líneas de 1½″",
+  "methodId": "physical",
+  "source": {
+    "kind": "fixed-pressure",
+    "pressurePsi": 150
+  },
+  "sections": [
+    {
+      "hoseSizeId": "2-1/2",
+      "diameterIn": 2.5,
+      "frictionCoefficient": 2,
+      "lengthM": 30,
+      "endElevationM": 0
+    }
+  ],
+  "nozzle": {
+    "kind": "fixed-orifice",
+    "specId": null,
+    "settingsGpm": [],
+    "ratedFlowGpm": 100,
+    "ratedPressurePsi": 100,
+    "pattern": 0.25,
+    "open": true
+  },
+  "wye": {
+    "branches": [
+      {
+        "id": "line-1",
+        "name": "Línea 1",
+        "open": true,
+        "sections": [
+          {
+            "hoseSizeId": "1-1/2",
+            "diameterIn": 1.5,
+            "frictionCoefficient": 24,
+            "lengthM": 30,
+            "endElevationM": 0
+          }
+        ],
+        "nozzle": {
+          "kind": "fixed-orifice",
+          "specId": null,
+          "settingsGpm": [],
+          "ratedFlowGpm": 100,
+          "ratedPressurePsi": 100,
+          "pattern": 0.25,
+          "open": true
+        }
+      },
+      {
+        "id": "line-2",
+        "name": "Línea 2",
+        "open": true,
+        "sections": [
+          {
+            "hoseSizeId": "1-1/2",
+            "diameterIn": 1.5,
+            "frictionCoefficient": 24,
+            "lengthM": 30,
+            "endElevationM": 0
+          }
+        ],
+        "nozzle": {
+          "kind": "fixed-orifice",
+          "specId": null,
+          "settingsGpm": [],
+          "ratedFlowGpm": 100,
+          "ratedPressurePsi": 100,
+          "pattern": 0.25,
+          "open": true
+        }
+      }
+    ]
+  }
+}

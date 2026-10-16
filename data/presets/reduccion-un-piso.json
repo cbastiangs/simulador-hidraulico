@@ -1,7 +1,7 @@
 {
   "schema": "simulador-hidraulico/scenario",
   "version": 1,
-  "name": "Reducción 2-1/2\" a 1-1/2\", un piso arriba",
+  "name": "Reducción 2½″ a 1½″, un piso arriba",
   "methodId": "physical",
   "source": {
     "kind": "fixed-pressure",

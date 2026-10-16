@@ -1,6 +1,7 @@
 import { isAuto, type Scenario } from "$hydraulics/scenario.ts";
 import * as edit from "$lib/edit.ts";
 import type { Selection } from "$lib/selection.ts";
+import { junctionAt, junctionsOf } from "$lib/branch-edit.ts";
 
 /**
  * Every verb the screen offers, defined once (UX.md §10.5). The context
@@ -57,6 +58,16 @@ export const QUICK_MAX = 4;
 
 const index = (t: Target) => ("index" in t ? t.index : 0);
 const count = (c: ActionContext) => c.scenario.sections.length;
+// A branched lay's drawn line (UX.md §2): hoses never merge across a wye,
+// and each of its lines keeps at least one hose.
+const acrossWye = (c: ActionContext, joint: number) => (junctionAt(c.scenario, joint) ? "Una bifurca separa estos tramos" : null);
+function aloneInItsLine(c: ActionContext, i: number) {
+  const wyes = junctionsOf(c.scenario).map((j) => j.joint);
+  const start = Math.max(0, ...wyes.filter((j) => j <= i));
+  const end = Math.min(count(c), ...wyes.filter((j) => j > i));
+  return end - start <= 1;
+}
+
 const insertAt = (c: ActionContext, at: number): Outcome => ({
   scenario: edit.insertSection(c.scenario, at),
   select: { kind: "section", index: at },
@@ -95,7 +106,7 @@ export const ACTIONS: Action[] = [
     label: "Unir con el siguiente",
     on: ["section"],
     menu: true,
-    blocked: (c) => (index(c.target) >= count(c) - 1 ? "Es el último tramo" : null),
+    blocked: (c) => (index(c.target) >= count(c) - 1 ? "Es el último tramo" : acrossWye(c, index(c.target) + 1)),
     run: (c) => ({ scenario: edit.mergeAtJoint(c.scenario, index(c.target) + 1), select: c.target as Selection }),
   },
   {
@@ -114,7 +125,8 @@ export const ACTIONS: Action[] = [
     quick: true,
     menu: true,
     danger: true,
-    blocked: (c) => (count(c) <= 1 ? "Una línea necesita al menos un tramo" : null),
+    blocked: (c) =>
+      count(c) <= 1 ? "Una línea necesita al menos un tramo" : aloneInItsLine(c, index(c.target)) ? "Cada línea de la bifurca necesita al menos un tramo" : null,
     run: (c) => ({
       scenario: edit.removeSection(c.scenario, index(c.target)),
       select: { kind: "section", index: Math.max(0, index(c.target) - 1) },
@@ -138,7 +150,7 @@ export const ACTIONS: Action[] = [
     on: ["joint"],
     quick: true,
     menu: true,
-    blocked: (c) => (index(c.target) === 0 ? "La salida de la bomba no une tramos" : null),
+    blocked: (c) => (index(c.target) === 0 ? "La salida de la bomba no une tramos" : acrossWye(c, index(c.target))),
     run: (c) => ({
       scenario: edit.mergeAtJoint(c.scenario, index(c.target)),
       select: { kind: "section", index: index(c.target) - 1 },

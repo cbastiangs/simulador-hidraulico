@@ -134,10 +134,34 @@
   - **Undo / redo** in the header ("↶ Deshacer", "↷ Rehacer"; Ctrl+Z,
     Ctrl+Shift+Z or Ctrl+Y). A drag or a burst of typing in one field is one
     step. Loading a preset clears the history.
-  - **The engine solves one line**, so the only things to add are hoses,
-    fittings and the nozzle. Wyes, second lines and a toolbox to drag pieces
-    from wait for branching (ROADMAP §10c); no piece is offered that the
-    solver can't compute.
+  - **The engine solves one line or a gated tree.** A line is hoses,
+    fittings and a nozzle; a wye splits it into branches, each with its own
+    gate, hoses and nozzle, and a branch may hold another wye (nested wyes).
+    **Branched lays are drawn in the same side view as a single line**
+    (owner, 2026-10-17: the separate top-down schematic lost the floors and
+    the pressure split; "the same feel of the horizontal view"). One
+    pump-to-nozzle path is drawn at a time, at scale, with its floors,
+    gauges and pressure split: the feed, the wye at its coupling, then one
+    outlet's hoses and nozzle. **The wye is graphic and operable**: a body
+    at the coupling and a gate handle on every outlet (along the hose: open;
+    across: shut, red), tapped to open or close; the other outlets leave the
+    wye as short stubs (symbols, not to scale; dotted when shut) whose label
+    — "Línea 2 · 107 gpm ›" — draws that line instead. Selecting the wye
+    opens its panel: each outlet with its gate, flow and nozzle pressure,
+    "Dibujar esta línea", "Añadir línea" and "Quitar bifurca". The drawn
+    line's hoses and nozzle use the ordinary canvas and inspector; an edit
+    maps back to the segment it belongs to (`branch-edit.ts`
+    `applyPathEdit`), hoses never merge across a wye and each line keeps a
+    hose. "Añadir bifurca al final" in the Línea section adds a wye at the
+    end of the drawn line; a single line shows nothing else about branching.
+    Under the pressure split, a read-only list gives every line's flow and
+    pressures at once (ROADMAP §10c; MODEL.md §2). **Every gate is fully open or
+    fully shut, independently**: a shut gate isolates its whole downstream
+    subtree, whose flow reads 0 and whose downstream pressure is **unknown**
+    (trapped water with no drainage history), never fabricated from the pump
+    behind it. The source stays a **fixed pressure** — the ideal-pressure
+    pump holds its outlet at the set value, capacity and curve still to come
+    (§3, M3). No piece is offered that the solver can't compute.
 - **Length lock, per hose** (owner, 2026-10-14; replaces the global
   "Largo fijo / Libre" toggle under the canvas). Each hose has its own lock,
   a button on its on-canvas toolbar, with a 🔒/🔓 on its label. Locked is the

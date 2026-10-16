@@ -60,7 +60,7 @@ export type Term =
       lawId: "appliance.fixed";
       /** Joint 0 is the pump outlet, joint i the coupling after section i − 1, the last the nozzle inlet. */
       joint: number;
-      kind: FittingKind;
+      kind: FittingKind | "wye";
       /** The method's value; null = "sin dato", counted as 0. */
       inputs: { lossPsi: number | null };
       valuePsi: number;
@@ -68,7 +68,7 @@ export type Term =
   | {
       lawId: "appliance.step";
       joint: number;
-      kind: FittingKind;
+      kind: FittingKind | "wye";
       /** The step: `stepPsi` once `flowGpm` is strictly above `aboveGpm`. */
       inputs: { aboveGpm: number; stepPsi: number; flowGpm: number };
       valuePsi: number;

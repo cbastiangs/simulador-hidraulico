@@ -12,6 +12,8 @@
   import JointControls from "./JointControls.svelte";
   import NumberField from "./NumberField.svelte";
   import NozzleCloseUp from "./NozzleCloseUp.svelte";
+  import JunctionPanel from "./JunctionPanel.svelte";
+  import { junctionAt } from "$lib/branch-edit.ts";
   import { prefs, setControls } from "$lib/prefs.svelte.ts";
 
   // Edits what is selected on the canvas (UX.md §3, design/main-screen.html).
@@ -26,6 +28,11 @@
     result,
     onAction,
     onClose,
+    branched = false,
+    tree,
+    outlets = {},
+    onTree,
+    onLine,
   }: {
     scenario: Scenario;
     /** Null: nothing selected; the panel lists what can be. */
@@ -39,6 +46,12 @@
     onAction: (action: Action, target: Target) => void;
     /** The header's ×: clear the selection. */
     onClose: () => void;
+    branched?: boolean;
+    /** A branched lay (UX.md §2): `scenario` is its drawn path; `tree` the whole lay, for the wye's panel. */
+    tree?: Scenario;
+    outlets?: Record<string, { flowGpm: number; isolated: boolean; nozzlePsi: number | null }>;
+    onTree?: (s: Scenario) => void;
+    onLine?: (path: string[]) => void;
   } = $props();
 
   const last = $derived(scenario.sections.length - 1);
@@ -73,7 +86,7 @@
         <button type="button" onclick={() => onSelect({ kind: "section", index: i })}>Tramo {i + 1} · {s.lengthM} m de {s.diameterIn.toString().replace(".5", "½")}″</button>
         {#if i < last}<button type="button" class="joint" onclick={() => onSelect({ kind: "joint", index: i + 1 })}>{jointName(scenario, i + 1)}</button>{/if}
       {/each}
-      <button type="button" onclick={() => onSelect({ kind: "nozzle" })}>Pitón · {scenario.nozzle.open ? "abierto" : "cerrado"}</button>
+      {#if !scenario.wye}<button type="button" onclick={() => onSelect({ kind: "nozzle" })}>Pitón · {scenario.nozzle.open ? "abierto" : "cerrado"}</button>{/if}
     </nav>
   {:else if selection.kind === "pump"}
     {@const outlet = scenario.source.outletSizeIn}
@@ -153,7 +166,7 @@
     {#if short}
       <p class="warn" role="status">
         ⚠ {result.nozzlePressurePsi.toFixed(0)} psi en el pitón, por debajo de sus {n.ratedPressurePsi} psi nominales: da
-        {result.flowGpm.toFixed(0)} gpm, no {n.ratedFlowGpm}. Sube la presión o toca «Ajustar».
+        {result.flowGpm.toFixed(0)} gpm, no {n.ratedFlowGpm}. {branched ? "Sube la presión de la bomba o revisa las líneas abiertas." : "Sube la presión o toca «Ajustar»."}
       </p>
     {/if}
 
@@ -185,6 +198,13 @@
     </details>
 
     <JointControls {scenario} flowGpm={result.flowGpm} joint={last + 1} onToggle={(kind) => onchange(edit.toggleFitting(scenario, last + 1, kind))} />
+  {:else if selection.kind === "joint" && tree && onTree && onLine && junctionAt(scenario, selection.index)}
+    {@const wye = junctionAt(scenario, selection.index)!}
+    <header>
+      <h3>{jointName(scenario, selection.index)}</h3>
+      <p>Cada salida tiene su válvula: abierta o cerrada · arrastra la bifurca para moverla</p>
+    </header>
+    <JunctionPanel {tree} junction={wye} {outlets} {onTree} {onLine} />
   {:else if selection.kind === "joint"}
     {@const j = selection.index}
     <header>

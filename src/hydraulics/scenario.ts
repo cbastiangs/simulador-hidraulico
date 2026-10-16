@@ -81,6 +81,19 @@ export type ScenarioNozzle = {
   open: boolean;
 };
 
+export type ScenarioWye = { branches: ScenarioBranch[] };
+
+/** A hose path after one independently open/shut wye outlet. Heights stay relative to the source. */
+export type ScenarioBranch = {
+  id: string;
+  name: string;
+  open: boolean;
+  sections: ScenarioSection[];
+  nozzle: ScenarioNozzle;
+  /** Replaces this segment's nozzle while present. */
+  wye?: ScenarioWye;
+};
+
 export type Scenario = {
   schema: typeof SCENARIO_SCHEMA;
   version: 1;
@@ -101,6 +114,8 @@ export type Scenario = {
   source: ScenarioSource;
   sections: ScenarioSection[];
   nozzle: ScenarioNozzle;
+  /** Downstream diverging appliance; absent preserves a single series line. */
+  wye?: ScenarioWye;
 };
 
 /** A document that can't be used, with the path of the first bad field (e.g. `sections[1].lengthM`). */
@@ -163,7 +178,7 @@ function idOrNull(value: unknown, path: string) {
   return value;
 }
 
-export function parseScenario(value: unknown): Scenario {
+function parseSingleScenario(value: unknown): Scenario {
   const doc = record(value, "scenario");
   if (doc.schema !== SCENARIO_SCHEMA) throw new ScenarioError("schema", `must be "${SCENARIO_SCHEMA}"`);
   if (doc.version !== 1) throw new ScenarioError("version", "must be 1");
@@ -235,6 +250,49 @@ export function parseScenario(value: unknown): Scenario {
   };
 }
 
+/** Parse the optional tree without changing the version-1 series document. */
+export function parseScenario(value: unknown): Scenario {
+  const root = parseSingleScenario(value);
+  const doc = record(value, "scenario");
+  const ids = new Set<string>();
+  let sectionCount = root.sections.length;
+  let branchCount = 0;
+  function parseWye(value: unknown, path: string, depth: number): ScenarioWye {
+    if (depth > 8) throw new ScenarioError(path, "must have at most 8 nested wyes");
+    const wye = record(value, path);
+    if (!Array.isArray(wye.branches) || wye.branches.length < 2 || wye.branches.length > 32) {
+      throw new ScenarioError(`${path}.branches`, "must contain 2 to 32 branches");
+    }
+    return { branches: wye.branches.map((raw: unknown, i): ScenarioBranch => {
+      const branchPath = `${path}.branches[${i}]`;
+      const branch = record(raw, branchPath);
+      if (typeof branch.id !== "string" || branch.id.length === 0 || branch.id.length > 100 || ids.has(branch.id)) {
+        throw new ScenarioError(`${branchPath}.id`, "must be a unique nonempty id of at most 100 characters");
+      }
+      ids.add(branch.id);
+      if (++branchCount > 64) throw new ScenarioError(branchPath, "must have at most 64 branches in the tree");
+      let parsed: Scenario;
+      try {
+        parsed = parseSingleScenario({ ...root, name: branch.name, sections: branch.sections, nozzle: branch.nozzle });
+      } catch (error) {
+        if (error instanceof ScenarioError) throw new ScenarioError(`${branchPath}.${error.path}`, error.message.slice(error.path.length + 2));
+        throw error;
+      }
+      sectionCount += parsed.sections.length;
+      if (sectionCount > MAX_SECTIONS) throw new ScenarioError(`${branchPath}.sections`, `must have at most ${MAX_SECTIONS} sections in the tree`);
+      return {
+        id: branch.id,
+        name: parsed.name,
+        open: boolFlag(branch.open, `${branchPath}.open`),
+        sections: parsed.sections,
+        nozzle: parsed.nozzle,
+        ...(branch.wye === undefined ? {} : { wye: parseWye(branch.wye, `${branchPath}.wye`, depth + 1) }),
+      };
+    }) };
+  }
+  return { ...root, ...(doc.wye === undefined ? {} : { wye: parseWye(doc.wye, "wye", 1) }) };
+}
+
 /** A hose's coupling size: its catalog row's, else its diameter (hand-entered or large-diameter hose). */
 export function couplingOf(section: ScenarioSection): number {
   return HOSE_SIZES.find((h) => h.id === section.hoseSizeId)?.couplingIn ?? section.diameterIn;
@@ -264,7 +322,7 @@ export const isAuto = (scenario: Scenario) => scenario.autoFittings !== false;
 
 export function joints(scenario: Scenario): Joint[] {
   const { sections, source, nozzle } = scenario;
-  const nozzleInlet = NOZZLE_SPECS.find((n) => n.id === nozzle.specId)?.inletIn;
+  const nozzleInlet = scenario.wye ? undefined : NOZZLE_SPECS.find((n) => n.id === nozzle.specId)?.inletIn;
   const auto = isAuto(scenario);
   return Array.from({ length: sections.length + 1 }, (_, index) => {
     const upIn = index === 0 ? source.outletSizeIn : couplingOf(sections[index - 1]);
@@ -322,3 +380,5 @@ export function solveScenario(scenario: Scenario, methodId: MethodId = scenario.
   const connected = missingAdapters(scenario).length === 0;
   return solveSeriesLine(connected ? line : { ...line, nozzle: { ...line.nozzle, open: false } }, METHODS[methodId]);
 }
+
+export { solveScenarioTree, pathResult, type ScenarioTreeResult, type TreeSegmentResult, type TreeIssue } from "./tree.ts";

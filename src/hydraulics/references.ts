@@ -108,6 +108,8 @@ export type Method = {
   fittingLossPsi: Record<FittingKind, number> | null;
   /** Used when `fittingLossPsi` is null: a stepped training allowance instead of a fixed one. */
   fittingStep: FittingStep | null;
+  /** Common-port allowance for one gated wye; null uses fittingStep. */
+  wyeLossPsi: number | null;
 };
 
 export const METHODS: Record<MethodId, Method> = {
@@ -123,6 +125,7 @@ export const METHODS: Record<MethodId, Method> = {
     source: "cgbvpManual2019",
     fittingLossPsi: { adapter: 5, valve: 5 },
     fittingStep: null,
+    wyeLossPsi: 5,
   },
   /**
    * Hydrostatics: 62.4 lb/ft³ over 144 in²/ft² = 0.433, published as 0.434
@@ -138,5 +141,6 @@ export const METHODS: Record<MethodId, Method> = {
     source: null,
     fittingLossPsi: null,
     fittingStep: { aboveGpm: 350, lossPsi: 10, source: "coloradoPumperChart" },
+    wyeLossPsi: null,
   },
 };

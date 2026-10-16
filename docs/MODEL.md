@@ -54,7 +54,7 @@ the way:
 | NP | nozzle pressure | §3.3–§3.5 |
 | FL | friction loss in each hose section | §3.1 |
 | EP | elevation pressure, source to nozzle | §3.2 |
-| AL | appliance losses (wye, reducer, FDC…) | §3.10 (✅ in-line fittings; wyes M4) |
+| AL | appliance losses (wye, reducer, FDC…) | §3.10 (✅ in-line fittings and gated wyes) |
 
 For continuous component relationships, the residual
 **R(Q) = P_available(Q) − [NP(Q) + ΣFL(Q) + EP + ΣAL(Q)]** is continuous. In
@@ -116,8 +116,51 @@ single line by bisection (above), a one-source tree by nested bisection.
 When general networks (loops, reconverging feeds) are needed, the plan is an
 EPANET-style Global Gradient Algorithm (GGA) over the same equations. That
 is our implementation **guided by** EPANET's equations, not an EPANET
-implementation or certification; neither the tree solver nor the GGA is in
-the runtime yet.
+implementation or certification. The tree solver is implemented; GGA remains
+planned.
+
+**Gated diverging trees (2026-10-16).** A fixed-pressure source supplies a
+common hose and a wye with two or more independently gated branches. A
+branch may end in another wye. At each junction **Q_common = ΣQ_branch**;
+all open outlets share the pressure after the common appliance allowance.
+Every hose spends friction at its own flow, so closing one outlet reduces
+common-feed friction and changes the delivery of the remaining outlets.
+No flow is prescribed and a split is never assumed equal. These are the
+continuity and energy equations above ([E2] §§3.1, 3.3, 12.1, rechecked
+2026-10-16), with the same nozzle and hose laws already adopted here.
+
+The solver nests bounded pressure searches at junctions, using the local
+pressure derivative for safeguarded Newton steps inside the bracket.
+Analytical quadratic leaves avoid another nested search. The final result
+checks energy and continuity residuals; an allowance discontinuity exposes
+an unsatisfied balance instead of an exact operating point. Colorado's
+strict 350 gpm threshold applies to the **sum through the wye**, even if no
+individual branch exceeds it. The CGBVP wye allowance is 5 psi while flowing.
+Each wye is counted once; its fully open outlet gates do not incur additional
+valve charges. Separately placed in-line valves remain separate components.
+Partial gate opening requires a sourced valve law and is not modelled.
+
+Closing a **nozzle** leaves its connected hose at the junction's static
+pressure minus elevation, with zero friction. Closing a **wye gate**
+disconnects the entire downstream subtree: flow is zero and downstream
+pressure is unknown, because trapped water/drainage history is absent from
+the steady scenario. Nozzle pressure is therefore not fabricated from the
+pump behind a shut gate. A dry high point blocks its downstream subtree;
+a candidate flow that would require negative pressure at a hose coupling is
+not accepted as a siphon. Such activation boundaries can also leave no
+steady solution under this flexible-hose assumption; the solver marks the
+unbalanced case and reports zero delivery in the dry subtree.
+
+Scenario version 1 gains optional recursive `wye.branches`; absent means
+the existing series line. Each branch stores a stable id, name, open gate,
+hose sections and nozzle, and may itself have a wye. All elevations stay
+absolute relative to the original source. A segment's stored nozzle is
+inactive while its wye is present. Generic wye ports match their attached
+hose couplings: no unrecorded inlet/outlet diameter or automatic reducer
+is inferred from the difference between the common and branch hoses.
+Root-to-leaf planning with simultaneous rated branch flows is deferred;
+a segment's required pressure is local and is not an instruction to set the
+pump for the entire tree.
 
 `line.ts` keeps the closed form for the all-quadratic case,
 Q = √((P − EP) / (r_hose + r_nozzle)), as the **oracle** the solver is
@@ -451,8 +494,8 @@ than a fog nozzle at 100 psi (185 gpm: 69 vs 93 lbf).
   Every allowance counts only for a **flowing** operation, so none is added
   at Q = 0, and each is evaluated at the flow **through the appliance** — for
   a wye or siamese, the total/common-port flow, not the per-branch flow.
-  (Branching and siamese are still planned; when implemented, the appliance's
-  common-port flow is the unknown the tree solver already carries.) Each is
+  (The tree solver carries each wye's common-port flow; siamese feeds remain
+  planned.) Each is
   counted **once per represented component or system**.
 
   **Scope and accounting.** The 10 psi is **not** claimed as a universal

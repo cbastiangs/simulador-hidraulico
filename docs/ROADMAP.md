@@ -201,10 +201,12 @@ in the supported regime, strictly monotone, so a **sign-changing bracket**
 gives a unique root — the condition bisection needs (`MODEL.md` §2).
 **Default lane:** a single path is solved by bisection on Q; a tree from one
 pump by nested bisection. `solveAttackLine` stays as a wrapper and its
-closed form as the test oracle. The future EPANET-style **Global Gradient
-Algorithm (GGA)** is planned **only** for general networks (loops,
-reconverging feeds) and is **not implemented now**; the tree solver is not
-in the runtime yet either (`MODEL.md` §2).
+closed form as the test oracle. A one-source **diverging tree** (a wye,
+independently gated branches, nested wyes) **is implemented** in the runtime
+(`src/hydraulics/tree.ts`; `MODEL.md` §2). The future EPANET-style **Global
+Gradient Algorithm (GGA)** is planned **only** for general networks (loops,
+reconverging feeds, siamese feeds) and is **not implemented now**
+(`MODEL.md` §2).
 
 The **target-flow planning direction** (`MODEL.md` §2) is planned
 on the same equations: evaluate `P_required(Q_target)` from the same budget
@@ -380,8 +382,14 @@ Next work polishes the app around the laws already implemented (hose
 friction, elevation, fixed-orifice and selectable nozzles). Deferred until
 then: partial valve openings (nozzle bale part-open, pump push-pull
 discharge valves; a new law `valve.partial`, Q = Cv·f(x)·√ΔP, generic curves
-labelled illustrative unless a manufacturer source is found), pump capacity,
-automatic nozzles, branching.
+labelled illustrative unless a manufacturer source is found), pump capacity
+and automatic nozzles. **Branching is pulled forward (owner, 2026-10-16).**
+Against the deferral above, the owner asked for wyes, independently gated
+branches and nested wyes now, not at M4: a one-source diverging-tree solver
+covers them (`src/hydraulics/tree.ts`; `MODEL.md` §2), so decision 5's
+"in-line fittings first, before branching" ordering no longer holds the work
+back. The M4 milestone row keeps the rest of branching (siamese feeds,
+station-maniobra presets).
 
 ## 11. Decisions (owner, 2026-10-14)
 

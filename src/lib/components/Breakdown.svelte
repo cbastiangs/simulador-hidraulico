@@ -48,7 +48,7 @@
           EP = k × h = {f(k, 3)} psi/m × {f(h)} m = <strong>{f(term.valuePsi)} psi</strong>
         </span>
       {:else if term.lawId === "appliance.fixed" || term.lawId === "appliance.step"}
-        <span class="name">{term.kind === "adapter" && term.joint > 0 && term.joint < scenario.sections.length ? jointName(scenario, term.joint) : `${term.kind === "valve" ? "Válvula en línea" : "Adaptador"}, ${jointNameIn(scenario, term.joint)}`}</span>
+        <span class="name">{term.kind === "wye" ? "Bifurca · caudal total de entrada" : term.kind === "adapter" && term.joint > 0 && term.joint < scenario.sections.length ? jointName(scenario, term.joint) : `${term.kind === "valve" ? "Válvula en línea" : "Adaptador"}, ${jointNameIn(scenario, term.joint)}`}</span>
         {#if term.lawId === "appliance.step"}
           {@const { aboveGpm: qs, stepPsi: dp, flowGpm: q } = term.inputs}
           <span class="formula">

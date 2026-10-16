@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { parseScenario, solveScenario, type Scenario } from "$hydraulics/scenario.ts";
+  import { parseScenario, pathResult, solveScenario, solveScenarioTree, type Scenario, type TreeSegmentResult } from "$hydraulics/scenario.ts";
   import Breakdown from "$lib/components/Breakdown.svelte";
   import BudgetBar from "$lib/components/BudgetBar.svelte";
   import Canvas from "$lib/components/Canvas.svelte";
@@ -15,6 +15,8 @@
   import type { MethodId } from "$hydraulics/references.ts";
   import NumberField from "$lib/components/NumberField.svelte";
   import type { Selection } from "$lib/selection.ts";
+  import TreeResults from "$lib/components/TreeResults.svelte";
+  import * as branch from "$lib/branch-edit.ts";
 
   // Built to docs/design/main-screen.html (UX.md §6).
   // Presets are parsed like any outside document: the same gate as a share link.
@@ -30,6 +32,8 @@
   let scenario: Scenario = $state.raw(presets[0].scenario);
   // Nothing is selected until the user taps something (UX.md §2 "Selecting").
   let selection: Selection | null = $state(null);
+  /** A branched lay's drawn line: one branch id per wye, from the pump to a nozzle (UX.md §2). */
+  let selectedPath: string[] = $state([]);
 
   // Phones (UX.md §8): the page does not scroll; a bottom sheet holds the
   // inspector and results, and opens at peek when something is selected.
@@ -65,10 +69,11 @@
   // one undo step, then the selection it names.
   let fitSignal = $state(0);
   function runAction(action: Action, target: Target) {
-    const c = { scenario, target, requiredPsi: result.requiredPumpPressurePsi };
+    if (scenario.wye && action.id === "pump.apply-required") return;
+    const c = { scenario: lineScenario, target, requiredPsi: result.requiredPumpPressurePsi };
     if (action.blocked?.(c)) return;
     const out = action.run(c);
-    if (out.scenario) apply(out.scenario);
+    if (out.scenario) applyLine(out.scenario, "", "index" in target ? target.index : undefined);
     if (out.view === "fit") fitSignal += 1;
     if (out.select === null) deselect();
     else if (out.select) select(out.select);
@@ -94,10 +99,35 @@
 
   /** Keeps the selection pointing at something that still exists. */
   function keepSelection() {
-    const n = scenario.sections.length;
+    const n = lineScenario.sections.length;
     if ((selection?.kind === "section" && selection.index >= n) || (selection?.kind === "joint" && selection.index > n)) {
       selection = null;
     }
+  }
+
+  /** Draw another outlet's line; what stays on the drawing stays selected. */
+  function selectLine(path: string[]) {
+    selectedPath = path;
+    keepSelection();
+  }
+
+  /** An edit of the whole branched lay (gates, lines, wyes). */
+  function applyTree(next: Scenario) {
+    // The drawn line stays drawn: shutting its gate must not hand the drawing to another outlet.
+    if (view) selectedPath = view.path;
+    apply(next);
+    keepSelection();
+  }
+
+  /**
+   * An edit of the drawn line, from the canvas, the panel or an action. On a
+   * branched lay it maps back into the tree; `hint` is the section or joint a
+   * hose was added or removed at.
+   */
+  function applyLine(next: Scenario, key = "", hint?: number) {
+    if (!view) return apply(next, key);
+    apply(branch.applyPathEdit(scenario, view, next, hint), key && `${view.path.join("/")}:${key}`);
+    keepSelection();
   }
 
   function undo() {
@@ -131,7 +161,26 @@
     event.preventDefault();
   }
 
-  const result = $derived(solveScenario(scenario));
+  // A branched lay is drawn, edited and split one pump-to-nozzle line at a
+  // time (UX.md §2): `lineScenario` is that line as an ordinary one-line
+  // scenario, `result` its reading from the tree solve; the pump shows the total.
+  const network = $derived(scenario.wye ? solveScenarioTree(scenario) : null);
+  const view = $derived(scenario.wye ? branch.pathView(scenario, selectedPath) : null);
+  const lineScenario = $derived(view?.scenario ?? scenario);
+  const result = $derived(network && view ? pathResult(network.root, view.path) : solveScenario(scenario));
+  const pumpResult = $derived(network?.root.result ?? result);
+  /** Each outlet's reading, keyed by its path joined with "/". */
+  const outlets = $derived.by(() => {
+    const out: Record<string, { flowGpm: number; isolated: boolean; nozzlePsi: number | null }> = {};
+    const walk = (node: TreeSegmentResult, path: string[]) => {
+      if (path.length) out[path.join("/")] = { flowGpm: node.flowGpm, isolated: node.isolated, nozzlePsi: node.branches.length ? null : node.outletPressurePsi };
+      for (const b of node.branches) walk(b, [...path, b.id!]);
+    };
+    if (network) walk(network.root, []);
+    return out;
+  });
+  const wyeWhy = $derived(branch.addLimit(scenario, view?.path ?? [], "wye"));
+  const lineName = $derived(view ? view.path.map((id, i) => view.junctions[i].outlets.find((o) => o.id === id)!.name).join(" › ") : "");
   // "Comparar con" (MODEL.md §4): a second method solved beside the first, or
   // none; a view choice, remembered per browser, off when it equals "Método".
   let compareId = $state<MethodId | null>("cgbvp-2019");
@@ -148,7 +197,8 @@
     } catch {}
   }
   const comparing = $derived(compareId !== null && compareId !== scenario.methodId ? compareId : null);
-  const reference = $derived(comparing ? solveScenario(scenario, comparing) : null);
+  const referenceNetwork = $derived(comparing && network ? solveScenarioTree(scenario, comparing) : null);
+  const reference = $derived(comparing ? referenceNetwork && view ? pathResult(referenceNetwork.root, view.path) : solveScenario(scenario, comparing) : null);
   const methodName = $derived(METHOD_LABELS[scenario.methodId]);
   const refName = $derived(comparing ? METHOD_LABELS[comparing] : "");
 
@@ -169,6 +219,7 @@
     loads += 1;
     scenario = presets.find((p) => p.id === id)!.scenario;
     selection = null;
+    selectedPath = [];
     past = [];
     future = [];
   }
@@ -177,12 +228,14 @@
   let fileMenu: HTMLDetailsElement | undefined = $state();
   function newLine() {
     apply(edit.blankLine(scenario));
+    selectedPath = [];
     loads += 1;
     deselect();
     if (fileMenu) fileMenu.open = false;
   }
   function resetPreset() {
     apply(presets.find((p) => p.id === presetId)!.scenario);
+    selectedPath = [];
     loads += 1;
     deselect();
     if (fileMenu) fileMenu.open = false;
@@ -217,16 +270,34 @@
       </div>
     </div>
     <NumberField label="Altura de piso" value={edit.floorOf(scenario)} unit="m" step={0.1} onchange={(m) => apply(edit.setFloorHeight(scenario, m), "floor")} />
-    <Actions target={{ kind: "line" }} {scenario} requiredPsi={result.requiredPumpPressurePsi} place="panel" onAction={runAction} />
+    <Actions target={{ kind: "line" }} scenario={lineScenario} requiredPsi={result.requiredPumpPressurePsi} place="panel" onAction={runAction} />
+    <!-- A wye at the end of the drawn line: two new lines with their own nozzles (UX.md §2). -->
+    <button type="button" class="add-wye" disabled={wyeWhy !== null} title={wyeWhy ?? "Dos líneas nuevas, cada una con su pitón"} onclick={() => applyTree(branch.addWye(scenario, view?.path ?? []))}>Añadir bifurca al final</button>
   </section>
 {/snippet}
 
 {#snippet side()}
   {#if selection === null}{@render line()}{/if}
-  <Inspector {scenario} {selection} floorM={edit.floorOf(scenario)} onClose={deselect} onchange={(s) => apply(s, `inspector:${JSON.stringify(selection)}`)} onSelect={select} requiredPsi={result.requiredPumpPressurePsi} {result} onAction={runAction} />
+  <Inspector
+    scenario={lineScenario}
+    {selection}
+    floorM={edit.floorOf(scenario)}
+    onClose={deselect}
+    onchange={(s) => applyLine(s, `inspector:${JSON.stringify(selection)}`)}
+    onSelect={select}
+    requiredPsi={result.requiredPumpPressurePsi}
+    {result}
+    branched={!!network}
+    onAction={runAction}
+    tree={network ? scenario : undefined}
+    {outlets}
+    onTree={applyTree}
+    onLine={selectLine}
+  />
 {/snippet}
 
 {#snippet results()}
+  {#if network}<p class="line-name">En el dibujo: <b>{lineName}</b> · toca otra salida de la bifurca para ver su línea</p>{/if}
   <div bind:this={budgetEl}><BudgetBar {result} {reference} referenceLabel={refName} /></div>
   <details class="card">
     <summary>Ver cálculo ({result.terms.length} fórmulas) · {methodName}{comparing ? ` y ${refName}` : ""}</summary>
@@ -236,13 +307,22 @@
         <tr><td>Caudal</td><td>{result.flowGpm.toFixed(1)} gpm</td>{#if reference}<td>{reference.flowGpm.toFixed(1)} gpm</td>{/if}</tr>
         <tr><td>Accesorios</td><td>{result.terms.some((t) => t.lawId === "appliance.fixed" && t.inputs.lossPsi === null) ? "sin dato" : `${result.fittingLossPsi.toFixed(1)} psi`}</td>{#if reference}<td>{reference.terms.some((t) => t.lawId === "appliance.fixed" && t.inputs.lossPsi === null) ? "sin dato" : `${reference.fittingLossPsi.toFixed(1)} psi`}</td>{/if}</tr>
         <tr><td>Presión en pitón</td><td>{result.nozzlePressurePsi.toFixed(1)} psi</td>{#if reference}<td>{reference.nozzlePressurePsi.toFixed(1)} psi</td>{/if}</tr>
-        <tr><td>Presión requerida</td><td>{result.requiredPumpPressurePsi.toFixed(1)} psi</td>{#if reference}<td>{reference.requiredPumpPressurePsi.toFixed(1)} psi</td>{/if}</tr>
+        {#if !network}<tr><td>Presión requerida</td><td>{result.requiredPumpPressurePsi.toFixed(1)} psi</td>{#if reference}<td>{reference.requiredPumpPressurePsi.toFixed(1)} psi</td>{/if}</tr>{/if}
       </tbody>
     </table>
-    <Breakdown terms={result.terms} methodId={scenario.methodId} {scenario} />
+    <Breakdown terms={result.terms} methodId={scenario.methodId} scenario={lineScenario} />
   </details>
+  {#if network}<TreeResults {scenario} {network} reference={referenceNetwork} referenceLabel={refName} />{/if}
   <Sources methodId={scenario.methodId} />
-  <Concepts {scenario} {result} />
+  <Concepts scenario={lineScenario} {result} />
+{/snippet}
+
+{#snippet pumpPanel(mode: "strip" | "head" | "full" | "bar")}
+  <PumpPanel {scenario} result={pumpResult} branched={!!network} balanced={network?.balanced ?? true} onchange={(s) => apply(s, "pump")} strip={mode === "strip"} head={mode === "head"} full={mode === "full"} onOpen={() => select({ kind: "pump" })} />
+{/snippet}
+
+{#snippet summary()}
+  <BudgetBar {result} {reference} referenceLabel={refName} compact />
 {/snippet}
 
 <div class="app" class:phone class:wide style:--sheet-closed={`${CLOSED_PX}px`}>
@@ -265,12 +345,12 @@
   </header>
 
   {#if !wide}
-    <div class="pump"><PumpPanel {scenario} {result} onchange={(s) => apply(s, "pump")} strip={phone} onOpen={() => select({ kind: "pump" })} /></div>
+    <div class="pump">{@render pumpPanel(phone ? "strip" : "bar")}</div>
   {/if}
 
   <div class="canvas">
     <Canvas
-      {scenario}
+      scenario={lineScenario}
       {result}
       {selection}
       {phone}
@@ -281,20 +361,23 @@
       onSelect={select}
       onTapEmpty={deselect}
       onDeselect={deselect}
-      onMove={(i, runM, elevationM) => apply(edit.moveCoupling(scenario, i, { runM, elevationM }), `move:${i}`)}
-      onToggleLock={(i) => apply(edit.toggleLengthLock(scenario, i))}
-      onHoseSize={(i, id) => apply(edit.setSectionHose(scenario, i, id))}
-      onLength={(i, m) => apply(edit.setSectionLength(scenario, i, m), `length:${i}`)}
-      onToggleFitting={(j, kind) => apply(edit.toggleFitting(scenario, j, kind))}
-      onToggleNozzle={() => apply(edit.setNozzleOpen(scenario, !scenario.nozzle.open))}
+      onMove={(i, runM, elevationM) => applyLine(edit.moveCoupling(lineScenario, i, { runM, elevationM }), `move:${i}`)}
+      onToggleLock={(i) => applyLine(edit.toggleLengthLock(lineScenario, i))}
+      onHoseSize={(i, id) => applyLine(edit.setSectionHose(lineScenario, i, id))}
+      onLength={(i, m) => applyLine(edit.setSectionLength(lineScenario, i, m), `length:${i}`)}
+      onToggleFitting={(j, kind) => applyLine(edit.toggleFitting(lineScenario, j, kind))}
+      onToggleNozzle={() => applyLine(edit.setNozzleOpen(lineScenario, !lineScenario.nozzle.open))}
       onAction={runAction}
       {fitSignal}
+      {outlets}
+      onGate={(path) => applyTree(branch.toggleGate(scenario, path))}
+      onLine={selectLine}
     />
   </div>
 
   {#if !phone}
     <div class="side">
-      {#if wide}<div class="head"><PumpPanel {scenario} {result} onchange={(s) => apply(s, "pump")} head /></div>{/if}
+      {#if wide}<div class="head">{@render pumpPanel("head")}</div>{/if}
       {@render side()}
     </div>
     <div class="results">{@render results()}</div>
@@ -302,11 +385,10 @@
 </div>
 
 {#if phone}
-  <Sheet {sheet} onSheet={(s) => (sheet = s)}>
-    {#snippet summary()}<BudgetBar {result} {reference} referenceLabel={refName} compact />{/snippet}
+  <Sheet {summary} {sheet} onSheet={(s) => (sheet = s)}>
     {#if selection?.kind === "pump"}
       <!-- The strip is a summary; the pump's whole control opens here, above its detail (UX.md §4). -->
-      <PumpPanel {scenario} {result} onchange={(s) => apply(s, "pump")} full />
+      {@render pumpPanel("full")}
     {/if}
     {@render side()}
     {@render results()}
@@ -358,6 +440,10 @@
   .seg .on { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
   .line-tools h2 { margin: 0; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
   .canvas { grid-area: canvas; min-width: 0; }
+  .line-name { margin: 0; font-size: 13px; color: var(--muted); }
+  .line-name b { color: var(--ink); }
+  .add-wye { justify-self: start; min-height: 44px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; font-size: 14px; }
+  .add-wye:disabled { opacity: 0.45; cursor: default; }
   .side { grid-area: side; display: grid; gap: var(--gap); align-content: start; }
   .results { grid-area: results; display: grid; gap: var(--gap); min-width: 0; }
   .card { background: var(--surface); border-radius: var(--radius); padding: 12px 14px; }

@@ -1,7 +1,7 @@
 {
   "schema": "simulador-hidraulico/scenario",
   "version": 1,
-  "name": "Ataque al 2.º piso: 2-1/2\" + 1-1/2\", pitón combinado",
+  "name": "Ataque al 2.º piso: 2½″ + 1½″, pitón combinado",
   "methodId": "physical",
   "source": {
     "kind": "fixed-pressure",

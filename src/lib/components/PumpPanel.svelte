@@ -20,6 +20,8 @@
     head = false,
     full = false,
     onOpen,
+    branched = false,
+    balanced = true,
   }: {
     scenario: Scenario;
     result: SeriesResult;
@@ -31,6 +33,8 @@
     head?: boolean;
     /** Phone, in the sheet when the pump is selected: large gauge, ±1 and ±10, Ajustar, Ralentí. */
     full?: boolean;
+    branched?: boolean;
+    balanced?: boolean;
   } = $props();
   const STATE = {
     flowing: "Fluyendo",
@@ -41,7 +45,7 @@
   // A missing adapter (manual fittings) leaves the line unconnected: say so rather than "nozzle closed".
   const missing = $derived(missingAdapters(scenario));
   const gap = $derived(result.unsatisfied);
-  const warn = $derived(result.state !== "flowing" || missing.length > 0 || gap !== null);
+  const warn = $derived(result.state !== "flowing" || missing.length > 0 || gap !== null || !balanced);
   // Inside the 350 gpm step no flow balances (MODEL.md §2): say so, and how to leave it.
   const gapTip = $derived(
     gap
@@ -65,7 +69,9 @@
 
 {#snippet stateLine()}
   <span class="state" class:warn title={gapTip || undefined}>
-    {#if missing.length > 0}
+    {#if branched}
+      {balanced ? result.flowGpm > 0 ? "Caudal total · líneas conectadas" : "Sin caudal" : "Sin equilibrio exacto · revisa las líneas"}
+    {:else if missing.length > 0}
       Línea sin conectar · falta adaptador
     {:else if gap}
       En el escalón de {gap.stepGpm} gpm · sin caudal exacto
@@ -76,7 +82,7 @@
 {/snippet}
 
 {#if strip}
-  <section class="strip" aria-label="Panel de bomba">
+  <section class="strip" class:branched aria-label="Panel de bomba">
     <NumberField
       label="Presión de descarga"
       hideLabel
@@ -86,13 +92,13 @@
       unit="psi"
       onchange={(p) => onchange(edit.setSourcePressure(scenario, p))}
     />
-    <button class="chip small" type="button" title={requiredTip} aria-label={`Ajustar a la presión necesaria, ${required.toFixed(0)} psi`} onclick={applyRequired}>
+    {#if !branched}<button class="chip small" type="button" title={requiredTip} aria-label={`Ajustar a la presión necesaria, ${required.toFixed(0)} psi`} onclick={applyRequired}>
       <span class="req-label">Ajustar</span>
       <span class="req-value">{required.toFixed(0)}</span>
-    </button>
+    </button>{/if}
     <button type="button" class="flow-open" aria-label="Bomba: salida y accesorios" onclick={onOpen}>
       <span class="big">{result.flowGpm.toFixed(0)} <small>gpm</small></span>
-      <span class="mini" class:warn-text={warn}>{missing.length > 0 ? "Sin conectar" : gap ? `escalón ${gap.stepGpm}` : result.state === "flowing" ? `pitón ${result.nozzlePressurePsi.toFixed(0)} psi` : result.state === "nozzle-closed" ? "Cerrado" : "No llega"}{" "}<span class="chev" aria-hidden="true">›</span></span>
+      <span class="mini" class:warn-text={warn}>{branched ? balanced ? "Total de líneas" : "Sin equilibrio" : missing.length > 0 ? "Sin conectar" : gap ? `escalón ${gap.stepGpm}` : result.state === "flowing" ? `pitón ${result.nozzlePressurePsi.toFixed(0)} psi` : result.state === "nozzle-closed" ? "Cerrado" : "No llega"}{" "}<span class="chev" aria-hidden="true">›</span></span>
     </button>
   </section>
 {:else if head}
@@ -105,7 +111,7 @@
       <div class="big">{f(result.flowGpm)} <small>gpm</small></div>
       {@render stateLine()}
     </div>
-    <div class="controls">
+    <div class="controls" class:branched>
       <NumberField
         label="Presión de descarga"
         hideLabel
@@ -115,10 +121,10 @@
         unit="psi"
         onchange={(p) => onchange(edit.setSourcePressure(scenario, p))}
       />
-      <button class="chip small" type="button" title={requiredTip} aria-label={`Ajustar a la presión necesaria, ${required.toFixed(0)} psi`} onclick={applyRequired}>
+      {#if !branched}<button class="chip small" type="button" title={requiredTip} aria-label={`Ajustar a la presión necesaria, ${required.toFixed(0)} psi`} onclick={applyRequired}>
         <span class="req-label">Ajustar</span>
         <span class="req-value">{required.toFixed(0)}</span>
-      </button>
+      </button>{/if}
       {@render idleButton()}
     </div>
   </section>
@@ -144,10 +150,10 @@
       />
     </div>
     <div class="span row">
-      <button class="chip grow" type="button" title={requiredTip} onclick={applyRequired}>Ajustar a {required.toFixed(0)} psi</button>
+      {#if !branched}<button class="chip grow" type="button" title={requiredTip} onclick={applyRequired}>Ajustar a {required.toFixed(0)} psi</button>{/if}
       {@render idleButton()}
     </div>
-    <p class="span hint">Ajustar: la presión necesaria para que el pitón reciba sus {scenario.nozzle.ratedPressurePsi} psi.</p>
+    <p class="span hint">{branched ? "Ajusta la descarga y consulta la presión y el caudal de cada línea. La bomba mantiene la presión indicada; su capacidad aún no se modela." : `Ajustar: la presión necesaria para que el pitón reciba sus ${scenario.nozzle.ratedPressurePsi} psi.`}</p>
     {#if gap}<p class="span hint gap">{gapTip}</p>{/if}
   </section>
 {:else}
@@ -165,9 +171,9 @@
       bigStep={{ size: 10, label: "10" }}
       onchange={(p) => onchange(edit.setSourcePressure(scenario, p))}
     />
-    <button class="chip" type="button" title={requiredTip} onclick={applyRequired}>
+    {#if !branched}<button class="chip" type="button" title={requiredTip} onclick={applyRequired}>
       Ajustar a {required.toFixed(0)} psi
-    </button>
+    </button>{/if}
     {@render idleButton()}
     <div class="flow" aria-live="polite">
       <div class="big">{f(result.flowGpm)} <small>gpm</small></div>
@@ -192,6 +198,7 @@
   .head .flow { margin: 0; }
   .kicker { font-size: 12px; font-weight: 600; color: var(--panel-muted); }
   .head .controls { grid-column: 1 / -1; display: grid; grid-template-columns: max-content 56px max-content; gap: 8px; align-items: center; justify-content: space-between; }
+  .head .controls.branched { grid-template-columns: max-content max-content; }
   .head .controls .chip { white-space: nowrap; }
   .head .controls .chip.small { width: 56px; min-width: 56px; }
   .chip.kill { border-color: #a33a3a; color: #ffc9c9; background: #3a1616; }
@@ -206,6 +213,8 @@
   .full .flow { margin: 0; }
 
   .strip { min-height: 60px; width: 100%; min-width: 0; padding: 6px 8px; display: grid; grid-template-columns: max-content 48px minmax(0, 1fr); align-items: center; gap: 6px; }
+  /* No «Ajustar» on a branched lay: the flow takes its column. */
+  .strip.branched { grid-template-columns: max-content minmax(0, 1fr); }
   .flow-open { display: grid; justify-items: end; gap: 2px; min-width: 0; min-height: 44px; padding: 2px; border: 0; border-radius: 8px; background: transparent; color: var(--panel-ink); cursor: pointer; }
   .flow-open .big { font-size: 21px; white-space: nowrap; }
   .flow-open .big small { font-size: 11px; }

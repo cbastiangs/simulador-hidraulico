@@ -15,6 +15,7 @@
     type PathAttachment,
   } from "$lib/geometry/world.ts";
   import { jointName, jointNameIn } from "$lib/names.ts";
+  import { junctionsOf, type Junction } from "$lib/branch-edit.ts";
   import type { Selection } from "$lib/selection.ts";
     import ContextMenu from "./ContextMenu.svelte";
   import Actions from "./Actions.svelte";
@@ -57,6 +58,9 @@
     coverPx = 0,
     onTapEmpty,
     onDeselect,
+    outlets = {},
+    onGate,
+    onLine,
   }: {
     scenario: Scenario;
     result: SeriesResult;
@@ -89,6 +93,12 @@
     onTapEmpty?: () => void;
     /** The floating toolbars' ×. */
     onDeselect: () => void;
+    /** A branched lay (UX.md §2): each outlet's reading, keyed by its path joined with "/". */
+    outlets?: Record<string, { flowGpm: number; isolated: boolean }>;
+    /** Open or shut a wye outlet's gate. */
+    onGate?: (path: string[]) => void;
+    /** Draw another outlet's line. */
+    onLine?: (path: string[]) => void;
   } = $props();
 
   const TAP_PX = 6;
@@ -312,7 +322,10 @@
   const last = $derived(layout.nodes.length - 1);
   const isSection = (i: number) => selection?.kind === "section" && selection.index === i;
   const outletIn = $derived(scenario.source.outletSizeIn);
-  const js = $derived(joints(scenario));
+  // A wye on a branched lay's drawn path (UX.md §2) is drawn by itself, not as an adapter.
+  const junctions = $derived(junctionsOf(scenario));
+  const junctionAtJoint = (i: number): Junction | undefined => junctions.find((j) => j.joint === i);
+  const js = $derived(joints(scenario).map((j) => (junctionAtJoint(j.index) ? { ...j, mismatch: false, auto: false, missing: false, placed: [] } : j)));
   const missing = $derived(js.filter((j) => j.missing));
 
   // Context menu (UX.md §2): right click, or a press held still for 0.5 s on touch.
@@ -677,7 +690,7 @@
 
   const selectedHose = $derived(selection?.kind === "section" ? layout.hoses[selection.index] : undefined);
   // The nozzle joint's fittings are edited in the inspector: its handle works the bale.
-  const selectedJoint = $derived(selection?.kind === "joint" && selection.index < last ? layout.nodes[selection.index] : undefined);
+  const selectedJoint = $derived(selection?.kind === "joint" && selection.index < last && !junctionAtJoint(selection.index) ? layout.nodes[selection.index] : undefined);
   /** Where a selection is drawn, in world px. */
   function selectionPoint(sel: Selection) {
     if (sel.kind === "section") {
@@ -729,6 +742,18 @@
       if (p) centreOn(p, cover);
     });
     return () => cancelAnimationFrame(raf);
+  });
+
+  // Nothing selected: an opening sheet lifts the drawing by what it covers, so
+  // the ground and the line stay above it (UX.md §8.2); closing lowers it back.
+  let lastCover = 0;
+  $effect(() => {
+    const cover = coverPx;
+    untrack(() => {
+      const delta = cover - lastCover;
+      lastCover = cover;
+      if (delta !== 0 && !selection && !locked) moveCamera(camX, camY + delta, true);
+    });
   });
 
   /** "Acercar a la selección" (View): about 1.5 times closer than the fit, at least 100 %, centred on it. */
@@ -806,7 +831,10 @@
     const parts: JointPart[] = [];
     let beforeX = 0;
     let afterX = 0;
-    if (j.auto || j.placed.includes("adapter")) {
+    if (junctionAtJoint(i)) {
+      beforeX = -9;
+      afterX = 15;
+    } else if (j.auto || j.placed.includes("adapter")) {
       const ratio = (j.upIn ?? 1) / (j.downIn || 1);
       const l = i > 0 ? halfWidth(i - 1) : halfWidth(i) * ratio;
       const r = i < last ? halfWidth(i) : l / ratio;
@@ -1211,6 +1239,59 @@
           {/if}
         {/each}
 
+        <!-- Wyes (UX.md §2 "Branched lays"): the body at its coupling; a gate handle on every outlet
+             (along the hose: open; across: shut); the drawn outlet continues as the line, the others
+             are stubs whose label draws that line instead. Stubs are symbols, not to scale. -->
+        {#each junctions as wye (wye.joint)}
+          {@const jd = drawing.joints[wye.joint]}
+          {@const others = wye.outlets.filter((o) => !o.active)}
+          {#if jd}
+            <g class="wye" transform={`translate(${jd.x} ${jd.y}) scale(${k}) rotate(${jd.angle})`}>
+              {#each others as o, n (o.id)}
+                {@const a = 38 + n * 30}
+                {@const r = outlets[o.path.join("/")]}
+                {@const lx = 78 * Math.cos((a * Math.PI) / 180)}
+                {@const ly = 78 * Math.sin((a * Math.PI) / 180)}
+                <g transform={`rotate(${a})`}>
+                  <line class="stub" class:shut={!o.open || r?.isolated} x1="8" y1="0" x2="74" y2="0" />
+                </g>
+                <g
+                  class="stub-label"
+                  role="button"
+                  tabindex="0"
+                  aria-label={`${o.name}: dibujar esta línea`}
+                  transform={`translate(${lx} ${ly}) rotate(${-jd.angle})`}
+                  onclick={tap(() => onLine?.(o.path))}
+                  onkeydown={(e) => e.key === "Enter" && onLine?.(o.path)}
+                >
+                  <rect x="0" y="-13" width="124" height="26" rx="13" />
+                  <text x="10" y="4.5">{o.name} · {r && !r.isolated ? `${r.flowGpm.toFixed(0)} gpm` : "—"} ›</text>
+                </g>
+              {/each}
+              <path class="wye-body" d="M -8 -8 L 6 -8 L 14 -4 L 14 4 L 6 8 L -8 8 Z" />
+              {#each wye.outlets as o (o.id)}
+                {@const a = o.active ? 0 : 38 + others.indexOf(o) * 30}
+                <!-- The drawn outlet's gate just past the body; the others farther out on their stubs, so no two targets overlap. -->
+                <g
+                  class="gate"
+                  class:shut={!o.open}
+                  role="switch"
+                  tabindex="0"
+                  aria-checked={o.open}
+                  aria-label={`Válvula de ${o.name}: ${o.open ? "abierta, tocar para cerrar" : "cerrada, tocar para abrir"}`}
+                  transform={`rotate(${a}) translate(${o.active ? 28 : 48} 0)`}
+                  onclick={tap(() => onGate?.(o.path))}
+                  onkeydown={(e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), onGate?.(o.path))}
+                >
+                  <circle class="gate-hit" r="16" />
+                  <circle class="gate-ball" r="5" />
+                  <line class="gate-handle" x1="-10" y1="0" x2="10" y2="0" style:transform={`rotate(${o.open ? 0 : 90}deg)`} />
+                </g>
+              {/each}
+            </g>
+          {/if}
+        {/each}
+
         <!-- Gauges above the line; tap one for its reading. The nozzle comes after, so its bale takes the tap. -->
         <!-- The height axis (owner, 2026-10-16): pinned to the view's left edge, over the drawing (a halo keeps it legible on the truck), under the gauges, which float above it. -->
         {#each layout.floors as f (f.elevationM)}
@@ -1219,6 +1300,8 @@
         {#if showGauges}
           {#each layout.nodes as n, i (i)}
             {@const g = gaugeAt(i)}
+            <!-- Behind a shut gate the pressure is unknown (MODEL.md §2): no gauge rather than a made-up reading. -->
+            {#if Number.isFinite(n.pressurePsi)}
             <g class="gauge" transform={`translate(${g.x} ${g.y}) scale(${gaugeK})`}>
               <Gauge psi={n.pressurePsi} mark={i === last ? scenario.nozzle.ratedPressurePsi : undefined} />
               <circle
@@ -1231,6 +1314,7 @@
                 onkeydown={(e) => e.key === "Enter" && (inspected = i)}
               />
             </g>
+            {/if}
           {/each}
         {/if}
         <!-- The nozzle above its handle and the gauges: the highest event layer -->
@@ -1400,6 +1484,20 @@
   .valve path { fill: var(--fitting); }
   .valve line { stroke: var(--fitting); stroke-width: 2; }
   .missing circle { fill: var(--warn); }
+  .wye-body { fill: var(--steel); stroke: var(--ink); stroke-width: 1.5; pointer-events: none; }
+  .stub { stroke: var(--hose); stroke-width: 6; stroke-linecap: round; pointer-events: none; }
+  .stub.shut { stroke-dasharray: 2 6; opacity: 0.7; }
+  .stub-label { cursor: pointer; outline: none; }
+  .stub-label rect { fill: var(--surface); stroke: var(--line); }
+  .stub-label:hover rect, .stub-label:focus-visible rect { stroke: var(--accent); }
+  .stub-label text { font-size: 12px; font-weight: 600; fill: var(--ink); }
+  .gate { cursor: pointer; outline: none; }
+  .gate-hit { fill: transparent; }
+  .gate-ball { fill: var(--steel); stroke: var(--ink); stroke-width: 1.5; pointer-events: none; }
+  .gate-handle { stroke: var(--ink); stroke-width: 4; stroke-linecap: round; transition: transform 0.2s ease; pointer-events: none; }
+  .gate.shut .gate-handle { stroke: var(--warn); }
+  .gate:focus-visible .gate-ball { stroke: var(--accent); stroke-width: 3; }
+  @media (prefers-reduced-motion: reduce) { .gate-handle { transition: none; } }
   .missing text { fill: #fff; font-size: 14px; font-weight: 800; text-anchor: middle; }
   .hose { stroke: var(--hose); stroke-linecap: butt; fill: none; }
   .particles { fill: none; stroke: #fff; stroke-opacity: 0.85; stroke-linecap: round; stroke-dasharray: 0 var(--gap); animation: water var(--period) linear infinite; pointer-events: none; }
