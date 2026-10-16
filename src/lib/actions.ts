@@ -180,7 +180,7 @@ export const ACTIONS: Action[] = [
   },
   {
     id: "pump.apply-required",
-    label: (c) => `Aplicar presión requerida (${c.requiredPsi.toFixed(0)} psi)`,
+    label: (c) => `Ajustar a la presión necesaria (${c.requiredPsi.toFixed(0)} psi)`,
     on: ["pump"],
     menu: true,
     field: true,
@@ -205,7 +205,7 @@ export const ACTIONS: Action[] = [
   },
   {
     id: "view.fit",
-    label: "Ajustar vista",
+    label: "Ver toda la línea",
     on: ["line"],
     menu: true,
     field: true,

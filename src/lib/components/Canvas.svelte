@@ -29,8 +29,9 @@
   // the coupling, open its fittings; the bale is its own target); more is a drag
   // (move the coupling). Right click, or a long press on touch, opens a context
   // menu for what is under it. The canvas owns its touches (UX.md §8.1): one
-  // finger on empty canvas or a hose pans, two fingers pan and pinch, wheel pans,
-  // Ctrl + wheel zooms; the page never scrolls from here.
+  // finger on empty canvas or a hose pans, two fingers pan and pinch; a mouse
+  // wheel zooms, a trackpad swipe or Shift + wheel pans; the page never
+  // scrolls from here.
   //
   // A drag freezes the whole mapping for its duration: bounds, filled bounds,
   // zoom and camera are captured at press start, and the pointer's *deltas* map
@@ -75,7 +76,7 @@
     onToggleFitting: (joint: number, kind: FittingKind) => void;
     /** Run an action from lib/actions.ts (toolbars, menu). */
     onAction: (action: Action, target: Target) => void;
-    /** Changes when "Ajustar vista" runs from the action list: auto-fit is restored. */
+    /** Changes when "Ver toda la línea" runs from the action list: the whole lay is shown. */
     fitSignal?: number;
     /** Phone layout (UX.md §8): the canvas fills its container and the bottom sheet replaces the floating toolbars. */
     phone?: boolean;
@@ -141,11 +142,18 @@
     if (glide) glideTimer = setTimeout(() => (glide = false), 300);
   }
 
-  /** The fitted view: the world's corner at the canvas's corner, the ground at the foot. */
+  /** The home view: the truck at the canvas's left edge, the ground at the foot. */
   async function goHome() {
     await tick();
     if (press || dragging !== null) return;
-    moveCamera(0, 0, true);
+    moveCamera(0, Math.max(0, layout.heightPx * zoom - viewHeight), true);
+  }
+  /** "Ver todo" and a double tap: the whole lay, however small. */
+  function showWhole() {
+    manualZoom = null;
+    showAll = true;
+    locked = false;
+    goHome();
   }
 
   let fittedFor = "";
@@ -153,6 +161,7 @@
     if (resetKey !== fittedFor) {
       fittedFor = resetKey;
       manualZoom = null;
+      showAll = false;
       // Start at the truck: the line reads from the pump (UX.md §8.1).
       requestAnimationFrame(() => {
         goHome();
@@ -202,6 +211,7 @@
     if (fitSignal !== fitSeen) {
       fitSeen = fitSignal;
       manualZoom = null;
+      showAll = true;
     }
   });
 
@@ -241,11 +251,20 @@
   let frozen = $state<{ bounds: Bounds; filled: Bounds; zoom: number } | null>(null);
   /** The requested coupling is past its hose's reach: show "Límite de manguera" (§10.8). */
   let constrained = $state(false);
-  /** Set by − / +; null means auto-fit. */
+  /** Set by − / +, the wheel or a pinch; null means automatic. */
   let manualZoom = $state<number | null>(null);
+  /**
+   * The automatic zoom starts close enough that every floor is named (owner,
+   * 2026-10-16: a phone fitting the whole lay opened at 29 %, a floor 18 px
+   * tall); the lay then reads from the truck and the rest is a pan away.
+   * "Ver todo" and a double tap show the whole lay instead.
+   */
+  let showAll = $state(false);
+  const readableZoom = $derived(24 / (floorM * PX_PER_M));
+  const autoZoom = $derived(showAll ? fitZoom : Math.min(2.2, Math.max(fitZoom, readableZoom)));
 
   const bounds = $derived(frozen?.bounds ?? fitted);
-  const zoom = $derived(frozen?.zoom ?? manualZoom ?? fitZoom);
+  const zoom = $derived(frozen?.zoom ?? manualZoom ?? autoZoom);
   /** Multiply screen-size things by k so they stay the same size at any zoom. */
   const k = $derived(1 / zoom);
   /**
@@ -429,8 +448,7 @@
     if (gesture?.kind === "pan" && !gesture.moved && gesture.empty && pointers.size === 0 && !held) {
       const now = performance.now();
       if (now - lastEmptyTap < 300) {
-        manualZoom = null;
-        goHome();
+        showWhole();
         lastEmptyTap = 0;
       } else {
         lastEmptyTap = now;
@@ -450,14 +468,21 @@
     event.preventDefault();
   }
 
-  // Wheel pans; Ctrl + wheel (and a trackpad pinch, which browsers send as one)
-  // zooms around the pointer. A handle press owns the touch: wheel is ignored.
+  // A mouse wheel zooms around the pointer, like a map (owner, 2026-10-16);
+  // so does a trackpad pinch, which browsers send as Ctrl + wheel. A trackpad
+  // swipe and Shift + wheel pan. A trackpad is told apart by sideways motion
+  // or fine, fractional steps: a wheel notch is a whole line or a coarse step.
+  // A handle press owns the touch: wheel is ignored.
+  const isTrackpad = (e: WheelEvent) =>
+    e.deltaMode === 0 && (e.deltaX !== 0 || !Number.isInteger(e.deltaY) || Math.abs(e.deltaY) < 40);
   $effect(() => {
     if (!scroller) return;
     const wheel = (event: WheelEvent) => {
       event.preventDefault();
       if (press || dragging !== null) return;
-      if (event.ctrlKey) zoomAround(zoom * Math.exp(-event.deltaY * 0.002), anchorAt(event.clientX, event.clientY));
+      const step = event.deltaMode === 1 ? event.deltaY * 33 : event.deltaY;
+      if (event.ctrlKey) zoomAround(zoom * Math.exp(-step * 0.002), anchorAt(event.clientX, event.clientY));
+      else if (!event.shiftKey && !isTrackpad(event)) zoomAround(zoom * Math.exp(-step * 0.0015), anchorAt(event.clientX, event.clientY));
       else {
         locked = false;
         moveCamera(camX + (event.shiftKey ? event.deltaY : event.deltaX), camY + (event.shiftKey ? 0 : event.deltaY));
@@ -1287,11 +1312,11 @@
     </button>
   {/if}
   {#if !phone}<span class="hint">Clic derecho o mantener pulsado: más opciones</span>{/if}
-  <span class="badge">{Math.round(zoom * 100)} %{manualZoom === null ? " · auto" : ""}{trueScale ? "" : ` · grosor ×${EXAGGERATION}`}</span>
+  <span class="badge">{Math.round(zoom * 100)} %{manualZoom === null ? (showAll ? " · todo" : " · auto") : ""}{trueScale ? "" : ` · grosor ×${EXAGGERATION}`}</span>
   <div class="zoom">
     <button type="button" aria-label="Alejar" onclick={() => setManualZoom(zoom / 1.25)}>−</button>
     <button type="button" aria-label="Acercar" onclick={() => setManualZoom(zoom * 1.25)}>+</button>
-    <button type="button" onclick={() => { manualZoom = null; locked = false; goHome(); }}>Ajustar</button>
+    <button type="button" onclick={showWhole}>Ver todo</button>
     <button type="button" class="camera-lock" class:on={locked} aria-pressed={locked} title="Fijar la cámara en la selección (Y)" onclick={() => (locked = !locked)}>Cámara</button>
     <details class="view" bind:this={viewMenu}>
       <summary aria-label="Vista" title="Vista">Vista</summary>

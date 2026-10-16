@@ -3,19 +3,22 @@
   import type { SeriesResult } from "$hydraulics/series.ts";
   import * as edit from "$lib/edit.ts";
   import Gauge from "./Gauge.svelte";
-    import NumberField from "./NumberField.svelte";
+  import NumberField from "./NumberField.svelte";
 
   // The panel's pump header (UX.md §4): discharge gauge, pressure typed or
-  // stepped, "apply required", and the flow, large. Always in view: atop the
-  // right panel (desktop), above the canvas (tablet), as a strip (phone).
-  // The pump's detail (outlets, fittings; truck, control and tank with M3)
-  // is the panel body when the pump is selected (Inspector).
+  // stepped, "Ajustar" (apply the required pressure), "Ralentí" and the flow,
+  // large. Always in view: atop the right panel (desktop), above the canvas
+  // (tablet), as a strip (phone). On a phone the strip is a summary and the
+  // pump's whole control (`full`) opens in the sheet with its detail. The
+  // detail (outlets, fittings; truck, control and tank with M3) is the panel
+  // body when the pump is selected (Inspector).
   let {
     scenario,
     result,
     onchange,
     strip = false,
     head = false,
+    full = false,
     onOpen,
   }: {
     scenario: Scenario;
@@ -26,6 +29,8 @@
     onOpen?: () => void;
     /** Desktop: the header of the side panel, 360 px wide. */
     head?: boolean;
+    /** Phone, in the sheet when the pump is selected: large gauge, ±1 and ±10, Ajustar, Ralentí. */
+    full?: boolean;
   } = $props();
   const STATE = {
     flowing: "Fluyendo",
@@ -36,7 +41,20 @@
   // A missing adapter (manual fittings) leaves the line unconnected: say so rather than "nozzle closed".
   const missing = $derived(missingAdapters(scenario));
   const warn = $derived(result.state !== "flowing" || missing.length > 0);
+  const required = $derived(result.requiredPumpPressurePsi);
+  const requiredTip = $derived(
+    `Presión necesaria en la bomba para que el pitón reciba sus ${scenario.nozzle.ratedPressurePsi} psi: ${required.toFixed(0)} psi. Toca para aplicarla.`,
+  );
+  const applyRequired = () => onchange(edit.setSourcePressure(scenario, required));
+  // Idle: today's pump is an ideal pressure source, so idle is 0 psi; with the
+  // governor's RPM mode (M3) it becomes the lowest RPM (UX.md §4).
+  const idle = () => onchange(edit.setSourcePressure(scenario, 0));
+  const idling = $derived(scenario.source.pressurePsi === 0);
 </script>
+
+{#snippet idleButton()}
+  <button class="chip kill" type="button" disabled={idling} title="Bomba a ralentí: 0 psi de descarga (se puede deshacer)" onclick={idle}>Ralentí</button>
+{/snippet}
 
 {#snippet stateLine()}
   <span class="state" class:warn>
@@ -59,9 +77,9 @@
       unit="psi"
       onchange={(p) => onchange(edit.setSourcePressure(scenario, p))}
     />
-    <button class="chip small" type="button" title="Aplicar presión requerida" aria-label="Aplicar presión requerida" onclick={() => onchange(edit.setSourcePressure(scenario, result.requiredPumpPressurePsi))}>
-      <span class="req-label">Req.</span>
-      <span class="req-value">{result.requiredPumpPressurePsi.toFixed(0)}</span>
+    <button class="chip small" type="button" title={requiredTip} aria-label={`Ajustar a la presión necesaria, ${required.toFixed(0)} psi`} onclick={applyRequired}>
+      <span class="req-label">Ajustar</span>
+      <span class="req-value">{required.toFixed(0)}</span>
     </button>
     <button type="button" class="flow-open" aria-label="Bomba: salida y accesorios" onclick={onOpen}>
       <span class="big">{result.flowGpm.toFixed(0)} <small>gpm</small></span>
@@ -88,10 +106,39 @@
         unit="psi"
         onchange={(p) => onchange(edit.setSourcePressure(scenario, p))}
       />
-      <button class="chip" type="button" title="Aplicar la presión requerida" onclick={() => onchange(edit.setSourcePressure(scenario, result.requiredPumpPressurePsi))}>
-        Req. {result.requiredPumpPressurePsi.toFixed(0)}
+      <button class="chip small" type="button" title={requiredTip} aria-label={`Ajustar a la presión necesaria, ${required.toFixed(0)} psi`} onclick={applyRequired}>
+        <span class="req-label">Ajustar</span>
+        <span class="req-value">{required.toFixed(0)}</span>
       </button>
+      {@render idleButton()}
     </div>
+  </section>
+{:else if full}
+  <section class="full" aria-label="Control de bomba">
+    <svg class="dial" width="88" height="88" viewBox="-44 -44 88 88" aria-hidden="true">
+      <Gauge psi={scenario.source.pressurePsi} r={41} dark label={false} />
+    </svg>
+    <div class="flow" aria-live="polite">
+      <span class="kicker">Bomba · descarga</span>
+      <div class="big">{f(result.flowGpm)} <small>gpm</small></div>
+      {@render stateLine()}
+    </div>
+    <div class="span">
+      <NumberField
+        label="Presión de descarga"
+        hideLabel
+        dark
+        value={scenario.source.pressurePsi}
+        unit="psi"
+        bigStep={{ size: 10, label: "10" }}
+        onchange={(p) => onchange(edit.setSourcePressure(scenario, p))}
+      />
+    </div>
+    <div class="span row">
+      <button class="chip grow" type="button" title={requiredTip} onclick={applyRequired}>Ajustar a {required.toFixed(0)} psi</button>
+      {@render idleButton()}
+    </div>
+    <p class="span hint">Ajustar: la presión necesaria para que el pitón reciba sus {scenario.nozzle.ratedPressurePsi} psi.</p>
   </section>
 {:else}
   <section class="pump" aria-label="Panel de bomba">
@@ -108,9 +155,10 @@
       bigStep={{ size: 10, label: "10" }}
       onchange={(p) => onchange(edit.setSourcePressure(scenario, p))}
     />
-    <button class="chip" type="button" onclick={() => onchange(edit.setSourcePressure(scenario, result.requiredPumpPressurePsi))}>
-      <span class="long">Aplicar requerida · </span><span class="short">Req. </span>{f(result.requiredPumpPressurePsi)}<span class="long"> psi</span>
+    <button class="chip" type="button" title={requiredTip} onclick={applyRequired}>
+      Ajustar a {required.toFixed(0)} psi
     </button>
+    {@render idleButton()}
     <div class="flow" aria-live="polite">
       <div class="big">{f(result.flowGpm)} <small>gpm</small></div>
       {@render stateLine()}
@@ -119,7 +167,7 @@
 {/if}
 
 <style>
-  .pump, .strip, .head { background: var(--panel); color: var(--panel-ink); border-radius: var(--radius); }
+  .pump, .strip, .head, .full { background: var(--panel); color: var(--panel-ink); border-radius: var(--radius); }
   .pump { padding: 10px 14px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px; }
   .title { display: grid; }
   .title span { font-size: 12px; color: var(--panel-muted); }
@@ -128,14 +176,23 @@
   .big { font-size: 34px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
   .big small { font-size: 15px; color: var(--panel-muted); font-weight: 600; }
   .state { border-radius: 999px; padding: 5px 12px; font-size: 13px; font-weight: 600; background: var(--ok-bg); color: var(--ok-ink); }
-  .short { display: none; }
   .state.warn { background: #5c1d1d; color: #ffc9c9; }
 
   .head { padding: 10px 12px; display: grid; grid-template-columns: 64px 1fr; gap: 10px 12px; align-items: center; }
   .head .flow { margin: 0; }
   .kicker { font-size: 12px; font-weight: 600; color: var(--panel-muted); }
-  .head .controls { grid-column: 1 / -1; display: grid; grid-template-columns: max-content max-content; gap: 8px; align-items: center; justify-content: space-between; }
+  .head .controls { grid-column: 1 / -1; display: grid; grid-template-columns: max-content 56px max-content; gap: 8px; align-items: center; justify-content: space-between; }
   .head .controls .chip { white-space: nowrap; }
+  .head .controls .chip.small { width: 56px; min-width: 56px; }
+  .chip.kill { border-color: #a33a3a; color: #ffc9c9; background: #3a1616; }
+  .chip.kill:disabled { opacity: 0.45; cursor: default; }
+
+  .full { padding: 10px 12px 12px; display: grid; grid-template-columns: 88px 1fr; gap: 10px 12px; align-items: center; }
+  .full .span { grid-column: 1 / -1; }
+  .full .row { display: flex; gap: 8px; }
+  .full .grow { flex: 1; }
+  .full .hint { margin: -4px 0 0; font-size: 12px; color: var(--panel-muted); }
+  .full .flow { margin: 0; }
 
   .strip { min-height: 60px; width: 100%; min-width: 0; padding: 6px 8px; display: grid; grid-template-columns: max-content 48px minmax(0, 1fr); align-items: center; gap: 6px; }
   .flow-open { display: grid; justify-items: end; gap: 2px; min-width: 0; min-height: 44px; padding: 2px; border: 0; border-radius: 8px; background: transparent; color: var(--panel-ink); cursor: pointer; }
@@ -149,10 +206,9 @@
   .warn-text { color: #ffc9c9; }
 
   @media (max-width: 600px) {
-    .dial, .title, .long { display: none; }
+    .pump .dial, .title { display: none; }
     .chip { padding: 6px 10px; font-size: 13px; }
     .pump { padding: 8px 10px; gap: 8px; }
     .big { font-size: 28px; }
-    .short { display: inline; }
   }
 </style>

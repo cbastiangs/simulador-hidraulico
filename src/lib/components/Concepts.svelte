@@ -48,8 +48,8 @@
     <dd>
       Es el par con que se calibró este ajuste: con {n.ratedPressurePsi} psi en la entrada, esta abertura deja pasar
       {n.ratedFlowGpm} gpm. No es la presión que tendrás: esa ({flowing ? `${f(result.nozzlePressurePsi)} psi` : "—"})
-      sale de la bomba y la línea, y se calcula con Q ∝ √P. «Presión requerida»
-      ({f(result.requiredPumpPressurePsi)} psi) es la de la <b>bomba</b> para que el pitón trabaje en su clasificación.
+      sale de la bomba y la línea, y se calcula con Q ∝ √P. «Ajustar»
+      ({f(result.requiredPumpPressurePsi)} psi, la presión requerida) pone la <b>bomba</b> en la presión con que el pitón trabaja en su clasificación.
     </dd>
   </dl>
 </details>

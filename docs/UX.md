@@ -51,7 +51,7 @@
   chord is short. Drawing only; the label says "holgura x m".
   During a drag the world and zoom are frozen (refitting under the pointer
   would move the target) and refit on release. − / + set a manual zoom;
-  "Ajustar" returns to automatic.
+  "Ver todo" shows the whole lay.
 - **Use the screen.** The page grows to 2000 px wide (the canvas takes the
   width the side column leaves); the fit zoom goes up to 220 %; the world is
   the lay plus margins (12 m before the truck, 16 m after the nozzle for its
@@ -159,8 +159,17 @@
   - **Pattern collar:** straight stream ↔ wide fog. Drawn on the stream.
   - **Stream:** grows and collapses with the flow; shape follows the
     pattern.
-- **Pump header:** discharge gauge, pressure (typed, ±), the "apply
-  required pressure" control, and the flow, large, always in view (§4).
+- **Pump header:** discharge gauge, pressure (typed, ±), **"Ajustar"**,
+  **"Ralentí"** and the flow, large, always in view (§4). "Ajustar" sets the
+  discharge to the required pressure: what the pump needs for the nozzle to
+  get its rated pressure (nozzle + friction + elevation + fittings, under
+  the chosen method); its tooltip says so ("Req." was cryptic). "Ralentí"
+  (owner, 2026-10-16) is the kill: red, undoable, 0 psi today because the
+  pump is an ideal pressure source; with the governor's RPM mode (M3) it
+  sets the lowest RPM and the pump curve gives the pressure. On a phone the
+  strip is a summary (pressure ±, Ajustar, flow); selecting the pump opens
+  its whole control in the sheet (large gauge, ±1 and ±10, Ajustar,
+  Ralentí, flow) above its detail.
   The outlets are the pump's detail; truck, governor and tank join it with
   M3 (ROADMAP §6).
 - **Controls:** no unstyled browser defaults in the main UI. Segmented
@@ -186,7 +195,7 @@ and dropped: the pump was edited in two places and line settings in three.
   one-line grid change; the walkthrough and the tests with firefighters
   ask which side they look to.
 - **Header: the pump**, always in view, because discharge pressure is the
-  control a lay is set with. Gauge, pressure, "Req." (apply required),
+  control a lay is set with. Gauge, pressure, "Ajustar", "Ralentí",
   flow and the state. Tablets put it above the canvas, phones as the strip;
   the body goes below the canvas or in the sheet.
 - **Body: what is selected.** Nothing: **Línea** (name, method, compare,
@@ -254,9 +263,9 @@ welcome tour is interactive.
 
 | Gesture | Desktop | Phone / tablet |
 |---|---|---|
-| Pan | drag empty canvas or a hose; wheel / trackpad | one finger on empty canvas or a hose; two fingers |
-| Zoom | Ctrl + wheel, pinch on trackpad, − / + | pinch (two fingers pan and zoom together), − / + |
-| Fit | "Ajustar" | "Ajustar", double tap on empty canvas |
+| Pan | drag empty canvas or a hose; trackpad swipe; Shift + wheel | one finger on empty canvas or a hose; two fingers |
+| Zoom | mouse wheel (around the pointer), pinch on trackpad, − / + | pinch (two fingers pan and zoom together), − / + |
+| Whole lay | "Ver todo" | "Ver todo", double tap on empty canvas |
 | Select | click | tap (moves < 6 px) |
 | Move a coupling or the nozzle | drag its handle | drag its handle, at once (no hold) |
 | More actions | right click | hold 0.5 s without moving |
@@ -267,18 +276,25 @@ welcome tour is interactive.
 - **On a phone the page does not scroll at all** (§4's layout, now
   required): the pump strip at the top, the canvas filling the rest, and a
   bottom sheet over it. Everything else lives in the sheet.
-- **Fit shows the whole lay, truck and nozzle included,** and a lay wider
-  than the canvas starts at the truck. A canvas taller than the lay adds
-  building above only, so the ground stays at the foot (owner, 2026-10-16:
-  the floor line sat in the middle of the screen; replaces "equal parts").
+- **The start view names every floor** (owner, 2026-10-16; replaces "fit
+  shows the whole lay", which opened a phone at 29 %, a floor 18 px tall):
+  the automatic zoom is the whole-lay fit or the zoom at which floors are
+  24 px apart, whichever is closer. It opens at the truck with the ground at
+  the foot; the rest of a long lay is a pan away. **"Ver todo"** (and a
+  double tap) shows the whole lay, truck and nozzle included, however small;
+  the badge says "todo". A canvas taller than the lay adds building above
+  only, so the ground stays at the foot (owner, 2026-10-16: the floor line
+  sat in the middle of the screen; replaces "equal parts").
 - **Free movement and a lockable camera** (owner, 2026-10-16). No native
   scrolling and no scroll bars: the canvas is a camera over the world. Drag
-  empty canvas (or a hose) to pan, wheel or trackpad to pan, Ctrl + wheel or
-  pinch to zoom. The camera may leave the world, but 48 px of it always
+  empty canvas (or a hose), a trackpad swipe or Shift + wheel to pan; the
+  mouse wheel zooms around the pointer, like a map (owner, 2026-10-16), and
+  so does a pinch. A trackpad is told from a wheel by sideways motion or
+  fine steps. The camera may leave the world, but 48 px of it always
   stays in view. **Lock** (button, or Y) keeps the camera on the selection,
   or on the truck when nothing is selected, like a game's locked camera;
-  any manual pan unlocks. "Ajustar", a double tap and a new lay return to
-  the fitted view. Detail is reached by pinching, not by a minimum zoom.
+  any manual pan unlocks. A new lay returns to the start view; "Ver todo"
+  and a double tap to the whole lay.
 - **Gauges never cover the equipment.** The pump's gauge sits above the
   truck; the pump's pressure also stays in the top strip.
 
@@ -310,7 +326,7 @@ actions; "inspector" = the side column (desktop) or the sheet at full.
 | Nozzle | open / shut the bale | tap the nozzle | tap the nozzle |
 | | model, gallonage, pattern, typed rating | inspector | sheet at peek |
 | Pump | pressure (typed, ±) | panel header | top strip |
-| | apply required pressure | panel header ("Req.") | top strip ("Req.") |
+| | apply required pressure ("Ajustar"), idle ("Ralentí") | panel header | top strip: Ajustar; sheet (pump selected): both |
 | | discharge outlet size | tap the engine → panel body | tap the engine or the strip's flow → sheet |
 | Scenario | load a preset | header | header menu |
 | | undo, redo | header; Ctrl+Z, Ctrl+Shift+Z | header icons |

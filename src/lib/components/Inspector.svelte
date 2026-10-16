@@ -108,7 +108,7 @@
     {#if short}
       <p class="warn" role="status">
         ⚠ {result.nozzlePressurePsi.toFixed(0)} psi en el pitón, por debajo de sus {n.ratedPressurePsi} psi nominales: da
-        {result.flowGpm.toFixed(0)} gpm, no {n.ratedFlowGpm}. Sube la presión o usa «Aplicar requerida».
+        {result.flowGpm.toFixed(0)} gpm, no {n.ratedFlowGpm}. Sube la presión o toca «Ajustar».
       </p>
     {/if}
 

@@ -304,6 +304,10 @@
 {#if phone}
   <Sheet {sheet} onSheet={(s) => (sheet = s)}>
     {#snippet summary()}<BudgetBar {result} {reference} referenceLabel={refName} compact />{/snippet}
+    {#if selection?.kind === "pump"}
+      <!-- The strip is a summary; the pump's whole control opens here, above its detail (UX.md §4). -->
+      <PumpPanel {scenario} {result} onchange={(s) => apply(s, "pump")} full />
+    {/if}
     {@render side()}
     {@render results()}
   </Sheet>
