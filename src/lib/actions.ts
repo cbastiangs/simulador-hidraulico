@@ -177,7 +177,17 @@ export const ACTIONS: Action[] = [
     on: ["nozzle"],
     menu: true,
     field: true,
+    blocked: (c) => (c.scenario.nozzle.design === "open-end" ? "Sin pitón no hay manija: se corta en la bomba" : null),
     run: (c) => ({ scenario: edit.setNozzleOpen(c.scenario, !c.scenario.nozzle.open) }),
+  },
+  {
+    id: "nozzle.remove",
+    label: (c) => (c.scenario.nozzle.design === "open-end" ? "Poner pitón" : "Quitar pitón (punta abierta)"),
+    short: (c) => (c.scenario.nozzle.design === "open-end" ? "Poner pitón" : "Quitar pitón"),
+    on: ["nozzle"],
+    quick: true,
+    menu: true,
+    run: (c) => ({ scenario: c.scenario.nozzle.design === "open-end" ? edit.attachNozzle(c.scenario) : edit.removeNozzle(c.scenario) }),
   },
 
   // Pump
@@ -196,6 +206,7 @@ export const ACTIONS: Action[] = [
     on: ["pump"],
     menu: true,
     field: true,
+    blocked: (c) => (c.scenario.nozzle.design === "open-end" ? "Sin pitón no hay presión nominal que alcanzar" : null),
     run: (c) => ({ scenario: edit.setSourcePressure(c.scenario, c.requiredPsi) }),
   },
 

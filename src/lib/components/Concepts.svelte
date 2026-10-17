@@ -1,11 +1,14 @@
 <script lang="ts">
   import type { Scenario } from "$hydraulics/scenario.ts";
   import type { SeriesResult } from "$hydraulics/series.ts";
+  import { kilowatts, type PowerSplit } from "$hydraulics/power.ts";
   import { hoseVelocityMps, nozzleExitVelocityMps } from "$hydraulics/velocity.ts";
 
   // Pressure, flow and speed are three different things (MODEL.md §3.13), shown
   // with this scenario's own numbers. Every value comes from the engine's result.
-  let { scenario, result }: { scenario: Scenario; result: SeriesResult } = $props();
+  // `power`: the line's power split on a single line; null on a branched lay,
+  // which has its own card for it (UX.md §3).
+  let { scenario, result, power = null }: { scenario: Scenario; result: SeriesResult; power?: PowerSplit | null } = $props();
 
   const f = (n: number, digits = 1) => n.toFixed(digits);
   const flowing = $derived(result.state === "flowing");
@@ -44,13 +47,31 @@
       pero más fino: velocidad no es caudal.
     </dd>
 
-    <dt>Clasificación del fabricante <b>{n.ratedFlowGpm} gpm a {n.ratedPressurePsi} psi</b></dt>
+    {#if power}
+    <dt>Potencia de la bomba <b>{flowing ? `${f(power.pumpHp)} hp (${f(kilowatts(power.pumpHp))} kW)` : "—"}</b></dt>
+    <dd>
+      Potencia = caudal × presión ({f(result.flowGpm)} gpm × {f(pump)} psi ÷ 1714): el trabajo que la bomba hace sobre el agua
+      por minuto. En una sola línea se reparte igual que la presión, así que la barra de arriba también dice en qué se gasta:
+      {flowing ? `${(power.efficiency * 100).toFixed(0)} % llega al chorro` : "sin caudal no hay trabajo"}. Con una bifurca las
+      presiones de las líneas ya no se suman, y la potencia sí: ahí aparece su propia barra.
+    </dd>
+    {/if}
+
+    {#if n.design === "open-end"}
+    <dt>Sin pitón</dt>
+    <dd>
+      No hay clasificación: el agua sale por el acople, y el caudal lo fijan la bomba y la fricción de la manguera.
+      La presión en la punta es la que empuja el chorro, y suele quedar baja.
+    </dd>
+    {:else}
+    <dt>Clasificación {n.design === "smooth-bore" ? "de la boquilla" : "del fabricante"} <b>{n.ratedFlowGpm} gpm a {n.ratedPressurePsi} psi</b></dt>
     <dd>
       Es el par con que se calibró este ajuste: con {n.ratedPressurePsi} psi en la entrada, esta abertura deja pasar
       {n.ratedFlowGpm} gpm. No es la presión que tendrás: esa ({flowing ? `${f(result.nozzlePressurePsi)} psi` : "—"})
       sale de la bomba y la línea, y se calcula con Q ∝ √P. «Ajustar»
       ({f(result.requiredPumpPressurePsi)} psi, la presión requerida) pone la <b>bomba</b> en la presión con que el pitón trabaja en su clasificación.
     </dd>
+    {/if}
   </dl>
 </details>
 

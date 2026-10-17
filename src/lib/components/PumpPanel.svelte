@@ -53,6 +53,8 @@
       : "",
   );
   const required = $derived(result.requiredPumpPressurePsi);
+  /** An open end has no rating to reach, so no pressure is "required" (MODEL.md §3.4d). */
+  const rated = $derived(scenario.nozzle.design !== "open-end");
   const requiredTip = $derived(
     `Presión necesaria en la bomba para que el pitón reciba sus ${scenario.nozzle.ratedPressurePsi} psi: ${required.toFixed(0)} psi. Toca para aplicarla.`,
   );
@@ -76,7 +78,7 @@
     {:else if gap}
       En el escalón de {gap.stepGpm} gpm · sin caudal exacto
     {:else}
-      {STATE[result.state]}{result.state === "flowing" ? ` · ${result.nozzlePressurePsi.toFixed(0)} psi en pitón` : ""}
+      {STATE[result.state]}{result.state === "flowing" ? ` · ${result.nozzlePressurePsi.toFixed(0)} psi ${rated ? "en pitón" : "en la punta"}` : ""}
     {/if}
   </span>
 {/snippet}
@@ -92,13 +94,13 @@
       unit="psi"
       onchange={(p) => onchange(edit.setSourcePressure(scenario, p))}
     />
-    {#if !branched}<button class="chip small" type="button" title={requiredTip} aria-label={`Ajustar a la presión necesaria, ${required.toFixed(0)} psi`} onclick={applyRequired}>
+    {#if !branched && rated}<button class="chip small" type="button" title={requiredTip} aria-label={`Ajustar a la presión necesaria, ${required.toFixed(0)} psi`} onclick={applyRequired}>
       <span class="req-label">Ajustar</span>
       <span class="req-value">{required.toFixed(0)}</span>
     </button>{/if}
     <button type="button" class="flow-open" aria-label="Bomba: salida y accesorios" onclick={onOpen}>
       <span class="big">{result.flowGpm.toFixed(0)} <small>gpm</small></span>
-      <span class="mini" class:warn-text={warn}>{branched ? balanced ? "Total de líneas" : "Sin equilibrio" : missing.length > 0 ? "Sin conectar" : gap ? `escalón ${gap.stepGpm}` : result.state === "flowing" ? `pitón ${result.nozzlePressurePsi.toFixed(0)} psi` : result.state === "nozzle-closed" ? "Cerrado" : "No llega"}{" "}<span class="chev" aria-hidden="true">›</span></span>
+      <span class="mini" class:warn-text={warn}>{branched ? balanced ? "Total de líneas" : "Sin equilibrio" : missing.length > 0 ? "Sin conectar" : gap ? `escalón ${gap.stepGpm}` : result.state === "flowing" ? `${rated ? "pitón" : "punta"} ${result.nozzlePressurePsi.toFixed(0)} psi` : result.state === "nozzle-closed" ? "Cerrado" : "No llega"}{" "}<span class="chev" aria-hidden="true">›</span></span>
     </button>
   </section>
 {:else if head}
@@ -121,7 +123,7 @@
         unit="psi"
         onchange={(p) => onchange(edit.setSourcePressure(scenario, p))}
       />
-      {#if !branched}<button class="chip small" type="button" title={requiredTip} aria-label={`Ajustar a la presión necesaria, ${required.toFixed(0)} psi`} onclick={applyRequired}>
+      {#if !branched && rated}<button class="chip small" type="button" title={requiredTip} aria-label={`Ajustar a la presión necesaria, ${required.toFixed(0)} psi`} onclick={applyRequired}>
         <span class="req-label">Ajustar</span>
         <span class="req-value">{required.toFixed(0)}</span>
       </button>{/if}
@@ -150,10 +152,10 @@
       />
     </div>
     <div class="span row">
-      {#if !branched}<button class="chip grow" type="button" title={requiredTip} onclick={applyRequired}>Ajustar a {required.toFixed(0)} psi</button>{/if}
+      {#if !branched && rated}<button class="chip grow" type="button" title={requiredTip} onclick={applyRequired}>Ajustar a {required.toFixed(0)} psi</button>{/if}
       {@render idleButton()}
     </div>
-    <p class="span hint">{branched ? "Ajusta la descarga y consulta la presión y el caudal de cada línea. La bomba mantiene la presión indicada; su capacidad aún no se modela." : `Ajustar: la presión necesaria para que el pitón reciba sus ${scenario.nozzle.ratedPressurePsi} psi.`}</p>
+    <p class="span hint">{branched ? "Ajusta la descarga y consulta la presión y el caudal de cada línea. La bomba mantiene la presión indicada; su capacidad aún no se modela." : rated ? `Ajustar: la presión necesaria para que el pitón reciba sus ${scenario.nozzle.ratedPressurePsi} psi.` : "Sin pitón no hay presión nominal que alcanzar: el caudal lo fijan la bomba y la manguera."}</p>
     {#if gap}<p class="span hint gap">{gapTip}</p>{/if}
   </section>
 {:else}
@@ -171,7 +173,7 @@
       bigStep={{ size: 10, label: "10" }}
       onchange={(p) => onchange(edit.setSourcePressure(scenario, p))}
     />
-    {#if !branched}<button class="chip" type="button" title={requiredTip} onclick={applyRequired}>
+    {#if !branched && rated}<button class="chip" type="button" title={requiredTip} onclick={applyRequired}>
       Ajustar a {required.toFixed(0)} psi
     </button>{/if}
     {@render idleButton()}

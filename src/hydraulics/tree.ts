@@ -1,4 +1,4 @@
-import { fittingsOf, missingAdapters, parseScenario, type Scenario, type ScenarioBranch } from "./scenario.ts";
+import { fittingsOf, missingAdapters, parseScenario, resolveNozzles, type Scenario, type ScenarioBranch } from "./scenario.ts";
 import { METHODS, type MethodId, type FittingKind } from "./references.ts";
 import { frictionLossPsi } from "./line.ts";
 import type { SeriesResult, Fitting } from "./series.ts";
@@ -61,7 +61,7 @@ const TOLERANCE = 1e-7;
  * including discontinuous training allowances and dry-hose boundaries.
  */
 export function solveScenarioTree(input: Scenario, methodId: MethodId = input.methodId): ScenarioTreeResult {
-  const scenario = parseScenario(input);
+  const scenario = resolveNozzles(parseScenario(input));
   const method = METHODS[methodId];
   if (!method) throw new RangeError("Unknown hydraulic method");
   const k = method.psiPerMeterOfHeight;

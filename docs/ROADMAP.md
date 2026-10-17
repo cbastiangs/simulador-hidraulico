@@ -398,6 +398,53 @@ covers them (`src/hydraulics/tree.ts`; `MODEL.md` §2), so decision 5's
 back. The M4 milestone row keeps the rest of branching (siamese feeds,
 station-maniobra presets).
 
+## 10d. Reactions and the open hose end, then trucks (owner, 2026-10-17)
+
+Next, ahead of the rest of M2: **every nozzle's reaction**, smooth-bore tips,
+and an **open hose end** (the nozzle removed; the line flows through its
+coupling). All three are fixed orifices to the solver; the new laws are in
+`MODEL.md` §3.4, §3.4d and §3.6. Then **M3**, with two choices made:
+
+- **Water use:** a readout (total flow, time left in the tank at this flow)
+  **and an optional running clock** that drains the tank at the current flow;
+  at empty the pump runs dry and the lines stop. A teaching clock, not a
+  transient model: each instant is the steady solve.
+- **Supply:** the **tank first; the hydrant after**, once its curve is
+  checked (the form is now printed by [E16], `MODEL.md` §3.9).
+
+## 10e. Backlog (owner, 2026-10-17)
+
+Agreed, in this order; each is usable on its own. Before M3 unless noted.
+
+1. ✅ **Power split for the whole lay** ("¿En qué se gasta lo que entrega la
+   bomba?"): where the pump's work goes, adding across lines (`MODEL.md`
+   §3.8, `power.split`). The per-line pressure split can't be totalled; this
+   can. Shown as percentages first, with power explained in plain words
+   (flow × pressure) and the hp / kW figure secondary, since the station's
+   course teaches pressure, not power (owner, 2026-10-17). Its stream share
+   is the lay's efficiency. Built: branched lays only; a single line's split
+   equals its pressure split, so Conceptos gives the pump's power instead.
+2. **Copy / paste a scenario, then share links** (M1's last feature): the
+   scenario JSON to the clipboard and back through `parseScenario`, then the
+   same document encoded in the URL. Bug reports carry the exact lay.
+3. **Before / after deltas**: after a change, "+12 gpm · −8 psi fricción"
+   for a moment, or a result pinned as "antes" to compare against.
+4. **Desktop keyboard**: Delete removes the selection, arrows nudge a
+   coupling, Tab steps through the parts (Ctrl+Z / Ctrl+Y exist).
+5. **"Mis líneas"**: the person's own lays saved in the browser beside the
+   presets (builds on 2).
+6. **Display units**: bar, L/min, ft at the screen's edge (M1).
+7. **Leader lines** from a lifted gauge to its coupling (crowded phone
+   views).
+8. **UX-05 and UX-06** (`UX.md` §10.7): the toolbar past the canvas edge
+   at 1024 px; the pressure bar's faint labels.
+9. **Welcome tour** (`UX.md` §8.4), once the screen settles.
+
+Then M3 as decided in §10d (truck, envelope, tank with its clock, several
+discharges with a flowmeter readout each, the pump × system chart; the
+hydrant after). Further back: the rest of M2 (automatic nozzles, the A/B
+compare), routes and obstacles (§10b), the top-down view (§5, parked).
+
 ## 11. Decisions (owner, 2026-10-14)
 
 1. **Kinks:** out of scope (§7.5).

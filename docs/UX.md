@@ -70,6 +70,11 @@
   screen size at any zoom; hoses and the engine scale with the world.
   Gauges shrink with the zoom below 80 %, down to 75 % of their size (owner,
   2026-10-15: at a fitted phone zoom full-size gauges covered the truck).
+  **Nozzles shrink the same way, down to 45 %** (owner, 2026-10-17: they
+  were "comically big" zoomed out); their drag handles keep full size.
+- **Each nozzle shows its flow** (owner, 2026-10-17): "95 gpm" under it, or
+  "cerrado", on every line. The header's gpm is what leaves the pump: on a
+  single line the same number, on a branched lay the total of the lines.
 - **Controls below the drawing,** never over it: zoom readout,
   − / + / Ajustar.
 - **Tap vs drag.** A press that moves less than 6 px is a tap: it selects
@@ -80,6 +85,12 @@
   with the hose sizes and −15 / +15 m. Tapping the engine selects the pump:
   its discharge outlet size (1½, 2½, 3″ or "same as the hose"); a different
   outlet size needs an adapter (MODEL.md §3.10; ROADMAP §11, decisions 5–6).
+- **Nozzle toolbar (owner, 2026-10-17).** Selecting the nozzle opens a
+  toolbar on the canvas like the hose's (desktop; the phone uses the sheet):
+  the bale (Cerrado / Abierto), the gallonage ring's settings, the pattern
+  at three stops (Directo / Medio / Niebla; the panel's slider sets anything
+  between), "Quitar pitón" / "Poner pitón" and "+ Tramo al final". An open
+  end shows its flow and "Poner pitón"; a smooth bore has no ring or pattern.
 - **Fittings (owner 2026-10-15).** Tapping a coupling (or the small ring at
   the pump outlet) opens a toolbar on the canvas, mirrored in the inspector,
   with that joint's adapter (named reducción/ampliación by direction, with
@@ -203,8 +214,28 @@
     each line keeps a hose. "Añadir bifurca al final" in the Línea section
     adds a wye at the end of the edited line; a single line shows nothing
     else about branching. A feed hose's particles move at the feed's flow.
-    Under the pressure split, a read-only list gives every line's flow and
-    pressures at once (ROADMAP §10c; MODEL.md §2). **Every gate is fully open or
+    **The pressure split names the line it shows** ("· ● Línea 2", in the
+    full bar and the floating one) and, on a branched lay, **starts with a
+    row per line** — its dot, name, flow and a thin split bar — the edited
+    one marked; tapping a row edits that line (owner, 2026-10-17). There is
+    no "total" split: every line spends the whole pump pressure on its own
+    path, so the bars don't add up, and the bar says so. **What does add up
+    is power**: under the pressure split, a branched lay shows "¿En qué se
+    gasta lo que entrega la bomba? · Toda la tendida" (MODEL.md §3.8
+    `power.split`, owner, 2026-10-17): one bar in the pressure split's
+    colours with percentages (streams, friction, fittings, height), a
+    sentence ("De todo lo que entrega la bomba, 41 % llega a los chorros,
+    46 % se pierde en fricción y 13 % sube el agua"), "Eficiencia de la
+    tendida" (the stream share; the "Comparar con" method's beside it), each
+    line's share of the streams by its dot, and, folded under "Ver en
+    potencia", hp and kW per part with what power is and the formula with
+    the pump's numbers. **Never a bare "hp"**: percentages lead, the
+    absolute figure stays one tap away with its explanation. A downhill gain
+    is a sentence, not a slice; "≈" in the 350 gpm rule's gap. A single line
+    shows no such card (its split is the pressure split's): the Conceptos
+    card gives the pump's power and says so. Under the power split, a
+    read-only list gives every line's flow and pressures at once
+    (ROADMAP §10c; MODEL.md §2). **Every gate is fully open or
     fully shut, independently**: a shut gate isolates its whole downstream
     subtree, whose flow reads 0 and whose downstream pressure is **unknown**
     (trapped water with no drainage history), never fabricated from the pump
@@ -225,7 +256,11 @@
   Either way, everything downstream moves with the dragged coupling (later
   sections keep their own run and rise). Snaps: run 0.5 m, height 0.5 m,
   magnetic to floor lines. A live label shows the values while dragging;
-  drags start only on handles; dragging empty canvas pans. The horizontal
+  **While dragging the nozzle the label leads with the floor/height only; the
+  hose length is a small secondary note to the right of the nozzle** (owner,
+  2026-10-17). Couplings keep "length · floor" in one label. Do not put the
+  length back into the nozzle's main label.
+  Drags start only on handles; dragging empty canvas pans. The horizontal
   run is drawing data only: the hydraulics use length and height (MODEL.md
   §3.2).
 - **The pressure split follows you.** The canvas fills the window, which pushes
@@ -497,7 +532,7 @@ The gap they expose is **fidelity and motion**, not reach.
 | Pattern | What it is | Rule |
 |---|---|---|
 | **Operate** (owner, 2026-10-17: approved, optional) | work a piece of equipment: the bale, a discharge's push-pull valve, the gallonage ring, the pattern collar, the governor | the piece is drawn as equipment, never a checkbox; the control's own motion confirms the actuation (≈150–250 ms); a typed/± value sits beside it. **Optional, both complete:** a View choice switches between the drawn equipment and the plain controls (fields, ±, chips), remembered per browser; each covers every action of that piece, so neither is a fallback and no state is reachable only one way |
-| **Close-up** (owner, 2026-10-17: approved, optional) | an enlarged, realistic view of one piece (the nozzle, the pump) where its Operating controls live | entered from the element; draws the real thing large; one piece at a time; returns to the canvas (a sheet on a phone, the side panel when wide). **Optional, by preference:** the same View choice as Operate — with plain controls the element opens its form in the same place; both complete. Pump close-up draws Descarga 1 only until the engine has more discharges (M3) |
+| **Close-up** (owner, 2026-10-17: approved, optional) | an enlarged, realistic view of one piece (the nozzle, the pump) where its Operating controls live | entered from the element; draws the real thing large; one piece at a time; returns to the canvas (a sheet on a phone, the side panel when wide). **Optional, by preference:** the same View choice as Operate — with plain controls the element opens its form in the same place; both complete. Pump close-up draws Descarga 1 only until the engine has more discharges (M3). The nozzle close-up draws a combination nozzle; a smooth bore shows its bale as plain controls (no ring, no pattern) until it has a drawing of its own, and an open end has nothing to operate (2026-10-17) |
 | **Configure** | edit a data definition: a truck's pump, discharges and diameters; a cloned method; a catalog row | built-ins are read-only, cloned to edit; saved as data (a truck file), not scenario state; never silently changes an open scenario |
 | **Choose** | pick a named item: a truck, a preset, a nozzle model, a method | show its identity and the one fact that tells it apart (e.g. "3″ (2½″)"); the current choice is visible without opening the picker |
 | **Compare** | two states side by side (A/B): a method, a nozzle kind, before/after | both sides draw the same document shape; differences are marked, not narrated |
@@ -518,7 +553,7 @@ allowed, with the reason.
 | **Hose** | insert, split ✅ | size, length, lock ✅ | its couplings move it | remove, join ✅ | its friction loss ✅ (panel) | true-scale thickness ✅ (Vista; default exaggerated, badge "grosor ×11") |
 | **Coupling** | with a hose ✅ | fittings ✅ | drag ✅; first-drag camera stability ✅ (§10.8) | join the two hoses ✅ | pressure here, lost before it ✅ (tap its gauge) | — |
 | **Fitting** | adapter ✅; valve: engine only, no toggle (a coupling kind later) | ✕ (a kind has one loss) | moves with its coupling | ✅ | its loss and basis ✅ | auto fittings switch ✅ |
-| **Nozzle** | ✕ (a line ends in one) | bale ✅, model ✅ (chips at the top of its panel), ring ✅, typed rating ✅; smooth-bore tips ⏳ M2 | drag ✅ | ✕ | rating vs actual ✅ (mark on its gauge, warning in its panel under 95 %) | — |
+| **Nozzle** | put back ✅ ("Poner pitón": the one it came from) | bale ✅, model ✅ (chips grouped Combinado / Chorro sólido / Sin pitón), ring ✅, typed rating ✅ (fog only); smooth-bore tips ✅ (owner, 2026-10-17) | drag ✅ | remove ✅ ("Quitar pitón": an open end, MODEL.md §3.4d; owner, 2026-10-17) | rating vs actual ✅ (mark on its gauge, warning in its panel under 95 %; none for an open end); **reaction ✅** (lbf and kgf with the formula, its panel) | — |
 | **Stream** | — | pattern ✅; aim ⏳ M2 | — | — | jet speed ✅; reach ⏳ M2 (illustrative) | — |
 | **Water flow** | — | ✕: flow is solved, the app's core lesson; "I want X gpm" is target planning ⏳ | — | — | flow ✅, hose speed ✅, where the pressure went ✅ | — |
 | **Gauge** | — | — | — | hide ✅ (Vista) | tap: reading, loss before it ✅ | — |

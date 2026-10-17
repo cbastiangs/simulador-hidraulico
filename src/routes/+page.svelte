@@ -2,6 +2,8 @@
   import { parseScenario, pathResult, solveScenario, solveScenarioTree, type Scenario, type TreeSegmentResult } from "$hydraulics/scenario.ts";
   import Breakdown from "$lib/components/Breakdown.svelte";
   import BudgetBar from "$lib/components/BudgetBar.svelte";
+  import PowerSplit from "$lib/components/PowerSplit.svelte";
+  import { powerSplit } from "$hydraulics/power.ts";
   import Canvas from "$lib/components/Canvas.svelte";
   import Concepts from "$lib/components/Concepts.svelte";
   import Inspector from "$lib/components/Inspector.svelte";
@@ -194,6 +196,20 @@
       });
   });
   const wyeWhy = $derived(branch.addLimit(scenario, view?.path ?? [], "wye"));
+  /** The pressure split's rows on a branched lay (BudgetBar): every line, outlet order, the edited one marked. */
+  const budgetLines = $derived.by(() => {
+    if (!network || !view) return [];
+    const edited = view.path.join("/");
+    return branch.leafPaths(scenario).map((p) => {
+      const key = p.join("/");
+      if (key === edited) {
+        return { key, name: lineName.split(" › ").at(-1) ?? "", color: leafColor(scenario, p) ?? "", result, openEnd: lineScenario.nozzle.design === "open-end", shut: false, edited: true };
+      }
+      const o = others.find((x) => x.path.join("/") === key)!;
+      return { key, name: o.name, color: leafColor(scenario, p) ?? "", result: o.result, openEnd: o.scenario.nozzle.design === "open-end", shut: o.shut, edited: false };
+    });
+  });
+  const budgetLine = $derived(budgetLines.find((l) => l.edited) ?? null);
   const lineName = $derived(view ? view.path.map((id, i) => view.junctions[i].outlets.find((o) => o.id === id)!.name).join(" › ") : "");
   // "Comparar con" (MODEL.md §4): a second method solved beside the first, or
   // none; a view choice, remembered per browser, off when it equals "Método".
@@ -213,6 +229,9 @@
   const comparing = $derived(compareId !== null && compareId !== scenario.methodId ? compareId : null);
   const referenceNetwork = $derived(comparing && network ? solveScenarioTree(scenario, comparing) : null);
   const reference = $derived(comparing ? referenceNetwork && view ? pathResult(referenceNetwork.root, view.path) : solveScenario(scenario, comparing) : null);
+  /** The whole lay's power split (MODEL.md §3.8): on a single line, the Conceptos card's pump power instead. */
+  const power = $derived(powerSplit(network?.root ?? result));
+  const referencePower = $derived(referenceNetwork ? powerSplit(referenceNetwork.root) : null);
   const methodName = $derived(METHOD_LABELS[scenario.methodId]);
   const refName = $derived(comparing ? METHOD_LABELS[comparing] : "");
 
@@ -311,8 +330,8 @@
 {/snippet}
 
 {#snippet results()}
-  {#if network}<p class="line-name">Reparto de <span class="line-dot" style:background={leafColor(scenario, view?.path ?? [])}></span><b>{lineName}</b> · toca otra línea en el dibujo para ver la suya</p>{/if}
-  <div bind:this={budgetEl}><BudgetBar {result} {reference} referenceLabel={refName} /></div>
+  <div bind:this={budgetEl}><BudgetBar {result} {reference} referenceLabel={refName} openEnd={lineScenario.nozzle.design === "open-end"} line={budgetLine} lines={budgetLines} onPickLine={(key) => selectLine(key.split("/"))} /></div>
+  {#if network}<PowerSplit split={power} flowGpm={network.totalFlowGpm} pumpPsi={pumpResult.nodes[0].pressurePsi} lines={budgetLines} reference={referencePower} referenceLabel={refName} />{/if}
   <details class="card">
     <summary>Ver cálculo ({result.terms.length} fórmulas) · {methodName}{comparing ? ` y ${refName}` : ""}</summary>
     <table>
@@ -320,15 +339,15 @@
       <tbody>
         <tr><td>Caudal</td><td>{result.flowGpm.toFixed(1)} gpm</td>{#if reference}<td>{reference.flowGpm.toFixed(1)} gpm</td>{/if}</tr>
         <tr><td>Accesorios</td><td>{result.terms.some((t) => t.lawId === "appliance.fixed" && t.inputs.lossPsi === null) ? "sin dato" : `${result.fittingLossPsi.toFixed(1)} psi`}</td>{#if reference}<td>{reference.terms.some((t) => t.lawId === "appliance.fixed" && t.inputs.lossPsi === null) ? "sin dato" : `${reference.fittingLossPsi.toFixed(1)} psi`}</td>{/if}</tr>
-        <tr><td>Presión en pitón</td><td>{result.nozzlePressurePsi.toFixed(1)} psi</td>{#if reference}<td>{reference.nozzlePressurePsi.toFixed(1)} psi</td>{/if}</tr>
-        {#if !network}<tr><td>Presión requerida</td><td>{result.requiredPumpPressurePsi.toFixed(1)} psi</td>{#if reference}<td>{reference.requiredPumpPressurePsi.toFixed(1)} psi</td>{/if}</tr>{/if}
+        <tr><td>{lineScenario.nozzle.design === "open-end" ? "Presión en la punta" : "Presión en pitón"}</td><td>{result.nozzlePressurePsi.toFixed(1)} psi</td>{#if reference}<td>{reference.nozzlePressurePsi.toFixed(1)} psi</td>{/if}</tr>
+        {#if !network && lineScenario.nozzle.design !== "open-end"}<tr><td>Presión requerida</td><td>{result.requiredPumpPressurePsi.toFixed(1)} psi</td>{#if reference}<td>{reference.requiredPumpPressurePsi.toFixed(1)} psi</td>{/if}</tr>{/if}
       </tbody>
     </table>
     <Breakdown terms={result.terms} methodId={scenario.methodId} scenario={lineScenario} />
   </details>
   {#if network}<TreeResults {scenario} {network} reference={referenceNetwork} referenceLabel={refName} />{/if}
   <Sources methodId={scenario.methodId} />
-  <Concepts scenario={lineScenario} {result} />
+  <Concepts scenario={lineScenario} {result} power={network ? null : power} />
 {/snippet}
 
 {#snippet pumpPanel(mode: "strip" | "head" | "full" | "bar")}
@@ -336,7 +355,7 @@
 {/snippet}
 
 {#snippet summary()}
-  <BudgetBar {result} {reference} referenceLabel={refName} compact />
+  <BudgetBar {result} {reference} referenceLabel={refName} openEnd={lineScenario.nozzle.design === "open-end"} line={budgetLine} compact />
 {/snippet}
 
 <div class="app" class:phone class:wide style:--sheet-closed={`${CLOSED_PX}px`}>
@@ -381,6 +400,7 @@
       onLength={(i, m) => applyLine(edit.setSectionLength(lineScenario, i, m), `length:${i}`)}
       onToggleFitting={(j, kind) => applyLine(edit.toggleFitting(lineScenario, j, kind))}
       onToggleNozzle={() => applyLine(edit.setNozzleOpen(lineScenario, !lineScenario.nozzle.open))}
+      onEdit={(next, key) => applyLine(next, key)}
       onAction={runAction}
       {fitSignal}
       {others}
@@ -415,7 +435,7 @@
     {@render results()}
   </Sheet>
 {:else if !budgetVisible}
-  <div class="dock"><BudgetBar {result} {reference} referenceLabel={refName} compact /></div>
+  <div class="dock"><BudgetBar {result} {reference} referenceLabel={refName} openEnd={lineScenario.nozzle.design === "open-end"} line={budgetLine} compact /></div>
 {/if}
 
 <style>
@@ -461,8 +481,6 @@
   .seg .on { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
   .line-tools h2 { margin: 0; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
   .canvas { grid-area: canvas; min-width: 0; }
-  .line-name { margin: 0; font-size: 13px; color: var(--muted); }
-  .line-name b { color: var(--ink); }
   .add-wye { justify-self: start; min-height: 44px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; font-size: 14px; }
   .add-wye:disabled { opacity: 0.45; cursor: default; }
   .side { grid-area: side; display: grid; gap: var(--gap); align-content: start; }

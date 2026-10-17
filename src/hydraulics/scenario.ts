@@ -1,4 +1,5 @@
 import { NOZZLE_SPECS } from "./catalog.ts";
+import { ratingOf, reactionOf, type NozzleDesign, type Reaction } from "./nozzle.ts";
 import { HOSE_SIZES, METHODS, type FittingKind, type MethodId } from "./references.ts";
 import { solveSeriesLine, type Fitting, type SeriesLine, type SeriesResult } from "./series.ts";
 
@@ -79,6 +80,14 @@ export type ScenarioNozzle = {
   /** 0 straight stream … 1 wide fog. Drawing only: the flow does not depend on it (MODEL.md §3.5). */
   pattern: number;
   open: boolean;
+  /**
+   * Absent means `fog` (documents from before 2026-10-17). `smooth-bore`: the
+   * rating follows `tipIn` at `ratedPressurePsi`. `open-end`: no nozzle; the
+   * line flows through its last coupling and cannot be shut (MODEL.md §3.4d).
+   */
+  design?: NozzleDesign;
+  /** A smooth bore's tip, inches. */
+  tipIn?: number;
 };
 
 export type ScenarioWye = { branches: ScenarioBranch[] };
@@ -208,6 +217,13 @@ function parseSingleScenario(value: unknown): Scenario {
   }
   const pattern = number(nozzle.pattern, "nozzle.pattern", "zero or more");
   if (pattern > 1) throw new ScenarioError("nozzle.pattern", "must be between 0 and 1");
+  const design = nozzle.design === undefined ? undefined : oneOf(nozzle.design, "nozzle.design", ["fog", "smooth-bore", "open-end"] as const);
+  const tipIn = nozzle.tipIn === undefined ? undefined : number(nozzle.tipIn, "nozzle.tipIn", "greater than zero");
+  if (design === "smooth-bore" && tipIn === undefined) throw new ScenarioError("nozzle.tipIn", "is required for a smooth bore");
+  // An open end keeps the nozzle it came from (any kind) for "Poner pitón"; the solver ignores it.
+  if (design === "smooth-bore" && nozzleKind !== "fixed-orifice") {
+    throw new ScenarioError("nozzle.kind", "must be fixed-orifice for a smooth bore");
+  }
 
   return {
     schema: SCENARIO_SCHEMA,
@@ -245,7 +261,10 @@ function parseSingleScenario(value: unknown): Scenario {
       ratedFlowGpm,
       ratedPressurePsi: number(nozzle.ratedPressurePsi, "nozzle.ratedPressurePsi", "greater than zero"),
       pattern,
-      open: nozzle.open,
+      // An open end has nothing to shut (MODEL.md §3.4d).
+      open: design === "open-end" ? true : nozzle.open,
+      ...(design === undefined ? {} : { design }),
+      ...(tipIn === undefined ? {} : { tipIn }),
     },
   };
 }
@@ -322,7 +341,8 @@ export const isAuto = (scenario: Scenario) => scenario.autoFittings !== false;
 
 export function joints(scenario: Scenario): Joint[] {
   const { sections, source, nozzle } = scenario;
-  const nozzleInlet = scenario.wye ? undefined : NOZZLE_SPECS.find((n) => n.id === nozzle.specId)?.inletIn;
+  // An open end has no nozzle to fit: water leaves through the hose's own coupling.
+  const nozzleInlet = scenario.wye || nozzle.design === "open-end" ? undefined : NOZZLE_SPECS.find((n) => n.id === nozzle.specId)?.inletIn;
   const auto = isAuto(scenario);
   return Array.from({ length: sections.length + 1 }, (_, index) => {
     const upIn = index === 0 ? source.outletSizeIn : couplingOf(sections[index - 1]);
@@ -353,8 +373,39 @@ export function fittingsOf(scenario: Scenario): Fitting[] {
   ]);
 }
 
+/** The bore water leaves through when nothing is on the end: the last hose's coupling (MODEL.md §3.4d). */
+export const endBoreIn = (sections: readonly ScenarioSection[]) => couplingOf(sections[sections.length - 1]);
+
+/** A nozzle with the fixed-orifice rating its design implies (nozzle.ts, ratingOf). */
+export function resolvedNozzle(sections: readonly ScenarioSection[], nozzle: ScenarioNozzle): ScenarioNozzle {
+  return { ...nozzle, ...ratingOf(nozzle, endBoreIn(sections)) };
+}
+
+/** Every nozzle of the lay, the branches' included, with its derived rating: what the solvers read. */
+export function resolveNozzles<T extends { sections: ScenarioSection[]; nozzle: ScenarioNozzle; wye?: ScenarioWye }>(segment: T): T {
+  return {
+    ...segment,
+    nozzle: resolvedNozzle(segment.sections, segment.nozzle),
+    ...(segment.wye ? { wye: { branches: segment.wye.branches.map((b) => resolveNozzles(b)) } } : {}),
+  };
+}
+
+/**
+ * The force on the crew at one line's end (MODEL.md §3.6), from that line's
+ * solved flow and nozzle pressure. `segment` is the line's own sections and
+ * nozzle (a branch's, on a branched lay).
+ */
+export function reactionAt(
+  segment: { sections: readonly ScenarioSection[]; nozzle: ScenarioNozzle },
+  result: Pick<SeriesResult, "flowGpm" | "nozzlePressurePsi">,
+  methodId: MethodId,
+): Reaction {
+  return reactionOf(segment.nozzle, endBoreIn(segment.sections), result.flowGpm, result.nozzlePressurePsi, METHODS[methodId]);
+}
+
 /** The engine's input for a parsed document. */
 export function toSeriesLine(scenario: Scenario): SeriesLine {
+  const nozzle = resolvedNozzle(scenario.sections, scenario.nozzle);
   return {
     fittings: fittingsOf(scenario),
     pumpPressurePsi: scenario.source.pressurePsi,
@@ -362,11 +413,7 @@ export function toSeriesLine(scenario: Scenario): SeriesLine {
       hose: { lengthM, frictionCoefficient },
       endElevationM,
     })),
-    nozzle: {
-      ratedFlowGpm: scenario.nozzle.ratedFlowGpm,
-      ratedPressurePsi: scenario.nozzle.ratedPressurePsi,
-      open: scenario.nozzle.open,
-    },
+    nozzle: { ratedFlowGpm: nozzle.ratedFlowGpm, ratedPressurePsi: nozzle.ratedPressurePsi, open: nozzle.open },
   };
 }
 

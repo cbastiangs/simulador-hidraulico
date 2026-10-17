@@ -30,6 +30,20 @@ export const SOURCES = {
     published: "2020-01",
     url: "https://cdpsdocs.state.co.us/dfpc/Website2.0/Sections/PQUAT/Proctor/DOPumper%20Chart%20Jan%202020.pdf",
   },
+  /** Nozzle reaction formulas, smooth bore and fog (MODEL.md §3.6, [E4]). */
+  tftReaction: {
+    title: "Understanding your nozzle reaction",
+    publisher: "Task Force Tips",
+    published: "read 2026-10-17",
+    url: "https://tft.com/understanding-your-nozzle-reaction/",
+  },
+  /** NFPA 291's outlet-discharge formula and coefficient, restated (MODEL.md §3.4d, [E16]). */
+  temeculaFireFlow: {
+    title: "Calculations for Fire Flow with Examples",
+    publisher: "City of Temecula Fire Prevention Bureau",
+    published: "read 2026-10-17",
+    url: "https://www.temeculaca.gov/DocumentCenter/View/164/Temecula-Fire-FlowCalculations-With-Examples-PDF",
+  },
 } satisfies Record<string, Source>;
 
 export type SourceId = keyof typeof SOURCES;
@@ -110,6 +124,11 @@ export type Method = {
   fittingStep: FittingStep | null;
   /** Common-port allowance for one gated wye; null uses fittingStep. */
   wyeLossPsi: number | null;
+  /**
+   * A fog nozzle's reaction as a per-gpm rule (MODEL.md §3.6); null uses the
+   * TFT formula 0.0505·Q·√NP. Smooth bores and open ends ignore it.
+   */
+  fogReaction: { kgfPerGpm: number; atPsi: number; source: SourceId } | null;
 };
 
 export const METHODS: Record<MethodId, Method> = {
@@ -126,6 +145,8 @@ export const METHODS: Record<MethodId, Method> = {
     fittingLossPsi: { adapter: 5, valve: 5 },
     fittingStep: null,
     wyeLossPsi: 5,
+    /** p. 46: "kg of reaction ≈ 0.24 × gpm", stated at 100 psi (VC-05: about 4.8 % above the formula). */
+    fogReaction: { kgfPerGpm: 0.24, atPsi: 100, source: "cgbvpManual2019" },
   },
   /**
    * Hydrostatics: 62.4 lb/ft³ over 144 in²/ft² = 0.433, published as 0.434
@@ -142,5 +163,6 @@ export const METHODS: Record<MethodId, Method> = {
     fittingLossPsi: null,
     fittingStep: { aboveGpm: 350, lossPsi: 10, source: "coloradoPumperChart" },
     wyeLossPsi: null,
+    fogReaction: null,
   },
 };

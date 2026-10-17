@@ -11,6 +11,8 @@
   const SOURCE_LABELS: Record<SourceId, string> = {
     cgbvpManual2019: "Manual CGBVP 2019",
     coloradoPumperChart: "Colorado DFPC, Pumper chart 2020",
+    tftReaction: "Task Force Tips, reacción del pitón",
+    temeculaFireFlow: "Temecula Fire Prevention Bureau (NFPA 291)",
   };
 
   const f = (n: number, digits = 1) => n.toFixed(digits);

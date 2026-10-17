@@ -7,7 +7,7 @@ import type { FittingKind, SourceId } from "./references.ts";
  * never recompute anything.
  */
 
-export type LawId = "hose.friction" | "elevation" | "nozzle.fixed-orifice" | "appliance.fixed" | "appliance.step";
+export type LawId = "hose.friction" | "elevation" | "nozzle.fixed-orifice" | "appliance.fixed" | "appliance.step" | "power.split";
 
 export type Law = {
   id: LawId;
@@ -40,6 +40,8 @@ export const LAWS: Record<LawId, Law> = {
     sources: ["coloradoPumperChart"],
     model: "§3.10",
   },
+  // Not a term on a path: a reading of the whole lay's terms (power.ts).
+  "power.split": { id: "power.split", formula: "W = Q · ΔP / 1714", sources: [], model: "§3.8" },
 };
 
 /** One applied law: its inputs in the law's units, and the pressure it accounts for. */

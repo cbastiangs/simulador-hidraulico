@@ -5,22 +5,39 @@
   // from the engine's terms. A downhill line gains pressure; that shows as a
   // credit next to the bar rather than a negative slice.
   // `reference`: the "Comparar con" method's solve, or null when comparing is off.
+  // On a branched lay there is no single split: every line spends the whole
+  // pump pressure on its own path (owner, 2026-10-17). `line` names the one
+  // detailed here; `lines` adds a row per line, in outlet order, to switch.
+  type LineRow = { key: string; name: string; color: string; result: SeriesResult; openEnd: boolean; shut: boolean; edited: boolean };
   let {
     result,
     reference = null,
     referenceLabel = "",
     compact = false,
-  }: { result: SeriesResult; reference?: SeriesResult | null; referenceLabel?: string; compact?: boolean } = $props();
+    openEnd = false,
+    line = null,
+    lines = [],
+    onPickLine,
+  }: {
+    result: SeriesResult;
+    reference?: SeriesResult | null;
+    referenceLabel?: string;
+    compact?: boolean;
+    openEnd?: boolean;
+    line?: { name: string; color: string } | null;
+    lines?: LineRow[];
+    onPickLine?: (key: string) => void;
+  } = $props();
+  /** With no nozzle the last slice is the pressure left at the hose's end (MODEL.md §3.4d). */
+  const endName = $derived(openEnd ? "Punta" : "Pitón");
 
-  const parts = $derived.by(() => {
-    const sum = (id: string) => result.terms.filter((t) => t.lawId === id).reduce((a, t) => a + t.valuePsi, 0);
-    return {
-      nozzle: sum("nozzle.fixed-orifice"),
-      friction: sum("hose.friction"),
-      elevation: sum("elevation"),
-      fittings: sum("appliance.fixed") + sum("appliance.step"),
-    };
-  });
+  function splitOf(r: SeriesResult) {
+    const sum = (id: string) => r.terms.filter((t) => t.lawId === id).reduce((a, t) => a + t.valuePsi, 0);
+    const p = { nozzle: sum("nozzle.fixed-orifice"), friction: sum("hose.friction"), elevation: sum("elevation"), fittings: sum("appliance.fixed") + sum("appliance.step") };
+    const whole = p.nozzle + p.friction + p.fittings + Math.max(0, p.elevation);
+    return { ...p, pct: (v: number) => `${whole > 0 ? (Math.max(0, v) / whole) * 100 : 0}%` };
+  }
+  const parts = $derived(splitOf(result));
   const fittingCount = $derived(result.terms.filter((t) => t.lawId === "appliance.fixed" || t.lawId === "appliance.step").length);
   /** The method's stepped allowance, when it uses one: "0 up to 350 gpm, 10 psi above". */
   const step = $derived.by(() => {
@@ -34,10 +51,38 @@
 </script>
 
 <section class="budget" class:compact>
-  <div class="row"><span>{compact ? "Presión de la bomba" : "¿En qué se gasta la presión de la bomba?"}</span><b>{f(result.nodes[0].pressurePsi)} psi</b></div>
+  <div class="row">
+    <span>
+      {compact ? "Presión de la bomba" : "¿En qué se gasta la presión de la bomba?"}
+      {#if line}<span class="which" title="La línea que muestra la barra">· <span class="line-dot" style:background={line.color}></span>{line.name}</span>{/if}
+    </span>
+    <b>{f(result.nodes[0].pressurePsi)} psi</b>
+  </div>
+  {#if lines.length > 1 && !compact}
+    <!-- One row per line: each spends the whole pump pressure on its own path, so they don't add up. -->
+    <ul class="lines" aria-label="Reparto por línea">
+      {#each lines as l (l.key)}
+        {@const sp = splitOf(l.result)}
+        <li>
+          <button type="button" class:edited={l.edited} aria-pressed={l.edited} onclick={() => onPickLine?.(l.key)}>
+            <span class="who"><span class="line-dot" style:background={l.color}></span>{l.name}<span class="q">{l.shut ? "cerrada" : l.result.state === "flowing" ? `${l.result.flowGpm.toFixed(0)} gpm` : "sin caudal"}</span></span>
+            <span class="bar mini">
+              {#if l.result.state === "flowing"}
+                <span class="nozzle" style:width={sp.pct(sp.nozzle)} title={`${l.openEnd ? "Punta" : "Pitón"} ${f(sp.nozzle)} psi`}></span>
+                <span class="friction" style:width={sp.pct(sp.friction)} title={`Fricción ${f(sp.friction)} psi`}></span>
+                {#if sp.fittings > 0}<span class="fittings" style:width={sp.pct(sp.fittings)} title={`Accesorios ${f(sp.fittings)} psi`}></span>{/if}
+                {#if sp.elevation > 0}<span class="elevation" style:width={sp.pct(sp.elevation)} title={`Desnivel ${f(sp.elevation)} psi`}></span>{/if}
+              {/if}
+            </span>
+          </button>
+        </li>
+      {/each}
+    </ul>
+    <p class="small">Cada línea gasta toda la presión de la bomba en su propio camino: las barras no se suman. Toca una para ver su detalle.</p>
+  {/if}
   {#if result.state === "flowing"}
     <div class="bar">
-      <div class="nozzle" style:width={pct(parts.nozzle)}>Pitón {f(parts.nozzle)}</div>
+      <div class="nozzle" style:width={pct(parts.nozzle)}>{endName} {f(parts.nozzle)}</div>
       <div class="friction" style:width={pct(parts.friction)}>Fricción {f(parts.friction)}</div>
       {#if parts.fittings > 0}<div class="fittings" style:width={pct(parts.fittings)}>{f(parts.fittings)}</div>{/if}
       {#if parts.elevation > 0}<div class="elevation" style:width={pct(parts.elevation)}>{f(parts.elevation)}</div>{/if}
@@ -52,7 +97,7 @@
     {#if !compact}<ul class="legend">
       <li>
         <span class="swatch nozzle"></span>
-        <span><b>Pitón {f(parts.nozzle)} psi</b> · la presión que llega al pitón y forma el chorro</span>
+        <span><b>{endName} {f(parts.nozzle)} psi</b> · {openEnd ? "la presión que queda en la punta abierta y empuja el chorro" : "la presión que llega al pitón y forma el chorro"}</span>
       </li>
       <li>
         <span class="swatch friction"></span>
@@ -89,6 +134,14 @@
   .budget.compact .bar { height: 24px; }
   .row { display: flex; justify-content: space-between; gap: 12px; color: var(--muted); font-size: 14px; }
   .row b { color: var(--ink); }
+  .which { color: var(--ink); font-weight: 600; margin-left: 4px; }
+  .lines { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+  .lines button { width: 100%; display: grid; grid-template-columns: minmax(7rem, auto) 1fr; gap: 8px; align-items: center; padding: 4px 6px; border: 1px solid transparent; border-radius: 8px; background: none; text-align: left; cursor: pointer; font-size: 13px; }
+  .lines button.edited { border-color: var(--accent); background: var(--accent-soft); }
+  .who { display: flex; align-items: center; gap: 2px; font-weight: 600; }
+  .q { margin-left: 6px; font-weight: 400; color: var(--muted); }
+  .bar.mini { height: 12px; border-radius: 4px; }
+  .bar.mini span { display: block; height: 100%; transition: width 250ms; }
   .small { font-size: 13px; color: var(--muted); margin: 0; }
   .gap { margin: 0; font-size: 13px; font-weight: 600; color: var(--warn); }
   .bar { display: flex; height: 28px; border-radius: 6px; overflow: hidden; font-size: 12px; font-weight: 700; color: #fff; background: var(--band); }

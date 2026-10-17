@@ -258,7 +258,7 @@ Applies whether or not water flows: a closed nozzle 10 m up still reads
 - From 50 to 80 psi the flow rises √(80/50) = **+26.5 %**, not the manual's
   printed +22 % (VC-06).
 
-### 3.4 Smooth bore: `nozzle.smooth-bore` ⏳ M2
+### 3.4 Smooth bore: `nozzle.smooth-bore` ✅ (owner, 2026-10-17: ahead of the rest of M2)
 
 **Q = 29.7 · d² · √NP** (Freeman), Q in gpm, d tip diameter in inches, NP in
 psi.
@@ -273,6 +273,43 @@ psi.
   at 50 psi → 185 gpm; 7/8" → 161 gpm.
 - Default NP: 50 psi handline, 80 psi master stream (`convention`, CGBVP
   p. 72).
+- **As built:** the tip is the nozzle's data (`tipIn`); its rating is
+  derived, never typed: Q_r = 29.7·d²·√NP_r at NP_r = 50 psi, and the solver
+  uses `nozzle.fixed-orifice` with that rating. Handline tips only for now:
+  **7/8″ (161 gpm), 15/16″ (185), 1″ (210), 1⅛″ (266)** at 50 psi, generic
+  common sizes, labelled generic. Inlet (`convention`, generic like the fog
+  rows, §3.4c): 1½″ shutoff for 7/8″ and 15/16″, 2½″ for 1″ and 1⅛″. Master
+  tips wait for monitors (M4). A smooth bore has a bale (shutoff) and no
+  pattern.
+
+### 3.4d Open hose end: `nozzle.open-end` ✅ (owner, 2026-10-17)
+
+The nozzle taken off: the line ends in its coupling and flows through it.
+
+**Q = 29.84 · c · d² · √p** (gpm, in, psi): the outlet-discharge formula of
+NFPA 291 for a hydrant outlet read with a pitot, as printed by the Temecula
+Fire Prevention Bureau's *Calculations for Fire Flow with Examples* [E16]
+(c = 0.90 for a 2½″ outlet; 2½″ at 23 psi pitot = 804 gpm).
+
+- d: the **coupling's bore** (`couplingIn` of the last hose, §3.4c), the
+  narrowest waterway at the end: a 1¾″ hose on 1½″ couplings flows through
+  1½″.
+- p: the pressure at the last coupling, read as the pressure that drives
+  the jet. `physics`: the jet's velocity pressure, Torricelli's
+  v = 12.18·√p ft/s (§3.7); 29.84 is that ideal orifice constant, and c the
+  outlet's discharge coefficient.
+- **c = 0.90: modelling choice, `verify`.** It is NFPA 291's coefficient for a
+  smooth, round hydrant outlet, the closest published analogue; no published
+  coefficient for an open hose butt was found (2026-10-17 search). Labelled
+  on screen.
+- In the solver it is a fixed orifice (§3.3) with a reference point, not a
+  rating: Q_ref = 29.84·c·d²·√50 at 50 psi. **No shutoff**: an open end
+  flows whenever the line is charged; the flow is stopped at the pump.
+- Teaching point: with nothing at the end, the hose itself is the limit.
+  30 m of 1½″ (C = 24) from 150 psi on level ground flows about 238 gpm with
+  only ~16 psi at the end (hand arithmetic: 150 = 24·(Q/100)²·0.984 +
+  (Q/60.4)²). A large flow, a weak, ragged stream, and a reaction the crew
+  cannot hold (§3.6): an uncontrolled line whips. Qualitative; no whip model.
 
 ### 3.4b Two independent properties of a nozzle
 
@@ -396,13 +433,21 @@ The rating pressure is per nozzle: TFT GF3D2S is rated at 75 psi, Akron
 Turbojet 1720 lists 100 and 75. The app labels rating values as the
 manufacturer's and results as calculated.
 
-### 3.6 Nozzle reaction: `nozzle.reaction` ⏳ M2
+### 3.6 Nozzle reaction: `nozzle.reaction` ✅ (owner, 2026-10-17: ahead of the rest of M2)
 
 | Nozzle | Law | Basis |
 |---|---|---|
 | Smooth bore | **NR = 1.57 · d² · NP** (lbf, in, psi) | `physics`: momentum of an ideal jet, F = 2·A·NP = 2·(π/4)·d²·NP; `published` TFT [E4] |
-| Fog | **NR = 0.0505 · Q · √NP** (lbf, gpm, psi) | `published` TFT [E4]; the ideal momentum value is 0.0526 |
-| CGBVP shortcut | kg ≈ 0.24 · gpm at 100 psi | `convention`, p. 46: reference method only (VC-05: ~4.8 % high) |
+| Fog | **NR = 0.0505 · Q · √NP** (lbf, gpm, psi) | `published` TFT [E4]; the ideal momentum value is 0.0526. TFT notes it uses the inlet pressure and may overestimate |
+| Open hose end | **NR = 1.57 · c · d² · p** (lbf, in, psi) | `physics`: F = ρ·Q·v with the jet's area c·A, so 2·c·A·p; c and d as in §3.4d |
+| CGBVP shortcut | kg ≈ 0.24 · gpm at 100 psi | `convention`, p. 46: the `cgbvp-2019` method's fog reaction (§4), labelled "a 100 psi" (VC-05: ~4.8 % high) |
+
+- Computed from the **solved** flow and nozzle pressure, never the rating:
+  an under-pumped nozzle pushes back less. A shut nozzle: 0.
+- Shown in lbf and kgf (1 lbf = 0.45359237 kgf, exact; `units.ts`). The
+  design (§3.4b) picks the row; the method picks only the fog row.
+- No pass/fail line: "one firefighter can hold about 70 lbf" (TFT's FAQ) is
+  guidance, shown as such if at all.
 
 Teaching point: at the same flow, a smooth bore at 50 psi pushes back less
 than a fog nozzle at 100 psi (185 gpm: 69 vs 93 lbf).
@@ -439,6 +484,41 @@ than a fog nozzle at 100 psi (185 gpm: 69 vs 93 lbf).
 - **`pump.power`:** water horsepower = Q · P / 1714 (hp, gpm, psi;
   `physics`, from 1 hp = 33 000 ft·lbf/min and 231 in³/gal). A 1000 gpm pump:
   87.5 hp at 150 psi, 82 at 200, 73 at 250.
+- **`power.split`** ✅ `src/hydraulics/power.ts`, `tests/power.test.mjs`
+  (owner, 2026-10-17: the whole lay's split, backlog ROADMAP §10e).
+  Pressures along different paths don't add, but power does:
+  every element uses W = Q·ΔP/1714 at the flow through it, so the shared feed
+  counts at the total flow and each branch at its own. Σ over the lay = the
+  pump's Q_total·P_pump/1714 (energy conservation, `physics`; elevation is
+  stored as potential energy, not lost). Grouped as streams (nozzles: the
+  useful part), friction, height and fittings; a downhill gain is a credit,
+  as in the pressure split. Height is counted per line, pump to nozzle
+  (Σ Q·k·Δh over the segments telescopes to it), so a feed that climbs and a
+  branch that drops net out per line. 1714 is 33 000 × 12 / 231 = 1714.29
+  (`units.ts`). Hand checks: one line, CGBVP, 150 ft of 1½″ up 4 m to a
+  95 gpm @ 100 nozzle, 138.49 psi = 7.675 hp, split as its pressure split;
+  an uneven wye (100 and 150 gpm nozzles) where the lay's efficiency, 63.9 %,
+  matches neither line's pressure split (71.9 %, 58.0 %).
+  - **What power is, as the screen must explain it** (owner, 2026-10-17:
+    "barely heard about it in hydraulics class"). Power is the rate at which
+    the pump works on the water: how much water it moves per minute times the
+    pressure it moves it against, **potencia = caudal × presión**. Pressure
+    alone is how hard the pump pushes; flow alone is how much water moves;
+    power is both. Every psi the pressure split shows as spent is energy
+    taken out of each gallon; power is that, per gallon, times the gallons
+    per minute. Fireground hydraulics is taught in pressure because that is
+    what the operator sets and reads; power belongs to pump and apparatus
+    specs (the NFPA test points trade flow for pressure at roughly constant
+    power: 100 % at 150 psi, 70 % at 200, 50 % at 250). The app uses it for
+    one thing only: **it is the one quantity that adds up across the whole
+    lay**, which no pressure does.
+  - **Presentation** (owner, 2026-10-17: "useful when properly explained").
+    Lead with **percentages**: "De todo lo que entrega la bomba: 45 % llega a
+    los chorros, 40 % se pierde en fricción, 12 % sube el agua, 3 % en
+    accesorios", with the stream share named as the lay's efficiency. The
+    absolute figure (hp, and kW at 1 hp = 0.7457 kW, `units.ts`) is
+    secondary, with the explanation above one tap away; never a bare "hp"
+    with no words.
 
 ### 3.9 Supply: `supply.*`
 
@@ -448,7 +528,8 @@ than a fog nozzle at 100 psi (185 gpm: 69 vs 93 lbf).
   time remaining = volume / Q.
 - **`supply.hydrant`** ⏳ later: static/residual curve,
   Q₂ = Q₁ · ((P_s − P₂)/(P_s − P₁))^0.54 (`published` NFPA 291 [E8];
-  `verify` the form).
+  the same form is printed, with a worked example, by [E16]; `verify`
+  against NFPA 291 itself).
 
 ### 3.10 Branching and appliances ⏳ M4
 
@@ -622,7 +703,7 @@ labels on screen; no new law.
 | **Presión a la salida** | the jet leaves into the air: **atmospheric**, 0 psi gauge, for every setting. The pressure has become speed | not modelled; nothing to show |
 | **Caudal (gpm)** | volume per minute, Q = A·v; the **delivered** flow, a solved output, never typed in. A **target** flow is a requested value used for planning, not the delivered output (§2) | solver |
 | **Velocidad** | in a hose v = 0.4085·Q/d² (§3.7); at the tip v = 12.18·√NP ft/s, which depends on NP only | §3.7 (tip part not drawn yet) |
-| **Reacción** | force on the hands (§3.6) | ⏳ M2 |
+| **Reacción** | force on the hands (§3.6) | ✅ |
 
 Rules that follow:
 - At low flow friction falls to nothing, so **flowing pressure approaches
@@ -779,7 +860,8 @@ geometry or crashes (see AGENTS.md).
 
 | Item | Law | Milestone | Where to check |
 |---|---|---|---|
-| Freeman constant 29.7 | `nozzle.smooth-bore` | M2 | verified: Colorado DFPC chart p. 2 prints `GPM = 29.7·d²·√NP` [E15]; IFSTA handbook not directly inspected (implementation still M2) |
+| Freeman constant 29.7 | `nozzle.smooth-bore` | built 2026-10-17 | verified: Colorado DFPC chart p. 2 prints `GPM = 29.7·d²·√NP` [E15]; IFSTA handbook not directly inspected |
+| Discharge coefficient of an open hose butt | `nozzle.open-end` | built 2026-10-17 | c = 0.90 borrowed from NFPA 291's smooth round hydrant outlet ([E16]); a flow test of an open 1½″ and 2½″ butt, or a published butt coefficient |
 | Flow independent of pattern on combination nozzles | `nozzle.selectable` (pattern) | M2 | TFT / Akron / Elkhart [E5] |
 | Where each manufacturer measures the rated pressure (inlet while flowing?) | `nozzle.fixed-orifice` | M2 | TFT / Akron / Elkhart test notes [E5]; NFPA 1964 |
 | Selectable nozzle off its rating: does each ring position follow Q ∝ √NP? | `nozzle.selectable` | M2 | Flow-versus-pressure curves from the manufacturer, or a flow test |

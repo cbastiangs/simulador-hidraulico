@@ -2,7 +2,7 @@
   import { jointName } from "$lib/names.ts";
   import { NOZZLE_SPECS } from "$hydraulics/catalog.ts";
   import { HOSE_SIZES } from "$hydraulics/references.ts";
-  import type { Scenario } from "$hydraulics/scenario.ts";
+  import { endBoreIn, reactionAt, type Scenario } from "$hydraulics/scenario.ts";
   import type { SeriesResult } from "$hydraulics/series.ts";
   import * as edit from "$lib/edit.ts";
   import { runsOf } from "$lib/geometry/world.ts";
@@ -61,14 +61,37 @@
   };
   const sizeName = (h: (typeof HOSE_SIZES)[number]) => (h.couplings ? `${h.diameter} (acoples ${h.couplings})` : h.diameter);
   const specShort = (spec: (typeof NOZZLE_SPECS)[number]) =>
-    spec.kind === "selectable" ? `Selector ${spec.settingsGpm[0]}–${spec.settingsGpm[spec.settingsGpm.length - 1]}` : `${spec.ratedFlowGpm} gpm`;
-  /** Below its rating by more than 5 %: it gives less than its rated flow (MODEL §3.13). */
+    spec.design === "open-end"
+      ? scenario.nozzle.design === "open-end" ? "Punta abierta" : "Quitar pitón"
+      : spec.design === "smooth-bore"
+        ? `${tipName(spec.tipIn ?? 0)} · ${spec.ratedFlowGpm} gpm`
+        : spec.kind === "selectable" ? `Selector ${spec.settingsGpm[0]}–${spec.settingsGpm[spec.settingsGpm.length - 1]}` : `${spec.ratedFlowGpm} gpm`;
+  const design = $derived(scenario.nozzle.design ?? "fog");
+  /** Below its rating by more than 5 %: it gives less than its rated flow (MODEL §3.13). An open end has no rating. */
   const short = $derived(
-    result.state === "flowing" && result.nozzlePressurePsi < scenario.nozzle.ratedPressurePsi * 0.95,
+    design !== "open-end" && result.state === "flowing" && result.nozzlePressurePsi < scenario.nozzle.ratedPressurePsi * 0.95,
   );
   const nozzleKind = $derived(
-    scenario.nozzle.kind === "selectable" ? "Selector de caudal" : "Caudal fijo",
+    design === "smooth-bore"
+      ? `Boquilla ${tipName(scenario.nozzle.tipIn ?? 0)} · ${scenario.nozzle.ratedFlowGpm} gpm`
+      : scenario.nozzle.kind === "selectable" ? "Selector de caudal" : "Caudal fijo",
   );
+  /** The engine's reaction at the solved flow (MODEL.md §3.6); the panel only formats it. */
+  const reaction = $derived(reactionAt(scenario, result, scenario.methodId));
+  const fmt = (x: number, digits = 2) => x.toLocaleString("es-PE", { maximumFractionDigits: digits });
+  function tipName(d: number) {
+    const eighths = Math.round(d * 16);
+    const whole = Math.floor(eighths / 16);
+    const rest = eighths % 16;
+    const g = rest === 0 ? 1 : rest % 8 === 0 ? 8 : rest % 4 === 0 ? 4 : rest % 2 === 0 ? 2 : 1;
+    const frac = rest === 0 ? "" : `${rest / g}/${16 / g}`;
+    return `${whole ? whole + (frac ? " " : "") : ""}${frac}″`;
+  }
+  const specGroups = [
+    { label: "Combinado", design: "fog" },
+    { label: "Chorro sólido · 50 psi", design: "smooth-bore" },
+    { label: "Sin pitón", design: "open-end" },
+  ] as const;
 </script>
 
 <aside class="inspector">
@@ -86,7 +109,7 @@
         <button type="button" onclick={() => onSelect({ kind: "section", index: i })}>Tramo {i + 1} · {s.lengthM} m de {s.diameterIn.toString().replace(".5", "½")}″</button>
         {#if i < last}<button type="button" class="joint" onclick={() => onSelect({ kind: "joint", index: i + 1 })}>{jointName(scenario, i + 1)}</button>{/if}
       {/each}
-      {#if !scenario.wye}<button type="button" onclick={() => onSelect({ kind: "nozzle" })}>Pitón · {scenario.nozzle.open ? "abierto" : "cerrado"}</button>{/if}
+      {#if !scenario.wye}<button type="button" onclick={() => onSelect({ kind: "nozzle" })}>{scenario.nozzle.design === "open-end" ? "Punta abierta · sin pitón" : `Pitón · ${scenario.nozzle.open ? "abierto" : "cerrado"}`}</button>{/if}
     </nav>
   {:else if selection.kind === "pump"}
     {@const outlet = scenario.source.outletSizeIn}
@@ -107,9 +130,32 @@
   {:else if selection.kind === "nozzle"}
     {@const n = scenario.nozzle}
     <header>
-      <h3>{n.kind === "selectable" ? "Pitón combinado" : "Pitón"}</h3>
-      <p>{nozzleKind} · {n.ratedPressurePsi} psi nominal{n.specId === null ? " · personalizado" : " · genérico"}</p>
+      {#if design === "open-end"}
+        <h3>Sin pitón</h3>
+        <p>Punta abierta · el agua sale por el acople de {tipName(endBoreIn(scenario.sections))}</p>
+      {:else}
+        <h3>{design === "smooth-bore" ? "Pitón de chorro sólido" : n.kind === "selectable" ? "Pitón combinado" : "Pitón"}</h3>
+        <p>{nozzleKind} · {n.ratedPressurePsi} psi nominal{n.specId === null ? " · personalizado" : " · genérico"}</p>
+      {/if}
     </header>
+    {#if design === "open-end"}
+      <p class="note">
+        No hay manija: la línea fluye mientras esté cargada, y se corta en la bomba. Sin boquilla, la manguera
+        misma limita el caudal: mucha agua, poca presión en la punta y un chorro sin forma. Q = 29,84 · c · d² · √p
+        con c = 0,90 supuesto (boca de hidrante, NFPA 291; no hay coeficiente publicado para una manguera abierta).
+      </p>
+    {:else if design === "smooth-bore"}
+      <section class="operate" aria-label="Operar el pitón">
+        <div>
+          <div class="label">Manija</div>
+          <div class="lever" role="radiogroup" aria-label="Manija">
+            <button type="button" role="radio" aria-checked={!n.open} class:on={!n.open} onclick={() => onchange(edit.setNozzleOpen(scenario, false))}>Cerrado</button>
+            <button type="button" role="radio" aria-checked={n.open} class:on={n.open} onclick={() => onchange(edit.setNozzleOpen(scenario, true))}>Abierto</button>
+          </div>
+        </div>
+        <p class="note">Chorro sólido: sin anillo ni patrón; el caudal sale de la boquilla, Q = 29,7 · d² · √NP.</p>
+      </section>
+    {:else}
 
     <!-- Operating controls first, so they show at the phone sheet's peek (UX.md §10.7, UX-03); choosing the model is configuration and comes after. -->
     <!-- Drawn (Close-up) or plain controls, by preference; both complete (UX.md §10.1). -->
@@ -161,6 +207,23 @@
       </div>
     </section>
     {/if}
+    {/if}
+
+    <!-- The force on the hands at the solved flow (MODEL.md §3.6, §7): the engine's numbers, formula substituted. -->
+    <div class="reaction" role="status">
+      <div><span class="label">Reacción</span> <b>{fmt(reaction.lbf, 0)} lbf</b> · {fmt(reaction.kgf, 0)} kgf</div>
+      <div class="formula">
+        {#if reaction.law === "smooth-bore"}
+          NR = 1.57 · d² · NP = 1.57 × {fmt(reaction.inputs.tipIn, 4)}² × {fmt(reaction.inputs.nozzlePressurePsi, 1)} · Task Force Tips
+        {:else if reaction.law === "fog"}
+          NR = 0.0505 · Q · √NP = 0.0505 × {fmt(reaction.inputs.flowGpm, 1)} × √{fmt(reaction.inputs.nozzlePressurePsi, 1)} · Task Force Tips
+        {:else if reaction.law === "fog-kg-per-gpm"}
+          kg ≈ {fmt(reaction.inputs.kgfPerGpm)} × Q = {fmt(reaction.inputs.kgfPerGpm)} × {fmt(reaction.inputs.flowGpm, 1)} · Manual CGBVP 2019, p. 46, válida a {reaction.inputs.atPsi} psi
+        {:else}
+          NR = 1.57 · c · d² · p = 1.57 × {fmt(reaction.inputs.coefficient)} × {fmt(reaction.inputs.boreIn, 3)}² × {fmt(reaction.inputs.pressurePsi, 1)} · cantidad de movimiento del chorro
+        {/if}
+      </div>
+    </div>
 
     <!-- After the controls, so it appearing mid-turn doesn't move them under the finger. -->
     {#if short}
@@ -172,12 +235,16 @@
 
     <div>
       <div class="label">Modelo</div>
-      <div class="seg wrap" role="radiogroup" aria-label="Modelo de pitón">
-        {#each NOZZLE_SPECS as spec (spec.id)}
-          <button type="button" role="radio" aria-checked={n.specId === spec.id} class:on={n.specId === spec.id} title={spec.label} onclick={() => onchange(edit.setNozzleSpec(scenario, spec.id))}>{specShort(spec)}</button>
-        {/each}
-        {#if n.specId === null}<button type="button" role="radio" aria-checked="true" class="on" disabled>Personalizado</button>{/if}
-      </div>
+      {#each specGroups as group (group.design)}
+        <div class="sublabel">{group.label}</div>
+        <div class="seg wrap" role="radiogroup" aria-label={`Modelo de pitón: ${group.label}`}>
+          {#each NOZZLE_SPECS.filter((spec) => spec.design === group.design) as spec (spec.id)}
+            {@const on = spec.design === "open-end" ? design === "open-end" : design !== "open-end" && n.specId === spec.id}
+            <button type="button" role="radio" aria-checked={on} class:on title={spec.label} onclick={() => onchange(edit.setNozzleSpec(scenario, spec.id))}>{specShort(spec)}</button>
+          {/each}
+          {#if group.design === "fog" && n.specId === null && design === "fog"}<button type="button" role="radio" aria-checked="true" class="on" disabled>Personalizado</button>{/if}
+        </div>
+      {/each}
     </div>
 
 
@@ -191,11 +258,13 @@
     />
     <p class="note">{floorOf(scenario.sections[last].endElevationM)} · arrastra el pitón para moverlo</p>
 
+    {#if design === "fog"}
     <details>
       <summary>Ajustes avanzados</summary>
       <NumberField label="Caudal nominal" value={n.ratedFlowGpm} unit="gpm" step={5} digits={0} onchange={(q) => onchange(edit.setNozzleRating(scenario, { ratedFlowGpm: q }))} />
       <NumberField label="Presión nominal" value={n.ratedPressurePsi} unit="psi" step={5} digits={0} onchange={(p) => onchange(edit.setNozzleRating(scenario, { ratedPressurePsi: p }))} />
     </details>
+    {/if}
 
     <JointControls {scenario} flowGpm={result.flowGpm} joint={last + 1} onToggle={(kind) => onchange(edit.toggleFitting(scenario, last + 1, kind))} />
   {:else if selection.kind === "joint" && tree && onTree && onLine && junctionAt(scenario, selection.index)}
@@ -255,6 +324,9 @@
   .inspector { position: relative; background: var(--surface); border-radius: var(--radius); padding: 14px; display: grid; gap: 14px; align-content: start; min-width: 0; }
   .inspector > * { min-width: 0; }
   .operate { display: grid; gap: 10px; }
+  .reaction { display: grid; gap: 2px; padding: 8px 10px; border-radius: 8px; background: var(--band); }
+  .reaction .formula { font-size: 12px; color: var(--muted); }
+  .sublabel { font-size: 12px; color: var(--muted); margin: 6px 0 4px; }
   .style-switch { display: flex; justify-content: flex-end; margin: -8px 0 -6px; }
   .style-switch button { min-height: 36px; padding: 0 4px; border: 0; background: transparent; color: var(--accent); font-size: 13px; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
   header h3 { margin: 0; font-size: 16px; padding-right: 40px; }

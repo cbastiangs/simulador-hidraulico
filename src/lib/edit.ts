@@ -277,17 +277,37 @@ export function setNozzleOpen(scenario: Scenario, open: boolean): Scenario {
 export function setNozzleSpec(scenario: Scenario, specId: string): Scenario {
   const spec = NOZZLE_SPECS.find((n) => n.id === specId);
   if (!spec) return scenario;
+  if (spec.design === "open-end") return removeNozzle(scenario);
+  const { design: _d, tipIn: _t, ...rest } = scenario.nozzle;
   return pruneAdapters({
     ...scenario,
     nozzle: {
-      ...scenario.nozzle,
+      ...rest,
       kind: spec.kind,
       specId: spec.id,
       settingsGpm: [...spec.settingsGpm],
       ratedFlowGpm: spec.ratedFlowGpm,
       ratedPressurePsi: spec.ratedPressurePsi,
+      // A nozzle put back on an open end starts shut, as one is screwed on.
+      open: scenario.nozzle.design === "open-end" ? false : scenario.nozzle.open,
+      ...(spec.design === "smooth-bore" ? { design: "smooth-bore" as const, tipIn: spec.tipIn } : {}),
     },
   });
+}
+
+/**
+ * Takes the nozzle off (MODEL.md §3.4d): the line ends in its coupling and
+ * flows through it. The nozzle's other fields stay, so "Poner pitón" can put
+ * the same one back.
+ */
+export function removeNozzle(scenario: Scenario): Scenario {
+  return pruneAdapters({ ...scenario, nozzle: { ...scenario.nozzle, design: "open-end", open: true } });
+}
+
+/** Puts back the nozzle an open end came from (its catalog spec), else the default combination nozzle. */
+export function attachNozzle(scenario: Scenario): Scenario {
+  const back = NOZZLE_SPECS.find((n) => n.id === scenario.nozzle.specId && n.design !== "open-end");
+  return setNozzleSpec(scenario, back?.id ?? "combination-selectable");
 }
 
 /**
@@ -301,11 +321,13 @@ export function setNozzleRating(
 ): Scenario {
   const { nozzle } = scenario;
   const typedFlow = rating.ratedFlowGpm !== undefined;
-  // A hand-entered nozzle has no known inlet, so it fits any hose.
+  // A hand-entered nozzle has no known inlet, so it fits any hose. A typed
+  // rating is a fog nozzle's: a smooth bore's comes from its tip.
+  const { design: _d, tipIn: _t, ...fog } = nozzle;
   return pruneAdapters({
     ...scenario,
     nozzle: {
-      ...nozzle,
+      ...fog,
       specId: null,
       kind: typedFlow ? "fixed-orifice" : nozzle.kind,
       settingsGpm: typedFlow ? [] : nozzle.settingsGpm,

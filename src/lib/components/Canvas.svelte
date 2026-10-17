@@ -25,6 +25,7 @@
   import JointControls from "./JointControls.svelte";
   import NozzleDrawing from "./NozzleDrawing.svelte";
   import { lineColor } from "$lib/line-colors.ts";
+  import * as edit from "$lib/edit.ts";
   import WyeDrawing from "./WyeDrawing.svelte";
   import { hoseVelocityMps } from "$hydraulics/velocity.ts";
 
@@ -51,6 +52,7 @@
     onSelect,
     onMove,
     onToggleNozzle,
+    onEdit,
     onHoseSize,
     onLength,
     onToggleFitting,
@@ -82,6 +84,8 @@
     /** Move the coupling at the end of a section to a horizontal run and height (edit.moveCoupling). */
     onMove: (sectionIndex: number, runM: number, elevationM: number) => void;
     onToggleNozzle: () => void;
+    /** An edit of the edited line from a canvas toolbar (lib/edit.ts); `key` merges a run of steps into one undo. */
+    onEdit: (next: Scenario, key?: string) => void;
     onHoseSize: (sectionIndex: number, hoseSizeId: string) => void;
     onLength: (sectionIndex: number, lengthM: number) => void;
     /** Place or remove a fitting at a joint (0 = pump outlet). */
@@ -314,6 +318,12 @@
    * they never cover the equipment at a fitted zoom yet stay readable.
    */
   const gaugeK = $derived(k * Math.min(1, Math.max(0.75, zoom / 0.8)));
+  /**
+   * Nozzles shrink further, to 45 % (owner, 2026-10-17: "comically big" zoomed
+   * out): a drawing, not a control. Their handles keep full size, so they stay
+   * as easy to grab.
+   */
+  const nozzleK = $derived(k * Math.min(1, Math.max(0.45, zoom / 1.2)));
   /** Floor labels are constant-size: every Nth floor is named so two labels are never under 22 px apart. */
   const labelEvery = $derived.by(() => {
     const need = Math.ceil(22 / (floorM * PX_PER_M * zoom));
@@ -983,7 +993,7 @@
     // 1 % slack: a slot exactly one width away is free, whatever the rounding.
     // A dial is drawn over everything, so it must also keep off every nozzle (its body and bale, not its spray).
     const onNozzle = (x: number, y: number) =>
-      nozzleSpots.some((n) => x + w / 2 > n.x - 30 * k && x - w / 2 < n.x + 50 * k && y + h / 2 > n.y - 30 * k && y - h / 2 < n.y + 16 * k);
+      nozzleSpots.some((n) => x + w / 2 > n.x - 30 * nozzleK && x - w / 2 < n.x + 50 * nozzleK && y + h / 2 > n.y - 30 * nozzleK && y - h / 2 < n.y + 16 * nozzleK);
     const hits = (x: number, y: number) => onNozzle(x, y) || placed.some((p) => Math.abs(p.x - x) < w * 0.99 && Math.abs(p.y - y) < h);
     const free = (x: number, y: number) => (x === g.x || inside(x)) && !hits(x, y);
     const cost = (x: number, y: number) => Math.hypot(x - g.x, y - g.y);
@@ -1241,6 +1251,14 @@
   let hoseBarH = $state(0);
   let jointBarW = $state(0);
   let jointBarH = $state(0);
+  let nozzleBarW = $state(0);
+  let nozzleBarH = $state(0);
+  /** The pattern collar's three stops on the toolbar; the panel's slider sets anything between. */
+  const PATTERN_STOPS = [
+    { label: "Directo", value: 0 },
+    { label: "Medio", value: 0.5 },
+    { label: "Niebla", value: 1 },
+  ];
   let readingW = $state(0);
   let readingH = $state(0);
   function overlayPos(sx: number, sy: number, w: number, h: number, prefer: "above" | "below") {
@@ -1349,6 +1367,12 @@
 
         <!-- The other lines (owner, 2026-10-17): hoses, couplings and nozzle at their true height.
              A tap makes that line the edited one; the edited line draws on top with its handles. -->
+        <!-- What leaves each nozzle (owner, 2026-10-17): the header's gpm is the pump's total. -->
+        {#snippet flowTag(at: { x: number; y: number }, flowGpm: number, nozzle: Scenario["nozzle"])}
+          <text class="flow-tag" class:idle={flowGpm <= 0.5} x={at.x + 24 * nozzleK} y={at.y + 18 * nozzleK + 12 * k}>
+            {flowGpm > 0.5 ? `${flowGpm.toFixed(0)} gpm` : nozzle.design === "open-end" ? "sin flujo" : "cerrado"}
+          </text>
+        {/snippet}
         {#snippet otherLine(o: (typeof otherLines)[number], peeked: boolean)}
           {@const end = o.layout.nodes[o.layout.nodes.length - 1]}
           {@const lastSection = o.scenario.sections.length - 1}
@@ -1395,7 +1419,7 @@
                 />
               {/if}
             {/each}
-            <g transform={`translate(${end.x} ${end.y}) scale(${k})`}>
+            <g transform={`translate(${end.x} ${end.y}) scale(${nozzleK})`}>
               <NozzleDrawing
                 nozzle={o.scenario.nozzle}
                 flowGpm={o.result.flowGpm}
@@ -1407,6 +1431,7 @@
                 onGrab={(e) => downOther(e, o, o.layout.nodes.length - 1)}
               />
             </g>
+            {@render flowTag(end, o.result.flowGpm, o.scenario.nozzle)}
           </g>
         {/snippet}
         {#each otherLines.filter((o) => o.key !== peek?.key) as o (o.key)}{@render otherLine(o, false)}{/each}
@@ -1533,8 +1558,9 @@
             />
             {#if dragging === i}
               <text class="drag-label" class:constrained x={n.x} y={n.y + 40 * k}>
-                {scenario.sections[i - 1].lengthM} m · {floorName(n.elevationM)}{constrained ? " · Límite de manguera" : ""}
+                {i === last ? "" : `${scenario.sections[i - 1].lengthM} m · `}{floorName(n.elevationM)}{constrained ? " · Límite de manguera" : ""}
               </text>
+              {#if i === last}<text class="drag-label secondary" x={n.x + 30 * k} y={n.y + 5 * k}>{scenario.sections[i - 1].lengthM} m</text>{/if}
             {/if}
           {/if}
         {/each}
@@ -1590,7 +1616,7 @@
           </g>
         {/each}
         <!-- The nozzle above its handle and the gauges: the highest event layer -->
-        <g transform={`translate(${layout.nodes[last].x} ${layout.nodes[last].y}) scale(${k})`}>
+        <g transform={`translate(${layout.nodes[last].x} ${layout.nodes[last].y}) scale(${nozzleK})`}>
           <NozzleDrawing
             nozzle={scenario.nozzle}
             flowGpm={result.flowGpm}
@@ -1602,6 +1628,7 @@
             onGrab={(e) => down(e, last, true)}
           />
         </g>
+        {@render flowTag(layout.nodes[last], result.flowGpm, scenario.nozzle)}
         <!-- The dials over everything, the spray included (owner, 2026-10-17); they take no pointer, so the bale still works under them. -->
         {#if showGauges}
           {#each layout.nodes as n, i (i)}
@@ -1609,7 +1636,7 @@
             <!-- Behind a shut gate the pressure is unknown (MODEL.md §2): no gauge rather than a made-up reading. -->
             {#if Number.isFinite(n.pressurePsi)}
               <g class="gauge" transform={`translate(${g.x} ${g.y}) scale(${gaugeK})`}>
-                <Gauge psi={n.pressurePsi} mark={i === last ? scenario.nozzle.ratedPressurePsi : undefined} />
+                <Gauge psi={n.pressurePsi} mark={i === last && scenario.nozzle.design !== "open-end" ? scenario.nozzle.ratedPressurePsi : undefined} />
                 {#if i > firstWye && editedName}<text class="gauge-tag" y="-32"><tspan class="gauge-dot" fill={colorOf(editedKey)}>●</tspan> {editedName}</text>{/if}
               </g>
             {/if}
@@ -1619,7 +1646,7 @@
               {@const g = otherGauges[li]?.[i]}
               {#if g}
                 <g class="gauge other-gauge" transform={`translate(${g.x} ${g.y}) scale(${gaugeK})`}>
-                  <Gauge psi={o.result.nodes[i].pressurePsi} mark={i === o.layout.nodes.length - 1 ? o.scenario.nozzle.ratedPressurePsi : undefined} />
+                  <Gauge psi={o.result.nodes[i].pressurePsi} mark={i === o.layout.nodes.length - 1 && o.scenario.nozzle.design !== "open-end" ? o.scenario.nozzle.ratedPressurePsi : undefined} />
                   <text class="gauge-tag" y="-32"><tspan class="gauge-dot" fill={colorOf(o.key)}>●</tspan> {o.name}</text>
                 </g>
               {/if}
@@ -1673,6 +1700,46 @@
           <button type="button" class="bar-close" aria-label="Quitar selección (Esc)" title="Quitar selección (Esc)" onclick={onDeselect}>×</button>
           <JointControls {scenario} flowGpm={result.flowGpm} joint={selection.index} onToggle={(kind) => onToggleFitting(selection.index, kind)} />
           <Actions target={selection} {scenario} requiredPsi={result.requiredPumpPressurePsi} place="quick" {onAction} />
+        </div>
+      {/if}
+      <!-- The nozzle's shortcuts on the canvas (owner, 2026-10-17), like the hose's: operating it, not configuring it. -->
+      {#if selection?.kind === "nozzle" && dragging === null && !phone}
+        {@const n = scenario.nozzle}
+        {@const at = layout.nodes[last]}
+        {@const pos = overlayPos(at.x * zoom - camX, (at.y + 18 * nozzleK + 20 * k) * zoom - camY, nozzleBarW, nozzleBarH, "below")}
+        <div
+          class="hose-bar"
+          style:left={`${pos.left}px`}
+          style:top={`${pos.top}px`}
+          style:max-width={`${pos.maxWidth}px`}
+          bind:clientWidth={nozzleBarW}
+          bind:clientHeight={nozzleBarH}
+        >
+          <button type="button" class="bar-close" aria-label="Quitar selección (Esc)" title="Quitar selección (Esc)" onclick={onDeselect}>×</button>
+          {#if n.design === "open-end"}
+            <div class="chips"><span class="len">Sin pitón · {result.flowGpm.toFixed(0)} gpm</span></div>
+          {:else}
+            <div class="chips" role="radiogroup" aria-label="Manija">
+              <button type="button" role="radio" aria-checked={!n.open} class:on={!n.open} onclick={() => onEdit(edit.setNozzleOpen(scenario, false))}>Cerrado</button>
+              <button type="button" role="radio" aria-checked={n.open} class:on={n.open} onclick={() => onEdit(edit.setNozzleOpen(scenario, true))}>Abierto</button>
+            </div>
+            {#if n.kind === "selectable"}
+              <div class="chips" role="radiogroup" aria-label="Caudal (anillo), gpm">
+                {#each n.settingsGpm as q (q)}
+                  <button type="button" role="radio" aria-checked={q === n.ratedFlowGpm} class:on={q === n.ratedFlowGpm} onclick={() => onEdit(edit.setNozzleSetting(scenario, q))}>{q}</button>
+                {/each}
+              </div>
+            {/if}
+            {#if (n.design ?? "fog") === "fog"}
+              <div class="chips" role="radiogroup" aria-label="Patrón">
+                {#each PATTERN_STOPS as stop (stop.value)}
+                  {@const on = Math.abs(n.pattern - stop.value) < 0.13}
+                  <button type="button" role="radio" aria-checked={on} class:on onclick={() => onEdit(edit.setNozzlePattern(scenario, stop.value))}>{stop.label}</button>
+                {/each}
+              </div>
+            {/if}
+          {/if}
+          <Actions target={{ kind: "nozzle" }} {scenario} requiredPsi={result.requiredPumpPressurePsi} place="quick" {onAction} />
         </div>
       {/if}
       {#if inspected !== null && showGauges && inspected < layout.nodes.length}
@@ -1790,6 +1857,8 @@
   .lane-coupling { fill: var(--steel); pointer-events: none; }
   .peek-outline { fill: none; stroke: var(--accent); opacity: 0.55; pointer-events: none; }
   .gauge-dot { font-size: 13px; }
+  .flow-tag { font-size: calc(12px * var(--k)); font-weight: 700; text-anchor: middle; fill: var(--water); paint-order: stroke; stroke: var(--bg); stroke-width: calc(3px * var(--k)); pointer-events: none; }
+  .flow-tag.idle { fill: var(--muted); font-weight: 600; }
   .gauge-tag { font-size: 11px; font-weight: 700; text-anchor: middle; fill: var(--ink); paint-order: stroke; stroke: var(--bg); stroke-width: 3px; pointer-events: none; }
   .stack-badge { cursor: pointer; outline: none; }
   .stack-badge rect { fill: var(--ink); }
@@ -1814,6 +1883,7 @@
   .handle.lane-handle { stroke: none; }
   .handle.constrained { stroke: var(--warn); stroke-opacity: 1; stroke-width: 3px; }
   .drag-label { font-size: calc(13px * var(--k)); font-weight: 700; text-anchor: middle; fill: var(--accent); pointer-events: none; }
+  .drag-label.secondary { font-size: calc(11px * var(--k)); font-weight: 500; text-anchor: start; fill: var(--muted); }
   .drag-label.constrained { fill: var(--warn); }
   .hose-bar { position: absolute; display: grid; gap: 4px; justify-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 6px; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15); z-index: 2; }
   .chips { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; justify-content: center; }

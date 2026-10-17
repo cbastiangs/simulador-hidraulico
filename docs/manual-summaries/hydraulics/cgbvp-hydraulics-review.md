@@ -993,6 +993,11 @@ p. 1 prints, verbatim: "Appliances + 10 psi > 350 gpm", "Master streams + 25 psi
 p. 2 prints `CQ²L` with the C table (1.5″ 24, 1.75″ 15.5, 2.5″ 2, 3″ with 2.5″ couplings 0.8, 3″ with 3″ couplings 0.677, 4″ 0.2, 5″ 0.08) and `GPM = 29.7·d²·√NP`.\
 The chart is a Colorado state training document and does not itself claim national generality, so we label the profile "Colorado 2020" rather than a generic US or IFSTA standard. Its appliance wording is generic ("Appliances"): mapping reducers, adapters and in-line valves into that category is **our simulator training convention**, not measured device data and not primary IFSTA verification (the IFSTA handbook was not inspected). The numeric clauses are verified from the chart itself and are **not** pending IFSTA. The source has unrelated typos; we adopt the named equations/coefficient table, not the whole chart indiscriminately.
 
+**[E16] City of Temecula Fire Prevention Bureau — "Calculations for Fire Flow with Examples".**\
+https://www.temeculaca.gov/DocumentCenter/View/164/Temecula-Fire-FlowCalculations-With-Examples-PDF\
+Read 2026-10-17. States that the calculations come from NFPA 291 and prints, verbatim: "Q = (29.84)(c)(d2)(√p) where c = coefficient of discharge; d = diameter of the outlet in inches; p = pitot pressure in psi", with the worked example "(1) 2 ½” outlet, coefficient of discharge used is .90 … Pitot = 23 psi … Q = 804 gpm". It also prints the fire-flow curve `Qf = Qr((Ps − 20)/(Ps − Pr))^0.54` (static 98, residual 86, 804 gpm → 2,209 gpm at 20 psi), the form `supply.hydrant` will need.\
+A local fire prevention bureau's restatement, not NFPA 291 itself (not openly published; not inspected). Used for `nozzle.open-end` (`MODEL.md` §3.4d), where c = 0.90 is borrowed from a hydrant outlet as the closest published analogue to an open hose butt.
+
 ## Evidence-strength note
 
 For a **specific pump, nozzle, hose, valve or appliance**, current manufacturer data or calibrated field measurements are stronger evidence than generic textbook values. Engineering references/standards are stronger for general physics and testing frameworks. The CGBVP manual remains the strongest source for what this particular training program teaches, even where that teaching intentionally simplifies the underlying physics.
