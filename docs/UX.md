@@ -144,15 +144,19 @@
     edited line**: drawn on top, at scale, with its handles, gauges, hose
     labels and floating toolbars, and it is the line the pressure split and
     "Ver cálculo" describe. Every other line leaves its wye in its own
-    **lane**, 44 screen px below (a screen offset like the hose thickness,
-    so lines at the same height don't hide each other; heights stay data):
+    **lane**, 18 screen px below: hoses on one floor lie side by side, so
+    they are drawn as a bundle with the edited line in front (owner,
+    2026-10-17: "allow some overlap"; a screen offset like the hose
+    thickness, heights stay data; hose labels carry a halo where hoses
+    cross):
     hoses with moving water at their own flow, couplings, its nozzle with
     bale and stream, and a reading ("Línea 2 · 107 gpm · 114 psi", or
     "válvula cerrada"). Tapping another line makes it the edited line with
-    that hose selected; its bale works in place. **The wye is graphic and
-    operable**: a body at the coupling and a gate handle on every outlet,
-    on its own lane (along the hose: open; across: shut, red), tapped to
-    open or close. Selecting the wye opens its panel: each outlet with its
+    that hose selected; its bale works in place. **The wye is drawn as a
+    gated wye** (owner, 2026-10-17: not the reducer's outline): inlet
+    swivel with rocker lugs, the Y casting, and on each outlet a ball valve
+    whose quarter-turn lever lies along the hose when open and across it
+    when shut (pointing away from the other arms), tapped to open or close. Selecting the wye opens its panel: each outlet with its
     gate, flow and nozzle pressure, "Editar esta línea", "Añadir línea" and
     "Quitar bifurca". The edited line's hoses and nozzle use the ordinary
     canvas and inspector; an edit maps back to the segment it belongs to

@@ -24,6 +24,7 @@
   import Gauge from "./Gauge.svelte";
   import JointControls from "./JointControls.svelte";
   import NozzleDrawing from "./NozzleDrawing.svelte";
+  import WyeDrawing from "./WyeDrawing.svelte";
   import { hoseVelocityMps } from "$hydraulics/velocity.ts";
 
   // The canvas (UX.md §2, polish §10.8): one uniform scale, the lay auto-fitted
@@ -334,10 +335,10 @@
   const junctionAtJoint = (i: number): Junction | undefined => junctions.find((j) => j.joint === i);
   // The other lines of a branched lay, each laid out like the edited one (the
   // shared feed lands on the same pixels) and drawn from its wye in a lane
-  // LANE_PX below (clear of the edited line's hose labels), so lines at the
-  // same height don't hide each other. Lanes are screen offsets, like the
-  // hose thickness: the heights stay those of the edited line's floors.
-  const LANE_PX = 44;
+  // LANE_PX below: hoses on one floor lie side by side, so they are drawn as a
+  // bundle, the edited line in front (owner, 2026-10-17: "allow some
+  // overlap"). A screen offset like the hose thickness; heights stay data.
+  const LANE_PX = 18;
   const otherLines = $derived(
     others.map((o, i) => ({ ...o, lane: i + 1, layout: layoutWorld(o.scenario.sections, o.result.nodes.map((n) => n.pressurePsi), filled, floorM, filled.maxY) })),
   );
@@ -855,8 +856,9 @@
     let beforeX = 0;
     let afterX = 0;
     if (junctionAtJoint(i)) {
-      beforeX = -9;
-      afterX = 15;
+      // The gated wye's drawing: inlet swivel to outlet couplings (WyeDrawing).
+      beforeX = -21;
+      afterX = 42;
     } else if (j.auto || j.placed.includes("adapter")) {
       const ratio = (j.upIn ?? 1) / (j.downIn || 1);
       const l = i > 0 ? halfWidth(i - 1) : halfWidth(i) * ratio;
@@ -1144,14 +1146,13 @@
              A tap makes that line the edited one; the edited line draws on top with its handles and gauges. -->
         {#each otherLines as o (o.path.join("/"))}
           {@const dy = o.lane * LANE_PX * k}
-          {@const w = o.layout.nodes[o.from]}
           {@const end = o.layout.nodes[o.layout.nodes.length - 1]}
           {@const lastSection = o.scenario.sections.length - 1}
-          <line class="hose lane-link" x1={w.x} y1={w.y} x2={w.x} y2={w.y + dy} stroke-width={3 * k} />
           <g transform={`translate(0 ${dy})`}>
             {#each o.layout.hoses.filter((h) => h.index >= o.from) as h (h.index)}
               {@const sec = o.scenario.sections[h.index]}
-              {@const d = drawnHose(h.geom).d}
+              <!-- The first hose starts at the wye's outlet coupling, not under the casting. -->
+              {@const d = drawnHose(h.geom, h.index === o.from ? 42 * k : 0).d}
               {@const q = sectionFlow(o.result, h.index)}
               {@const p = q > 0.5 ? particles(sec.diameterIn, q) : null}
               <path class="hose" class:idle={!p} {d} stroke-width={hoseWidth(h.thicknessPx, sec.diameterIn)} />
@@ -1159,7 +1160,7 @@
               <path
                 class="hit"
                 {d}
-                stroke-width={36 * k}
+                stroke-width={24 * k}
                 role="button"
                 tabindex="0"
                 aria-label={`${o.name}, tramo ${h.index - o.from + 1}: ${sec.lengthM} m de ${sizeLabel(sec.diameterIn)}. Tocar para editar esta línea`}
@@ -1172,7 +1173,7 @@
             {/each}
             <g transform={`translate(${end.x} ${end.y}) scale(${k})`}>
               <NozzleDrawing nozzle={o.scenario.nozzle} flowGpm={o.result.flowGpm} x={0} y={0} selected={false} onToggle={() => onOtherNozzle?.(o.path)} />
-              <text class="lane-reading" x="-14" y="22">{o.name} · {o.result.flowGpm > 0.5 ? `${o.result.flowGpm.toFixed(0)} gpm · ${o.result.nozzlePressurePsi.toFixed(0)} psi` : o.shut ? "válvula cerrada" : o.scenario.nozzle.open ? "sin caudal" : "pitón cerrado"}</text>
+              <text class="lane-reading" x="12" y="26">{o.name} · {o.result.flowGpm > 0.5 ? `${o.result.flowGpm.toFixed(0)} gpm · ${o.result.nozzlePressurePsi.toFixed(0)} psi` : o.shut ? "válvula cerrada" : o.scenario.nozzle.open ? "sin caudal" : "pitón cerrado"}</text>
             </g>
           </g>
         {/each}
@@ -1306,27 +1307,11 @@
         {#each junctions as wye (wye.joint)}
           {@const jd = drawing.joints[wye.joint]}
           {#if jd}
-            <g class="wye" transform={`translate(${jd.x} ${jd.y}) scale(${k})`}>
-              <path class="wye-body" transform={`rotate(${jd.angle})`} d="M -8 -8 L 6 -8 L 14 -4 L 14 4 L 6 8 L -8 8 Z" />
-              {#each wye.outlets as o (o.id)}
-                <!-- The edited line's gate sits on it; each other outlet's on its lane. -->
-                {@const gy = o.active ? 0 : laneOf(o.path) * LANE_PX}
-                <g
-                  class="gate"
-                  class:shut={!o.open}
-                  role="switch"
-                  tabindex="0"
-                  aria-checked={o.open}
-                  aria-label={`Válvula de ${o.name}: ${o.open ? "abierta, tocar para cerrar" : "cerrada, tocar para abrir"}`}
-                  transform={o.active ? `rotate(${jd.angle}) translate(30 0)` : `translate(30 ${gy})`}
-                  onclick={tap(() => onGate?.(o.path))}
-                  onkeydown={(e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), onGate?.(o.path))}
-                >
-                  <circle class="gate-hit" r="12" />
-                  <circle class="gate-ball" r="5" />
-                  <line class="gate-handle" x1="-10" y1="0" x2="10" y2="0" style:transform={`rotate(${o.open ? 0 : 90}deg)`} />
-                </g>
-              {/each}
+            <g transform={`translate(${jd.x} ${jd.y}) scale(${k}) rotate(${jd.angle})`}>
+              <WyeDrawing
+                outlets={wye.outlets.map((o) => ({ ...o, dy: o.active ? 0 : laneOf(o.path) * LANE_PX }))}
+                onGate={(path) => tap(() => onGate?.(path))()}
+              />
             </g>
           {/if}
         {/each}
@@ -1496,7 +1481,7 @@
   .ground-line { stroke: var(--ink); }
   .floor-label, .tag { font-size: calc(11px * var(--k)); fill: var(--muted); pointer-events: none; }
   .axis { paint-order: stroke; stroke: var(--bg); stroke-width: calc(3px * var(--k)); stroke-linejoin: round; }
-  .tag { text-anchor: middle; font-size: calc(12px * var(--k)); }
+  .tag { text-anchor: middle; font-size: calc(12px * var(--k)); paint-order: stroke; stroke: var(--ground); stroke-width: calc(3px * var(--k)); stroke-linejoin: round; }
   .pump { cursor: pointer; outline: none; }
   .truck { fill: var(--pump); }
   .truck.selected, .pump:focus-visible .truck { stroke: var(--accent); stroke-width: calc(3px * var(--k)); }
@@ -1525,15 +1510,7 @@
   .missing circle { fill: var(--warn); }
   .hose.idle { opacity: 0.55; }
   .lane-coupling { fill: var(--steel); pointer-events: none; }
-  .lane-reading { text-anchor: end; font-size: 11px; font-weight: 600; fill: var(--ink); paint-order: stroke; stroke: var(--bg); stroke-width: 3px; pointer-events: none; }
-  .wye-body { fill: var(--steel); stroke: var(--ink); stroke-width: 1.5; pointer-events: none; }
-  .gate { cursor: pointer; outline: none; }
-  .gate-hit { fill: transparent; }
-  .gate-ball { fill: var(--steel); stroke: var(--ink); stroke-width: 1.5; pointer-events: none; }
-  .gate-handle { stroke: var(--ink); stroke-width: 4; stroke-linecap: round; transition: transform 0.2s ease; pointer-events: none; }
-  .gate.shut .gate-handle { stroke: var(--warn); }
-  .gate:focus-visible .gate-ball { stroke: var(--accent); stroke-width: 3; }
-  @media (prefers-reduced-motion: reduce) { .gate-handle { transition: none; } }
+  .lane-reading { font-size: 11px; font-weight: 600; fill: var(--ink); paint-order: stroke; stroke: var(--bg); stroke-width: 3px; pointer-events: none; }
   .missing text { fill: #fff; font-size: 14px; font-weight: 800; text-anchor: middle; }
   .hose { stroke: var(--hose); stroke-linecap: butt; fill: none; }
   .particles { fill: none; stroke: #fff; stroke-opacity: 0.85; stroke-linecap: round; stroke-dasharray: 0 var(--gap); animation: water var(--period) linear infinite; pointer-events: none; }
