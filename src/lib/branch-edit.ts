@@ -321,3 +321,14 @@ export function branchLabel(segment: ScenarioSegment): string {
   const sizes = [...new Set(segment.sections.map((s) => s.diameterIn))].map((d) => `${d.toString().replace(".5", "½").replace(".75", "¾")}″`);
   return `${segment.name} · ${Math.round(length)} m de ${sizes.join(" + ")}`;
 }
+
+/** Every pump-to-nozzle path of the lay, in outlet order. */
+export function leafPaths(scenario: Scenario): BranchPath[] {
+  const out: BranchPath[] = [];
+  const visit = (segment: ScenarioSegment, path: BranchPath) => {
+    if (!segment.wye) out.push(path);
+    else for (const b of segment.wye.branches) visit(b, [...path, b.id]);
+  };
+  visit(scenario, []);
+  return out;
+}

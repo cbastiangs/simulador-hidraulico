@@ -102,11 +102,14 @@ building's floor-to-floor height: the canvas's floor lines, snapping and
 "piso n" labels. Drawing only; the hydraulics use heights in metres.
 ## 5. Views and drawing rules
 
-- **Top-down view = the editor.** Connections, not geography: hose length is
-  a number on the hose, not its drawn length.
-- **Side view = one path.** Tap a nozzle: the path from pump to it unrolls,
-  with distance along the hose horizontal and height vertical. Dragging the
-  nozzle up writes its height.
+- **Side view = the editor, every line (owner, 2026-10-17).** Distance
+  along the hose horizontal, height vertical; dragging the nozzle up writes
+  its height. A branched lay draws all its lines: one edited line on top,
+  the others in lanes from their wyes (`UX.md` §2).
+- **Top-down view: backlog, bottom (owner, 2026-10-17).** Connections, not
+  geography (hose length a number on the hose). With every line in the side
+  view it adds little until lays grow large (many lines, nested wyes). A
+  working version is parked on the `backlog/top-down-view` branch.
 - **No 3D.** Both views draw the same document; height is data, never a
   pixel position.
 

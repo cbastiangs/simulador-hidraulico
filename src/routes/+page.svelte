@@ -179,6 +179,19 @@
     if (network) walk(network.root, []);
     return out;
   });
+  /** The lay's other lines, drawn beside the edited one: each from the wye where it leaves it. */
+  const others = $derived.by(() => {
+    if (!network || !view) return [];
+    const drawn = view.path;
+    return branch.leafPaths(scenario)
+      .filter((p) => p.join("/") !== drawn.join("/"))
+      .map((p) => {
+        const v = branch.pathView(scenario, p);
+        const shared = p.findIndex((id, i) => drawn[i] !== id);
+        const shut = p.some((_, i) => !(branch.segmentAt(scenario, p.slice(0, i + 1)) as { open: boolean }).open);
+        return { path: p, name: v.junctions[shared].outlets.find((o) => o.id === p[shared])!.name, scenario: v.scenario, result: pathResult(network.root, p), from: v.junctions[shared].joint, shut };
+      });
+  });
   const wyeWhy = $derived(branch.addLimit(scenario, view?.path ?? [], "wye"));
   const lineName = $derived(view ? view.path.map((id, i) => view.junctions[i].outlets.find((o) => o.id === id)!.name).join(" › ") : "");
   // "Comparar con" (MODEL.md §4): a second method solved beside the first, or
@@ -297,7 +310,7 @@
 {/snippet}
 
 {#snippet results()}
-  {#if network}<p class="line-name">En el dibujo: <b>{lineName}</b> · toca otra salida de la bifurca para ver su línea</p>{/if}
+  {#if network}<p class="line-name">Reparto de <b>{lineName}</b> · toca otra línea en el dibujo para ver la suya</p>{/if}
   <div bind:this={budgetEl}><BudgetBar {result} {reference} referenceLabel={refName} /></div>
   <details class="card">
     <summary>Ver cálculo ({result.terms.length} fórmulas) · {methodName}{comparing ? ` y ${refName}` : ""}</summary>
@@ -369,9 +382,13 @@
       onToggleNozzle={() => applyLine(edit.setNozzleOpen(lineScenario, !lineScenario.nozzle.open))}
       onAction={runAction}
       {fitSignal}
-      {outlets}
+      {others}
       onGate={(path) => applyTree(branch.toggleGate(scenario, path))}
-      onLine={selectLine}
+      onPick={(path, sel) => {
+        selectedPath = path;
+        select(sel);
+      }}
+      onOtherNozzle={(path) => applyTree(branch.editSegment(scenario, path, (s) => ({ ...s, nozzle: { ...s.nozzle, open: !s.nozzle.open } })))}
     />
   </div>
 

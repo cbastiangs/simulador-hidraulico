@@ -3,7 +3,7 @@
   import * as branch from "$lib/branch-edit.ts";
 
   // A wye's panel (UX.md §2 "Branched lays"): every outlet with its gate, its
-  // reading and a way to draw its line; adding and removing lines. The gates
+  // reading and a way to edit its line; adding and removing lines. The gates
   // here and the handles on the canvas are the same switches.
   let {
     tree,
@@ -41,7 +41,7 @@
         <button type="button" role="radio" aria-checked={!o.open} class:on={!o.open} onclick={() => o.open && onTree(branch.toggleGate(tree, o.path))}>Cerrada</button>
       </div>
       <div class="row">
-        {#if o.active}<span class="drawn">En el dibujo</span>{:else}<button type="button" onclick={() => onLine(o.path)}>Dibujar esta línea</button>{/if}
+        {#if o.active}<span class="drawn">En edición</span>{:else}<button type="button" onclick={() => onLine(o.path)}>Editar esta línea</button>{/if}
         {#if canRemove}<button type="button" class="danger" onclick={() => onTree(branch.removeBranch(tree, o.path))}>Quitar</button>{/if}
       </div>
     </li>

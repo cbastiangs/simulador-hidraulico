@@ -137,23 +137,29 @@
   - **The engine solves one line or a gated tree.** A line is hoses,
     fittings and a nozzle; a wye splits it into branches, each with its own
     gate, hoses and nozzle, and a branch may hold another wye (nested wyes).
-    **Branched lays are drawn in the same side view as a single line**
-    (owner, 2026-10-17: the separate top-down schematic lost the floors and
-    the pressure split; "the same feel of the horizontal view"). One
-    pump-to-nozzle path is drawn at a time, at scale, with its floors,
-    gauges and pressure split: the feed, the wye at its coupling, then one
-    outlet's hoses and nozzle. **The wye is graphic and operable**: a body
-    at the coupling and a gate handle on every outlet (along the hose: open;
-    across: shut, red), tapped to open or close; the other outlets leave the
-    wye as short stubs (symbols, not to scale; dotted when shut) whose label
-    — "Línea 2 · 107 gpm ›" — draws that line instead. Selecting the wye
-    opens its panel: each outlet with its gate, flow and nozzle pressure,
-    "Dibujar esta línea", "Añadir línea" and "Quitar bifurca". The drawn
-    line's hoses and nozzle use the ordinary canvas and inspector; an edit
-    maps back to the segment it belongs to (`branch-edit.ts`
-    `applyPathEdit`), hoses never merge across a wye and each line keeps a
-    hose. "Añadir bifurca al final" in the Línea section adds a wye at the
-    end of the drawn line; a single line shows nothing else about branching.
+    **Branched lays are drawn in the same side view as a single line,
+    every line at once** (owner, 2026-10-17: the separate top-down
+    schematic lost the floors and the pressure split; "the same feel of the
+    horizontal view"; "why can't we render both lines"). One line is **the
+    edited line**: drawn on top, at scale, with its handles, gauges, hose
+    labels and floating toolbars, and it is the line the pressure split and
+    "Ver cálculo" describe. Every other line leaves its wye in its own
+    **lane**, 44 screen px below (a screen offset like the hose thickness,
+    so lines at the same height don't hide each other; heights stay data):
+    hoses with moving water at their own flow, couplings, its nozzle with
+    bale and stream, and a reading ("Línea 2 · 107 gpm · 114 psi", or
+    "válvula cerrada"). Tapping another line makes it the edited line with
+    that hose selected; its bale works in place. **The wye is graphic and
+    operable**: a body at the coupling and a gate handle on every outlet,
+    on its own lane (along the hose: open; across: shut, red), tapped to
+    open or close. Selecting the wye opens its panel: each outlet with its
+    gate, flow and nozzle pressure, "Editar esta línea", "Añadir línea" and
+    "Quitar bifurca". The edited line's hoses and nozzle use the ordinary
+    canvas and inspector; an edit maps back to the segment it belongs to
+    (`branch-edit.ts` `applyPathEdit`), hoses never merge across a wye and
+    each line keeps a hose. "Añadir bifurca al final" in the Línea section
+    adds a wye at the end of the edited line; a single line shows nothing
+    else about branching. A feed hose's particles move at the feed's flow.
     Under the pressure split, a read-only list gives every line's flow and
     pressures at once (ROADMAP §10c; MODEL.md §2). **Every gate is fully open or
     fully shut, independently**: a shut gate isolates its whole downstream

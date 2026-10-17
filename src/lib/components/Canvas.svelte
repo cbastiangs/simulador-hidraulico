@@ -8,6 +8,7 @@
     drawnHose,
     fillViewport,
     fitBounds,
+    growBounds,
     jointAngle,
     layoutWorld,
     snapHeightM,
@@ -58,9 +59,10 @@
     coverPx = 0,
     onTapEmpty,
     onDeselect,
-    outlets = {},
     onGate,
-    onLine,
+    others = [],
+    onPick,
+    onOtherNozzle,
   }: {
     scenario: Scenario;
     result: SeriesResult;
@@ -93,12 +95,17 @@
     onTapEmpty?: () => void;
     /** The floating toolbars' ×. */
     onDeselect: () => void;
-    /** A branched lay (UX.md §2): each outlet's reading, keyed by its path joined with "/". */
-    outlets?: Record<string, { flowGpm: number; isolated: boolean }>;
     /** Open or shut a wye outlet's gate. */
     onGate?: (path: string[]) => void;
-    /** Draw another outlet's line. */
-    onLine?: (path: string[]) => void;
+    /**
+     * A branched lay's other lines (owner, 2026-10-17: every line drawn), each
+     * as its own one-line scenario and reading; drawn from `from`, the joint of
+     * the wye it leaves the edited line at, in its own lane below.
+     */
+    others?: { path: string[]; name: string; scenario: Scenario; result: SeriesResult; from: number; shut: boolean }[];
+    /** A tap on another line: edit that line, with this selected (its own coordinates). */
+    onPick?: (path: string[], selection: Selection) => void;
+    onOtherNozzle?: (path: string[]) => void;
   } = $props();
 
   const TAP_PX = 6;
@@ -238,7 +245,7 @@
     }
   });
 
-  const fitted = $derived(fitBounds(scenario.sections, floorM));
+  const fitted = $derived(others.reduce((b, o) => growBounds(b, o.scenario.sections, floorM), fitBounds(scenario.sections, floorM)));
   // The canvas takes the height the window has (UX.md §2): the lay sits on the
   // ground at the bottom and the rest is building above it, so a rising hose
   // can be dragged up. Side by side, the header above the canvas and its toolbar take about 150 px and the floating pressure bar 70 px.
@@ -325,6 +332,17 @@
   // A wye on a branched lay's drawn path (UX.md §2) is drawn by itself, not as an adapter.
   const junctions = $derived(junctionsOf(scenario));
   const junctionAtJoint = (i: number): Junction | undefined => junctions.find((j) => j.joint === i);
+  // The other lines of a branched lay, each laid out like the edited one (the
+  // shared feed lands on the same pixels) and drawn from its wye in a lane
+  // LANE_PX below (clear of the edited line's hose labels), so lines at the
+  // same height don't hide each other. Lanes are screen offsets, like the
+  // hose thickness: the heights stay those of the edited line's floors.
+  const LANE_PX = 44;
+  const otherLines = $derived(
+    others.map((o, i) => ({ ...o, lane: i + 1, layout: layoutWorld(o.scenario.sections, o.result.nodes.map((n) => n.pressurePsi), filled, floorM, filled.maxY) })),
+  );
+  /** The lane an outlet's water is drawn in: its first line's. */
+  const laneOf = (path: string[]) => otherLines.find((o) => path.every((id, i) => o.path[i] === id))?.lane ?? 1;
   const js = $derived(joints(scenario).map((j) => (junctionAtJoint(j.index) ? { ...j, mismatch: false, auto: false, missing: false, placed: [] } : j)));
   const missing = $derived(js.filter((j) => j.missing));
 
@@ -683,10 +701,15 @@
   // the real mean velocity v = Q/A. Their spacing, gallons / A, doesn't depend
   // on Q: a narrow hose shows faster, sparser particles for the same flow.
   const GALLONS_PER_PARTICLE = 1.25;
-  function particles(diameterIn: number) {
-    const seconds = (60 * GALLONS_PER_PARTICLE) / result.flowGpm;
-    return { gapPx: hoseVelocityMps(result.flowGpm, diameterIn) * seconds * PX_PER_M, seconds };
+  function particles(diameterIn: number, flowGpm = result.flowGpm) {
+    const seconds = (60 * GALLONS_PER_PARTICLE) / flowGpm;
+    return { gapPx: hoseVelocityMps(flowGpm, diameterIn) * seconds * PX_PER_M, seconds };
   }
+  /** A hose's own flow: on a branched lay the feed carries every open line's water. */
+  const sectionFlow = (r: SeriesResult, i: number) => {
+    const t = r.terms.find((t) => t.lawId === "hose.friction" && t.sectionIndex === i);
+    return t?.lawId === "hose.friction" ? t.inputs.flowGpm : r.flowGpm;
+  };
 
   const selectedHose = $derived(selection?.kind === "section" ? layout.hoses[selection.index] : undefined);
   // The nozzle joint's fittings are edited in the inspector: its handle works the bale.
@@ -895,7 +918,8 @@
       const startTrim = Math.hypot(h.geom.a.x - start.point.x, h.geom.a.y - start.point.y);
       const endTrim = Math.hypot(h.geom.b.x - end.point.x, h.geom.b.y - end.point.y);
       const { d, lengthPx } = drawnHose(h.geom, startTrim, endTrim, start, end);
-      const p = result.flowGpm > 0.5 ? particles(s.diameterIn) : { gapPx: 0, seconds: 0 };
+      const q = sectionFlow(result, h.index);
+      const p = q > 0.5 ? particles(s.diameterIn, q) : { gapPx: 0, seconds: 0 };
       // Phase on the shared stream: whole particle cycles already travelled, so
       // inserted paths read as one continuous stream even across a size change.
       const offsetPx = p.gapPx > 0 ? p.gapPx * (((cycles % 1) + 1) % 1) : 0;
@@ -1116,12 +1140,49 @@
         <rect class="outlet" x={layout.xAt(-2.5)} y={layout.nodes[0].y - 0.25 * PX_PER_M} width={layout.nodes[0].x - layout.xAt(-2.5)} height={0.5 * PX_PER_M} />
         <text class="tag" x={layout.xAt(-5.75)} y={layout.groundY + 16 * k}>Bomba{outletIn ? ` · salida ${sizeLabel(outletIn)}` : ""}</text>
 
+        <!-- The other lines (owner, 2026-10-17): hoses, couplings, nozzle and a reading, in their lanes.
+             A tap makes that line the edited one; the edited line draws on top with its handles and gauges. -->
+        {#each otherLines as o (o.path.join("/"))}
+          {@const dy = o.lane * LANE_PX * k}
+          {@const w = o.layout.nodes[o.from]}
+          {@const end = o.layout.nodes[o.layout.nodes.length - 1]}
+          {@const lastSection = o.scenario.sections.length - 1}
+          <line class="hose lane-link" x1={w.x} y1={w.y} x2={w.x} y2={w.y + dy} stroke-width={3 * k} />
+          <g transform={`translate(0 ${dy})`}>
+            {#each o.layout.hoses.filter((h) => h.index >= o.from) as h (h.index)}
+              {@const sec = o.scenario.sections[h.index]}
+              {@const d = drawnHose(h.geom).d}
+              {@const q = sectionFlow(o.result, h.index)}
+              {@const p = q > 0.5 ? particles(sec.diameterIn, q) : null}
+              <path class="hose" class:idle={!p} {d} stroke-width={hoseWidth(h.thicknessPx, sec.diameterIn)} />
+              {#if p}<path class="particles" {d} stroke-width={Math.max(2, hoseWidth(h.thicknessPx, sec.diameterIn) * 0.3)} style:--offset="0px" style:--gap={`${p.gapPx}px`} style:--period={`${p.seconds}s`} use:waterPhase />{/if}
+              <path
+                class="hit"
+                {d}
+                stroke-width={36 * k}
+                role="button"
+                tabindex="0"
+                aria-label={`${o.name}, tramo ${h.index - o.from + 1}: ${sec.lengthM} m de ${sizeLabel(sec.diameterIn)}. Tocar para editar esta línea`}
+                onclick={tap(() => onPick?.(o.path, { kind: "section", index: h.index }))}
+                onkeydown={(e) => e.key === "Enter" && onPick?.(o.path, { kind: "section", index: h.index })}
+              />
+            {/each}
+            {#each o.layout.nodes as n, i (i)}
+              {#if i > o.from && i <= lastSection}<circle class="lane-coupling" cx={n.x} cy={n.y} r={4 * k} />{/if}
+            {/each}
+            <g transform={`translate(${end.x} ${end.y}) scale(${k})`}>
+              <NozzleDrawing nozzle={o.scenario.nozzle} flowGpm={o.result.flowGpm} x={0} y={0} selected={false} onToggle={() => onOtherNozzle?.(o.path)} />
+              <text class="lane-reading" x="-14" y="22">{o.name} · {o.result.flowGpm > 0.5 ? `${o.result.flowGpm.toFixed(0)} gpm · ${o.result.nozzlePressurePsi.toFixed(0)} psi` : o.shut ? "válvula cerrada" : o.scenario.nozzle.open ? "sin caudal" : "pitón cerrado"}</text>
+            </g>
+          </g>
+        {/each}
+
         <!-- Hoses: one contour for the hose, the particles, the selection and the hit path -->
         {#each drawing.hoses as hd (hd.index)}
           {@const s = scenario.sections[hd.index]}
           {@const lbl = hoseLabels[hd.index]}
           <path class="hose" d={hd.d} stroke-width={hd.width} />
-          {#if result.flowGpm > 0.5}
+          {#if hd.gapPx > 0}
             <path
               class="particles"
               d={hd.d}
@@ -1244,34 +1305,12 @@
              are stubs whose label draws that line instead. Stubs are symbols, not to scale. -->
         {#each junctions as wye (wye.joint)}
           {@const jd = drawing.joints[wye.joint]}
-          {@const others = wye.outlets.filter((o) => !o.active)}
           {#if jd}
-            <g class="wye" transform={`translate(${jd.x} ${jd.y}) scale(${k}) rotate(${jd.angle})`}>
-              {#each others as o, n (o.id)}
-                {@const a = 38 + n * 30}
-                {@const r = outlets[o.path.join("/")]}
-                {@const lx = 78 * Math.cos((a * Math.PI) / 180)}
-                {@const ly = 78 * Math.sin((a * Math.PI) / 180)}
-                <g transform={`rotate(${a})`}>
-                  <line class="stub" class:shut={!o.open || r?.isolated} x1="8" y1="0" x2="74" y2="0" />
-                </g>
-                <g
-                  class="stub-label"
-                  role="button"
-                  tabindex="0"
-                  aria-label={`${o.name}: dibujar esta línea`}
-                  transform={`translate(${lx} ${ly}) rotate(${-jd.angle})`}
-                  onclick={tap(() => onLine?.(o.path))}
-                  onkeydown={(e) => e.key === "Enter" && onLine?.(o.path)}
-                >
-                  <rect x="0" y="-13" width="124" height="26" rx="13" />
-                  <text x="10" y="4.5">{o.name} · {r && !r.isolated ? `${r.flowGpm.toFixed(0)} gpm` : "—"} ›</text>
-                </g>
-              {/each}
-              <path class="wye-body" d="M -8 -8 L 6 -8 L 14 -4 L 14 4 L 6 8 L -8 8 Z" />
+            <g class="wye" transform={`translate(${jd.x} ${jd.y}) scale(${k})`}>
+              <path class="wye-body" transform={`rotate(${jd.angle})`} d="M -8 -8 L 6 -8 L 14 -4 L 14 4 L 6 8 L -8 8 Z" />
               {#each wye.outlets as o (o.id)}
-                {@const a = o.active ? 0 : 38 + others.indexOf(o) * 30}
-                <!-- The drawn outlet's gate just past the body; the others farther out on their stubs, so no two targets overlap. -->
+                <!-- The edited line's gate sits on it; each other outlet's on its lane. -->
+                {@const gy = o.active ? 0 : laneOf(o.path) * LANE_PX}
                 <g
                   class="gate"
                   class:shut={!o.open}
@@ -1279,11 +1318,11 @@
                   tabindex="0"
                   aria-checked={o.open}
                   aria-label={`Válvula de ${o.name}: ${o.open ? "abierta, tocar para cerrar" : "cerrada, tocar para abrir"}`}
-                  transform={`rotate(${a}) translate(${o.active ? 28 : 48} 0)`}
+                  transform={o.active ? `rotate(${jd.angle}) translate(30 0)` : `translate(30 ${gy})`}
                   onclick={tap(() => onGate?.(o.path))}
                   onkeydown={(e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), onGate?.(o.path))}
                 >
-                  <circle class="gate-hit" r="16" />
+                  <circle class="gate-hit" r="12" />
                   <circle class="gate-ball" r="5" />
                   <line class="gate-handle" x1="-10" y1="0" x2="10" y2="0" style:transform={`rotate(${o.open ? 0 : 90}deg)`} />
                 </g>
@@ -1484,13 +1523,10 @@
   .valve path { fill: var(--fitting); }
   .valve line { stroke: var(--fitting); stroke-width: 2; }
   .missing circle { fill: var(--warn); }
+  .hose.idle { opacity: 0.55; }
+  .lane-coupling { fill: var(--steel); pointer-events: none; }
+  .lane-reading { text-anchor: end; font-size: 11px; font-weight: 600; fill: var(--ink); paint-order: stroke; stroke: var(--bg); stroke-width: 3px; pointer-events: none; }
   .wye-body { fill: var(--steel); stroke: var(--ink); stroke-width: 1.5; pointer-events: none; }
-  .stub { stroke: var(--hose); stroke-width: 6; stroke-linecap: round; pointer-events: none; }
-  .stub.shut { stroke-dasharray: 2 6; opacity: 0.7; }
-  .stub-label { cursor: pointer; outline: none; }
-  .stub-label rect { fill: var(--surface); stroke: var(--line); }
-  .stub-label:hover rect, .stub-label:focus-visible rect { stroke: var(--accent); }
-  .stub-label text { font-size: 12px; font-weight: 600; fill: var(--ink); }
   .gate { cursor: pointer; outline: none; }
   .gate-hit { fill: transparent; }
   .gate-ball { fill: var(--steel); stroke: var(--ink); stroke-width: 1.5; pointer-events: none; }
