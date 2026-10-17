@@ -153,18 +153,25 @@
     the dial; gauges that would overlap **sit side by side in a row**, not
     stacked in a column (owner, 2026-10-17): the slot left of the coupling
     first, then right, never past the lay's farthest nozzle and never over a
-    nozzle's body; when neither neighbour is free it goes up a row rather
-    than drifting away from its coupling. The edited line's gauges past
+    nozzle's body. A gauge may also **join the row of a gauge just above
+    it**, beside that gauge, and does so exactly rather than sitting a few
+    pixels off (owner, 2026-10-17: two nozzles a floor apart, the lower one
+    a little ahead, read as one row). A nozzle's gauge counts before it is
+    placed, so the row is the same whichever line is edited. Dials stay
+    inside the "Ver todo" frame; when no slot fits (a crowded phone view)
+    a gauge goes up a row rather than drifting away from its coupling. The edited line's gauges past
     the first wye are tagged too. **Each line has a colour** (owner,
     2026-10-17), shown as a dot before its name: on its gauge tags, the
     hover tag, the "Reparto de" line, the wye panel and the per-line
-    results. Hoses stay hose-red; the colour follows the line's place in
+    results, and as a band at each nozzle's inlet, like tape on a coupling,
+    so a nozzle matches its gauges. Hoses stay hose-red; the colour follows the line's place in
     outlet order (`src/lib/line-colors.ts`, tokens `--line-1…6`), so it
     doesn't change with the line being edited, and the name tells apart
     lines that share a colour past the sixth. **Its couplings and nozzle drag straight
     away** (owner, 2026-10-17): pressing one makes that line the edited one
     and the same press moves it, no tap to pick the line first; a tap still
-    only selects. Picking is needed only where lines overlap and the edited
+    only selects. A nozzle drags from anywhere on its body, not only its
+    coupling end; the bale keeps its tap. Picking is needed only where lines overlap and the edited
     line's handle is on top. **Reaching what is behind:** on desktop,
     hovering an overlap brings the line behind forward with a tag
     ("Línea 2 · clic para editarla") and a click edits it; on any device a

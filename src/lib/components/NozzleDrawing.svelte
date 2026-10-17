@@ -13,6 +13,8 @@
     y,
     selected,
     onToggle,
+    onGrab,
+    color = null,
   }: {
     nozzle: ScenarioNozzle;
     flowGpm: number;
@@ -20,6 +22,10 @@
     y: number;
     selected: boolean;
     onToggle: () => void;
+    /** A press on the nozzle's body: the canvas drags it like its coupling handle. */
+    onGrab?: (e: PointerEvent) => void;
+    /** The line's colour on a branched lay (line-colors.ts): a band at the inlet, like tape on a coupling. */
+    color?: string | null;
   } = $props();
 
   const bale = Tween.of(() => (nozzle.open ? -62 : 8), { duration: 220 });
@@ -41,9 +47,12 @@
     <path class="core" d={`M 50 0 L ${50 + stream.length} ${-stream.core} L ${50 + stream.length} ${stream.core} Z`} />
   {/if}
   <path class="body" d="M 0 -7 L 22 -9 L 22 9 L 0 7 Z" />
+  {#if color}<rect class="band" x="-1" y="-10" width="7" height="20" rx="2" fill={color} />{/if}
   <rect class="ring" x="22" y="-11" width="10" height="22" rx="2" />
   {#if nozzle.kind === "selectable"}<text class="ring-label" x="27" y="-15">{nozzle.ratedFlowGpm}</text>{/if}
   <rect class="collar" x="32" y="-12" width="18" height="24" rx="3" />
+  <!-- The whole body drags (owner, 2026-10-17); the bale above it still takes its tap. Pointer only: the coupling handle is the keyboard slider. -->
+  {#if onGrab}<rect class="grab" role="presentation" x="-12" y="-14" width="64" height="28" rx="6" onpointerdown={onGrab} />{/if}
   <!-- The bale: tap to open or shut. -->
   <g
     class="bale"
@@ -77,4 +86,6 @@
   .bale { cursor: pointer; outline: none; }
   .bale:focus-visible .lever { stroke: var(--accent); }
   .hit { fill: transparent; }
+  .grab { fill: transparent; cursor: grab; touch-action: none; }
+  .band { stroke: var(--surface); stroke-width: 1.5; pointer-events: none; }
 </style>

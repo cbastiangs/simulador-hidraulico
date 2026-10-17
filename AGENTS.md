@@ -16,6 +16,9 @@ here untouched; the screen and station-data integration are still open (see
 - `tests/` — `node --test`, checked against published tables (Colorado DFPC
   chart, CGBVP 2019 manual, metric cross-check). `boundaries.test.mjs`
   enforces the engine's import rule below.
+- `tools/devtools/` — snippets pasted into the browser console on the running
+  app (not part of the build). `layout-dump.js` reports where gauges and
+  nozzles are drawn, for layout bug reports.
 - `docs/ROADMAP.md` — what the simulator is (a playground of lays), the
   stack, the scenario document, trucks, and the milestone order. Read it
   first.

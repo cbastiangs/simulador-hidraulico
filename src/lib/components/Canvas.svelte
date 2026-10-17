@@ -285,7 +285,7 @@
     zoom: number;
     bounds: Bounds;
     filled: Bounds;
-    /** Pressed on another line, which then becomes the edited one: its element is redrawn, so the press is followed on the window. */
+    /** Followed on the window: pressed on another line (redrawn as the edited one) or outside a handle circle. */
     detached?: boolean;
   };
   let press = $state.raw<Press | null>(null);
@@ -678,14 +678,16 @@
     return preferredD <= bestD + 0.5 ? preferred : best;
   }
 
-  function down(event: PointerEvent, node: number) {
+  /** `viaWindow`: pressed outside the handle circles (the nozzle's body), so the press is followed on the window. */
+  function down(event: PointerEvent, node: number, viaWindow = false) {
     if (event.button !== 0) return;
     // The first press owns the pointer: a second touch must not start a drag.
     if (press) return;
     freezeCamera();
     const rect = scroller!.getBoundingClientRect();
     // Resolve the nearest handle (including the outlet) before arming hold/menu.
-    const i = nearestNode(event.clientX, event.clientY, rect, node) ?? node;
+    // The nozzle's body is the nozzle, wherever along it the press lands.
+    const i = viaWindow ? node : (nearestNode(event.clientX, event.clientY, rect, node) ?? node);
     holdStart(event, nodeTarget(i));
     const movable = i > 0;
     press = {
@@ -700,6 +702,7 @@
       zoom,
       bounds: fitted,
       filled,
+      detached: viaWindow,
     };
     // Freeze the mapping from the press itself, not from the first movement.
     frozen = { bounds: press.bounds, filled: press.filled, zoom: press.zoom };
@@ -923,55 +926,84 @@
     const truckTop = layout.groundY - 3.2 * PX_PER_M;
     const at = layout.nodes.map((n, i) => {
       const x = i === 0 ? layout.xAt(-1.5) : n.x;
-      let y = i === 0 ? Math.min(layout.groundY - 4.6 * PX_PER_M, truckTop - 42 * gaugeK) : n.y - 72 * gaugeK;
+      let y = i === 0 ? Math.min(layout.groundY - 4.6 * PX_PER_M, truckTop - 42 * gaugeK) : n.y - GAUGE_RISE * gaugeK;
       // The nozzle gauge clears the bale above it (§10.8).
-      if (i === last) y -= 34 * gaugeK;
+      if (i === last) y = n.y - NOZZLE_GAUGE_RISE * gaugeK;
       return { x, y };
     });
-    // Greedy clearance: while its numeric/readout box (x ± 36k, y − 24k …
-    // + 40k) covers a sampled hose contour point, lift it a whole gauge height
-    // and retry; then step it sideways clear of the gauges already placed.
+    // Greedy clearance: while its dial-and-reading box covers a sampled hose
+    // contour point, lift it a whole gauge height and retry; then step it
+    // sideways clear of the gauges already placed. The box and the step are in
+    // gauge units, like the dial: in `k` they outgrew a zoomed-out gauge and
+    // reached down to its coupling, lifting it off any gently rising hose.
     // Bounded by the node count, so a coil can't loop forever.
     const hosePts = layout.hoses.flatMap((h) => h.geom.points);
+    const onHose = (g: { x: number; y: number }) =>
+      hosePts.some(
+        (p) => Math.abs(p.x - g.x) <= CLEAR_HALF_W * gaugeK && p.y >= g.y - CLEAR_ABOVE * gaugeK && p.y <= g.y + CLEAR_BELOW * gaugeK,
+      );
     const placed: { x: number; y: number }[] = [];
     for (const g of at) {
       let guard = at.length + 1;
-      while (guard-- > 0 && hosePts.some((p) => Math.abs(p.x - g.x) <= 36 * k && p.y >= g.y - 24 * k && p.y <= g.y + 40 * k)) {
-        g.y -= 68 * k;
-      }
+      while (guard-- > 0 && onHose(g)) g.y -= LIFT_STEP * gaugeK;
       Object.assign(g, besideClear(g, placed));
       placed.push({ x: g.x, y: g.y });
     }
     return at;
   });
   const nozzleSpots = $derived([layout.nodes[last], ...otherLines.map((o) => o.layout.nodes.at(-1)!)]);
-  const layEndX = $derived(Math.max(...layout.nodes.map((n) => n.x), ...otherLines.flatMap((o) => o.layout.nodes.map((n) => n.x))));
+  /** The right edge of the fitted view ("Ver todo"): past it a gauge would be cut off. */
+  const viewEndX = $derived(layout.xAt(fitted.maxX));
   /** Gauge footprint in gauge units (scaled by `gaugeK`), the line's name above the dial included. */
   const GAUGE_W = 76;
   const GAUGE_H = 84;
+  /** How high a gauge's centre starts above its coupling; a nozzle's goes higher to clear the bale (§10.8). */
+  const GAUGE_RISE = 72;
+  const NOZZLE_GAUGE_RISE = GAUGE_RISE + 34;
+  /** A hose inside this box around the dial's centre (gauge units) lifts the gauge by `LIFT_STEP`; the reading ends about 36 below. */
+  const CLEAR_HALF_W = 36;
+  const CLEAR_ABOVE = 24;
+  const CLEAR_BELOW = 40;
+  const LIFT_STEP = 68;
   /**
    * Gauges that would overlap sit in a row, not a column (owner, 2026-10-17):
    * the nearest free slot left or right of the coupling, one gauge width apart.
    * Left first: a lay runs left to right, so past its nozzle the view ends.
-   * A slot stays over the lay (not past its farthest nozzle, where a fitted
-   * view ends) and next to its coupling; when neither neighbour is free the
-   * gauge goes up a row and retries.
+   * A slot stays inside the fitted view and next to its coupling. Besides its own height, a gauge may
+   * join the row of a gauge already placed just above it, beside that gauge
+   * (owner, 2026-10-17: two nozzles a floor apart, the lower one a little
+   * ahead, read as one row, not one gauge shot up over the other). Of the
+   * free slots the nearest wins; lifted rows are the last resort.
    */
   function besideClear(g: { x: number; y: number }, placed: { x: number; y: number }[]) {
     const w = GAUGE_W * gaugeK;
     const h = GAUGE_H * gaugeK;
-    const inside = (x: number) => x - w / 2 >= 0 && x <= layEndX;
+    // The dial and its name (about 32 either side of its centre) stay inside the frame; the spacing may not.
+    const inside = (x: number) => x - 32 * gaugeK >= 0 && x + 32 * gaugeK <= viewEndX;
     // 1 % slack: a slot exactly one width away is free, whatever the rounding.
     // A dial is drawn over everything, so it must also keep off every nozzle (its body and bale, not its spray).
     const onNozzle = (x: number, y: number) =>
       nozzleSpots.some((n) => x + w / 2 > n.x - 30 * k && x - w / 2 < n.x + 50 * k && y + h / 2 > n.y - 30 * k && y - h / 2 < n.y + 16 * k);
     const hits = (x: number, y: number) => onNozzle(x, y) || placed.some((p) => Math.abs(p.x - x) < w * 0.99 && Math.abs(p.y - y) < h);
-    for (let row = 0; row <= placed.length + nozzleSpots.length; row++) {
+    const free = (x: number, y: number) => (x === g.x || inside(x)) && !hits(x, y);
+    const cost = (x: number, y: number) => Math.hypot(x - g.x, y - g.y);
+    // Own height and the rows of nearby gauges up to one row above: the next slot either side of
+    // the coupling, and beside each gauge on that row. Farther out a dial loses its coupling.
+    // A nozzle's gauge counts even before it is placed: whichever line is drawn first, both find the same row.
+    const near = (p: { x: number; y: number }) => p.y < g.y - 1 && g.y - p.y <= h && Math.abs(p.x - g.x) <= 2 * w;
+    const neighbours = [...placed, ...nozzleSpots.map((n) => ({ x: n.x, y: n.y - NOZZLE_GAUGE_RISE * gaugeK }))];
+    const rows = [g.y, ...neighbours.filter(near).map((p) => p.y)];
+    const slots = rows.flatMap((y) => [
+      ...[g.x, g.x - w, g.x + w].map((x) => ({ x, y })),
+      ...neighbours.filter((p) => Math.abs(p.y - y) < 1 && Math.abs(p.x - g.x) <= 2 * w).flatMap((p) => [{ x: p.x - w, y }, { x: p.x + w, y }]),
+    ]);
+    // A row in reach is joined exactly: two gauges a few pixels apart in height read as a mistake.
+    const joins = (s: { y: number }) => (s.y !== g.y ? 0 : 1);
+    const best = slots.filter((s) => free(s.x, s.y)).sort((a, b) => joins(a) - joins(b) || cost(a.x, a.y) - cost(b.x, b.y))[0];
+    if (best) return best;
+    for (let row = 1; row <= placed.length + nozzleSpots.length; row++) {
       const y = g.y - row * h;
-      // Only the next slot either side: farther out, a dial loses its coupling, so it goes up a row instead.
-      for (let n = 0; n <= 1; n++) {
-        for (const x of n === 0 ? [g.x] : [g.x - n * w, g.x + n * w]) if ((n === 0 || inside(x)) && !hits(x, y)) return { x, y };
-      }
+      for (const x of [g.x, g.x - w, g.x + w]) if (free(x, y)) return { x, y };
     }
     return g;
   }
@@ -982,7 +1014,7 @@
     return otherLines.map((o) =>
       o.layout.nodes.map((n, i) => {
         if (i <= o.from || !Number.isFinite(o.result.nodes[i]?.pressurePsi)) return null;
-        const g = { x: n.x, y: n.y - 72 * gaugeK - (i === o.layout.nodes.length - 1 ? 34 * gaugeK : 0) };
+        const g = { x: n.x, y: n.y - (i === o.layout.nodes.length - 1 ? NOZZLE_GAUGE_RISE : GAUGE_RISE) * gaugeK };
         Object.assign(g, besideClear(g, placed));
         placed.push(g);
         return g;
@@ -1364,7 +1396,16 @@
               {/if}
             {/each}
             <g transform={`translate(${end.x} ${end.y}) scale(${k})`}>
-              <NozzleDrawing nozzle={o.scenario.nozzle} flowGpm={o.result.flowGpm} x={0} y={0} selected={false} onToggle={() => onOtherNozzle?.(o.path)} />
+              <NozzleDrawing
+                nozzle={o.scenario.nozzle}
+                flowGpm={o.result.flowGpm}
+                x={0}
+                y={0}
+                selected={false}
+                color={colorOf(o.key)}
+                onToggle={() => onOtherNozzle?.(o.path)}
+                onGrab={(e) => downOther(e, o, o.layout.nodes.length - 1)}
+              />
             </g>
           </g>
         {/snippet}
@@ -1556,7 +1597,9 @@
             x={0}
             y={0}
             selected={selection?.kind === "nozzle"}
+            color={otherLines.length ? colorOf(editedKey) : null}
             onToggle={onToggleNozzle}
+            onGrab={(e) => down(e, last, true)}
           />
         </g>
         <!-- The dials over everything, the spray included (owner, 2026-10-17); they take no pointer, so the bale still works under them. -->
