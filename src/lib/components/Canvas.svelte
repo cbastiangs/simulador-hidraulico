@@ -63,6 +63,10 @@
     others = [],
     onPick,
     onOtherNozzle,
+    onGate,
+    editedPath = [],
+    editedName = "",
+    linePaths = [],
   }: {
     scenario: Scenario;
     result: SeriesResult;
@@ -104,6 +108,12 @@
     /** A tap on another line: edit that line, with this selected (its own coordinates). */
     onPick?: (path: string[], selection: Selection) => void;
     onOtherNozzle?: (path: string[]) => void;
+    /** Open or shut a wye outlet's valve (its lever on the side-view wye). */
+    onGate?: (path: string[]) => void;
+    /** The edited line's path and name, and every line's path in outlet order. */
+    editedPath?: string[];
+    editedName?: string;
+    linePaths?: string[][];
   } = $props();
 
   const TAP_PX = 6;
@@ -330,26 +340,112 @@
   // A wye on a branched lay's drawn path (UX.md §2) is drawn by itself, not as an adapter.
   const junctions = $derived(junctionsOf(scenario));
   const junctionAtJoint = (i: number): Junction | undefined => junctions.find((j) => j.joint === i);
-  // The other lines of a branched lay, each laid out like the edited one (the
-  // shared feed lands on the same pixels) and drawn from its wye in a lane
-  // LANE_PX below: hoses on one floor lie side by side, so they are drawn as a
-  // bundle, the edited line in front (owner, 2026-10-17: "allow some
-  // overlap"). A screen offset like the hose thickness; heights stay data.
-  const LANE_PX = 18;
+  // The other lines of a branched lay, each laid out like the edited one: the
+  // shared feed lands on the same pixels and every line sits at its true
+  // height, so lines on one floor overlap like hoses lying together (owner,
+  // 2026-10-17). What hides behind is reached by hover (desktop), a second
+  // tap on the same spot, the long-press list, or the "×2" badge.
   const otherLines = $derived(
-    others.map((o, i) => ({ ...o, lane: i + 1, layout: layoutWorld(o.scenario.sections, o.result.nodes.map((n) => n.pressurePsi), filled, floorM, filled.maxY) })),
+    others.map((o) => ({ ...o, key: o.path.join("/"), layout: layoutWorld(o.scenario.sections, o.result.nodes.map((n) => n.pressurePsi), filled, floorM, filled.maxY) })),
   );
-  /** The lane an outlet's water is drawn in: its first line's. */
-  const laneOf = (path: string[]) => otherLines.find((o) => path.every((id, i) => o.path[i] === id))?.lane ?? 1;
+  const editedKey = $derived(editedPath.join("/"));
+  const lineOrder = $derived(linePaths.map((p) => p.join("/")));
+  const nameOf = (key: string) => (key === editedKey ? editedName : (otherLines.find((o) => o.key === key)?.name ?? ""));
+  const pathOf = (key: string) => (key === editedKey ? editedPath : (otherLines.find((o) => o.key === key)?.path ?? []));
+
+  /** The lines under a point, front first, with the hose under it in each line's own numbering. */
+  function linesAt(x: number, y: number) {
+    const out: { key: string; index: number }[] = [];
+    for (const el of document.elementsFromPoint(x, y)) {
+      const key = (el as HTMLElement).dataset?.line;
+      if (key !== undefined && !out.some((o) => o.key === key)) out.push({ key, index: Number((el as HTMLElement).dataset.index) });
+    }
+    return out;
+  }
+
+  // Hover (mouse only): where lines overlap, the one behind comes forward
+  // with a tag; a click then edits it. Kept while the pointer stays on it.
+  let peek = $state<{ key: string; x: number; y: number } | null>(null);
+  function hoverLines(e: PointerEvent) {
+    if (e.pointerType !== "mouse" || !otherLines.length || press || dragging !== null) return;
+    const stack = linesAt(e.clientX, e.clientY);
+    const rect = scroller!.getBoundingClientRect();
+    const at = { x: e.clientX - rect.left + camX, y: e.clientY - rect.top + camY };
+    if (stack.length < 2) peek = null;
+    else if (peek && stack.some((l) => l.key === peek!.key)) peek = { key: peek.key, ...at };
+    else {
+      const behind = stack.find((l) => l.key !== editedKey);
+      peek = behind ? { key: behind.key, ...at } : null;
+    }
+  }
+
+  // A second tap on the same overlap edits the next line there, in outlet
+  // order. "Same" means the same hoses, not the same pixels: on a phone the
+  // first tap opens the sheet and the drawing moves up.
+  let lastTap: { spot: string; t: number } | null = null;
+  let toast = $state("");
+  let toastTimer: ReturnType<typeof setTimeout> | undefined;
+  function say(text: string) {
+    toast = text;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => (toast = ""), 2500);
+  }
+  function cycleClick(e: MouseEvent) {
+    if (!otherLines.length) return;
+    const stack = linesAt(e.clientX, e.clientY);
+    if (stack.length < 2) return void (lastTap = null);
+    const spot = stack.map((l) => `${l.key}#${l.index}`).sort().join(",");
+    const repeat = lastTap !== null && lastTap.spot === spot && e.timeStamp - lastTap.t < 4000;
+    lastTap = { spot, t: e.timeStamp };
+    const here = lineOrder.filter((k) => stack.some((l) => l.key === k));
+    if (!repeat) {
+      if (!peek) say(`${here.length} líneas aquí · toca de nuevo para la siguiente`);
+      return;
+    }
+    const next = here[(here.indexOf(editedKey) + 1) % here.length];
+    if (next === editedKey) return;
+    e.stopPropagation();
+    e.preventDefault();
+    onPick?.(pathOf(next), { kind: "section", index: stack.find((l) => l.key === next)!.index });
+    say(`${nameOf(next)} · toca de nuevo para la siguiente`);
+  }
+
+  /** Line ends that coincide on screen: a "×n" badge there picks the next line's nozzle. */
+  const endGroups = $derived.by(() => {
+    const ends = [
+      { key: editedKey, x: layout.nodes[layout.nodes.length - 1].x, y: layout.nodes[layout.nodes.length - 1].y },
+      ...otherLines.map((o) => ({ key: o.key, x: o.layout.nodes.at(-1)!.x, y: o.layout.nodes.at(-1)!.y })),
+    ];
+    const groups: (typeof ends)[] = [];
+    for (const e of ends) {
+      const g = groups.find((g) => Math.hypot(g[0].x - e.x, g[0].y - e.y) * zoom < 10);
+      if (g) g.push(e);
+      else groups.push([e]);
+    }
+    return groups.filter((g) => g.length > 1);
+  });
+  function nextNozzle(group: { key: string }[]) {
+    const keys = lineOrder.filter((k) => group.some((g) => g.key === k));
+    const next = keys[(keys.indexOf(editedKey) + 1) % keys.length];
+    onPick?.(pathOf(next), { kind: "nozzle" });
+    say(`Pitón de ${nameOf(next)}`);
+  }
+
   const js = $derived(joints(scenario).map((j) => (junctionAtJoint(j.index) ? { ...j, mismatch: false, auto: false, missing: false, placed: [] } : j)));
   const missing = $derived(js.filter((j) => j.missing));
 
   // Context menu (UX.md §2): right click, or a press held still for 0.5 s on touch.
   const HOLD_MS = 500;
-  let menu = $state<{ target: Target; x: number; y: number } | null>(null);
+  let menu = $state<{ target: Target; x: number; y: number; choices: { label: string; run: () => void }[] } | null>(null);
   let hold: { timer: ReturnType<typeof setTimeout>; x: number; y: number } | null = null;
   /** The press that opened the menu must not also count as a tap when it lifts. */
   let held = false;
+
+  /** Where lines overlap, the menu also lists the others under the finger. */
+  const overlapChoices = (x: number, y: number) =>
+    linesAt(x, y)
+      .filter((l) => l.key !== editedKey)
+      .map((l) => ({ label: `Editar ${nameOf(l.key)}`, run: () => onPick?.(pathOf(l.key), { kind: "section", index: l.index }) }));
 
   function openMenu(event: MouseEvent, target: Target) {
     event.preventDefault();
@@ -361,7 +457,7 @@
     dragging = null;
     frozen = null;
     constrained = false;
-    menu = { target, x: event.clientX, y: event.clientY };
+    menu = { target, x: event.clientX, y: event.clientY, choices: overlapChoices(event.clientX, event.clientY) };
     if (target.kind !== "line") onSelect(target);
   }
 
@@ -380,7 +476,7 @@
         dragging = null;
         frozen = null;
         constrained = false;
-        menu = { target, x, y };
+        menu = { target, x, y, choices: overlapChoices(x, y) };
         if (target.kind !== "line") onSelect(target);
       }, HOLD_MS),
     };
@@ -817,6 +913,22 @@
     return at;
   });
   const gaugeAt = (i: number) => gauges[i];
+  /** Every line's gauges (owner, 2026-10-17: none hidden), lifted clear of those already placed and tagged with the line. */
+  const otherGauges = $derived.by(() => {
+    const placed = gauges.map((g) => ({ x: g.x, y: g.y }));
+    return otherLines.map((o) =>
+      o.layout.nodes.map((n, i) => {
+        if (i <= o.from || !Number.isFinite(o.result.nodes[i]?.pressurePsi)) return null;
+        const g = { x: n.x, y: n.y - 72 * gaugeK - (i === o.layout.nodes.length - 1 ? 34 * gaugeK : 0) };
+        let guard = placed.length + 1;
+        while (guard-- > 0 && placed.some((p) => Math.abs(p.x - g.x) * zoom < 70 && Math.abs(p.y - g.y) * zoom < 68)) g.y -= 68 * k;
+        placed.push(g);
+        return g;
+      }),
+    );
+  });
+  /** On a branched lay the edited line's gauges past its first wye carry its name too. */
+  const firstWye = $derived(junctions[0]?.joint ?? Infinity);
 
   const nodeName = (i: number) => (i === 0 ? "la bomba" : jointNameIn(scenario, i));
 
@@ -1095,7 +1207,9 @@
         aria-label="Vista lateral de la línea"
         oncontextmenu={(e) => openMenu(e, { kind: "line" })}
         onpointerdown={(e) => holdStart(e, { kind: "line" })}
-        onpointermove={holdMove}
+        onpointerleave={() => (peek = null)}
+        onclickcapture={cycleClick}
+        onpointermove={(e) => (holdMove(e), hoverLines(e))}
         onpointerup={cancelHold}
         onpointercancel={cancelHold}
       >
@@ -1139,30 +1253,33 @@
         <rect class="outlet" x={layout.xAt(-2.5)} y={layout.nodes[0].y - 0.25 * PX_PER_M} width={layout.nodes[0].x - layout.xAt(-2.5)} height={0.5 * PX_PER_M} />
         <text class="tag" x={layout.xAt(-5.75)} y={layout.groundY + 16 * k}>Bomba{outletIn ? ` · salida ${sizeLabel(outletIn)}` : ""}</text>
 
-        <!-- The other lines (owner, 2026-10-17): hoses, couplings, nozzle and a reading, in their lanes.
-             A tap makes that line the edited one; the edited line draws on top with its handles and gauges. -->
-        {#each otherLines as o (o.path.join("/"))}
-          {@const dy = o.lane * LANE_PX * k}
+        <!-- The other lines (owner, 2026-10-17): hoses, couplings and nozzle at their true height.
+             A tap makes that line the edited one; the edited line draws on top with its handles. -->
+        {#snippet otherLine(o: (typeof otherLines)[number], peeked: boolean)}
           {@const end = o.layout.nodes[o.layout.nodes.length - 1]}
           {@const lastSection = o.scenario.sections.length - 1}
-          <g transform={`translate(0 ${dy})`}>
+          <g class="other-line" class:peeked>
             {#each o.layout.hoses.filter((h) => h.index >= o.from) as h (h.index)}
               {@const sec = o.scenario.sections[h.index]}
               <!-- The first hose starts at the wye's outlet coupling, not under the casting. -->
               {@const d = drawnHose(h.geom, h.index === o.from ? 19 * k : 0).d}
               {@const q = sectionFlow(o.result, h.index)}
               {@const p = q > 0.5 ? particles(sec.diameterIn, q) : null}
+              {#if peeked}<path class="peek-outline" {d} stroke-width={hoseWidth(h.thicknessPx, sec.diameterIn) + 6 * k} />{/if}
               <path class="hose" class:idle={!p} {d} stroke-width={hoseWidth(h.thicknessPx, sec.diameterIn)} />
               {#if p}<path class="particles" {d} stroke-width={Math.max(2, hoseWidth(h.thicknessPx, sec.diameterIn) * 0.3)} style:--offset="0px" style:--gap={`${p.gapPx}px`} style:--period={`${p.seconds}s`} use:waterPhase />{/if}
               <path
                 class="hit"
                 {d}
-                stroke-width={24 * k}
+                data-line={o.key}
+                data-index={h.index}
+                stroke-width={36 * k}
                 role="button"
                 tabindex="0"
                 aria-label={`${o.name}, tramo ${h.index - o.from + 1}: ${sec.lengthM} m de ${sizeLabel(sec.diameterIn)}. Tocar para editar esta línea`}
                 onclick={tap(() => onPick?.(o.path, { kind: "section", index: h.index }))}
                 onkeydown={(e) => e.key === "Enter" && onPick?.(o.path, { kind: "section", index: h.index })}
+                oncontextmenu={(e) => (onPick?.(o.path, { kind: "section", index: h.index }), openMenu(e, { kind: "section", index: h.index }))}
               />
             {/each}
             {#each o.layout.nodes as n, i (i)}
@@ -1170,10 +1287,10 @@
             {/each}
             <g transform={`translate(${end.x} ${end.y}) scale(${k})`}>
               <NozzleDrawing nozzle={o.scenario.nozzle} flowGpm={o.result.flowGpm} x={0} y={0} selected={false} onToggle={() => onOtherNozzle?.(o.path)} />
-              <text class="lane-reading" x="12" y="26">{o.name} · {o.result.flowGpm > 0.5 ? `${o.result.flowGpm.toFixed(0)} gpm · ${o.result.nozzlePressurePsi.toFixed(0)} psi` : o.shut ? "válvula cerrada" : o.scenario.nozzle.open ? "sin caudal" : "pitón cerrado"}</text>
             </g>
           </g>
-        {/each}
+        {/snippet}
+        {#each otherLines.filter((o) => o.key !== peek?.key) as o (o.key)}{@render otherLine(o, false)}{/each}
 
         <!-- Hoses: one contour for the hose, the particles, the selection and the hit path -->
         {#each drawing.hoses as hd (hd.index)}
@@ -1195,6 +1312,8 @@
           <path
             class="hit"
             d={hd.d}
+            data-line={editedKey}
+            data-index={hd.index}
             stroke-width={44 * k}
             role="button"
             tabindex="0"
@@ -1206,6 +1325,9 @@
           />
           <text class="tag" transform={`translate(${lbl.x} ${lbl.y}) rotate(${lbl.angle})`}>{lbl.text}</text>
         {/each}
+
+        <!-- Hovered: the line behind comes forward over the edited one. -->
+        {#each otherLines.filter((o) => o.key === peek?.key) as o (o.key)}{@render otherLine(o, true)}{/each}
 
         <!-- Couplings and their fittings (MODEL.md §3.10): adapters where coupling sizes differ, valves -->
         {#each drawing.joints as jd, i (i)}
@@ -1305,7 +1427,7 @@
           {@const jd = drawing.joints[wye.joint]}
           {#if jd}
             <g transform={`translate(${jd.x} ${jd.y}) scale(${k}) rotate(${jd.angle})`}>
-              <WyeDrawing lanes={wye.outlets.map((o) => (o.active ? 0 : laneOf(o.path) * LANE_PX))} />
+              <WyeDrawing outlets={wye.outlets} onGate={(path: string[]) => tap(() => onGate?.(path))()} />
             </g>
           {/if}
         {/each}
@@ -1322,6 +1444,7 @@
             {#if Number.isFinite(n.pressurePsi)}
             <g class="gauge" transform={`translate(${g.x} ${g.y}) scale(${gaugeK})`}>
               <Gauge psi={n.pressurePsi} mark={i === last ? scenario.nozzle.ratedPressurePsi : undefined} />
+              {#if i > firstWye && editedName}<text class="gauge-tag" x="-36" y="4">{editedName}</text>{/if}
               <circle
                 class="gauge-hit"
                 r={Math.max(24, 22 / (gaugeK * zoom))}
@@ -1335,6 +1458,34 @@
             {/if}
           {/each}
         {/if}
+        {#if showGauges}
+          {#each otherLines as o, li (o.key)}
+            {#each o.layout.nodes as n, i (i)}
+              {@const g = otherGauges[li]?.[i]}
+              {#if g}
+                <g class="gauge other-gauge" transform={`translate(${g.x} ${g.y}) scale(${gaugeK})`}>
+                  <Gauge psi={o.result.nodes[i].pressurePsi} mark={i === o.layout.nodes.length - 1 ? o.scenario.nozzle.ratedPressurePsi : undefined} />
+                  <text class="gauge-tag" x="-36" y="4">{o.name}</text>
+                </g>
+              {/if}
+            {/each}
+          {/each}
+        {/if}
+        <!-- Where line ends coincide: "×n", a tap edits the next line's nozzle. -->
+        {#each endGroups as group, gi (gi)}
+          <g
+            class="stack-badge"
+            role="button"
+            tabindex="0"
+            aria-label={`${group.length} pitones aquí: elegir el siguiente`}
+            transform={`translate(${group[0].x - 6 * k} ${group[0].y + 22 * k}) scale(${k})`}
+            onclick={tap(() => nextNozzle(group))}
+            onkeydown={(e) => e.key === "Enter" && nextNozzle(group)}
+          >
+            <rect x="-15" y="-11" width="30" height="22" rx="11" />
+            <text y="4.5">×{group.length}</text>
+          </g>
+        {/each}
         <!-- The nozzle above its handle and the gauges: the highest event layer -->
         <g transform={`translate(${layout.nodes[last].x} ${layout.nodes[last].y}) scale(${k})`}>
           <NozzleDrawing
@@ -1348,6 +1499,9 @@
         </g>
 
       </svg>
+      {#if peek}
+        <div class="peek-tag" style:left={`${peek.x + 14}px`} style:top={`${peek.y - 34}px`}>{nameOf(peek.key)} · clic para editarla</div>
+      {/if}
 
       {#if selectedHose && dragging === null && !phone}
         {@const i = selectedHose.index}
@@ -1418,6 +1572,7 @@
       {/if}
     </div>
   </div>
+  {#if toast}<div class="toast" role="status">{toast}</div>{/if}
   <!-- Controls live below the drawing, never over it. -->
   <div class="toolbar">
   {#if missing.length > 0}
@@ -1445,7 +1600,7 @@
 </div>
 
 {#if menu}
-  <ContextMenu target={menu.target} x={menu.x} y={menu.y} {scenario} requiredPsi={result.requiredPumpPressurePsi} {onAction} onClose={() => (menu = null)} />
+  <ContextMenu target={menu.target} x={menu.x} y={menu.y} choices={menu.choices} {scenario} requiredPsi={result.requiredPumpPressurePsi} {onAction} onClose={() => (menu = null)} />
 {/if}
 
 <style>
@@ -1504,7 +1659,14 @@
   .missing circle { fill: var(--warn); }
   .hose.idle { opacity: 0.55; }
   .lane-coupling { fill: var(--steel); pointer-events: none; }
-  .lane-reading { font-size: 11px; font-weight: 600; fill: var(--ink); paint-order: stroke; stroke: var(--bg); stroke-width: 3px; pointer-events: none; }
+  .peek-outline { fill: none; stroke: var(--accent); opacity: 0.55; pointer-events: none; }
+  .gauge-tag { font-size: 11px; font-weight: 700; text-anchor: end; fill: var(--ink); paint-order: stroke; stroke: var(--bg); stroke-width: 3px; pointer-events: none; }
+  .stack-badge { cursor: pointer; outline: none; }
+  .stack-badge rect { fill: var(--ink); }
+  .stack-badge text { fill: var(--bg); font-size: 12px; font-weight: 700; text-anchor: middle; }
+  .stack-badge:focus-visible rect { stroke: var(--accent); stroke-width: 3; }
+  .peek-tag { position: absolute; z-index: 6; padding: 4px 8px; border-radius: 6px; background: var(--ink); color: var(--bg); font-size: 12px; font-weight: 600; white-space: nowrap; pointer-events: none; }
+  .toast { position: absolute; z-index: 7; left: 50%; top: 10px; transform: translateX(-50%); padding: 6px 12px; border-radius: 8px; background: var(--ink); color: var(--bg); font-size: 13px; pointer-events: none; }
   .missing text { fill: #fff; font-size: 14px; font-weight: 800; text-anchor: middle; }
   .hose { stroke: var(--hose); stroke-linecap: butt; fill: none; }
   .particles { fill: none; stroke: #fff; stroke-opacity: 0.85; stroke-linecap: round; stroke-dasharray: 0 var(--gap); animation: water var(--period) linear infinite; pointer-events: none; }

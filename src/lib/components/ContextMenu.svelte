@@ -14,6 +14,7 @@
     requiredPsi,
     onAction,
     onClose,
+    choices = [],
   }: {
     target: Target;
     /** Where it opened, in window pixels. */
@@ -23,6 +24,8 @@
     requiredPsi: number;
     onAction: (action: Action, target: Target) => void;
     onClose: () => void;
+    /** Other lines under the pointer, where lines overlap (UX.md §2). */
+    choices?: { label: string; run: () => void }[];
   } = $props();
 
   const ctx = $derived({ scenario, target, requiredPsi });
@@ -84,6 +87,9 @@
   oncontextmenu={(e) => e.preventDefault()}
 >
   <p class="title">{title}</p>
+  {#each choices as c (c.label)}
+    <button type="button" role="menuitem" class="choice" onclick={() => (c.run(), onClose())}>{c.label}</button>
+  {/each}
   {#each items as { a, label, why } (a.id)}
     <button
       type="button"
@@ -105,5 +111,6 @@
   button:hover:not(:disabled), button:focus-visible { background: var(--accent-soft); outline: none; }
   button:disabled { opacity: 0.4; cursor: default; }
   .danger { color: var(--warn); }
+  .choice { color: var(--accent); font-weight: 600; border-bottom: 1px solid var(--line); border-radius: 0; }
   small { font-size: 11px; color: var(--muted); }
 </style>

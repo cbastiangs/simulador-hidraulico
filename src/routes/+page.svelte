@@ -383,6 +383,10 @@
       onAction={runAction}
       {fitSignal}
       {others}
+      editedPath={view?.path ?? []}
+      editedName={view ? lineName.split(" › ").at(-1) : ""}
+      linePaths={network ? branch.leafPaths(scenario) : []}
+      onGate={(path) => applyTree(branch.toggleGate(scenario, path))}
       onPick={(path, sel) => {
         selectedPath = path;
         select(sel);

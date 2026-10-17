@@ -143,27 +143,34 @@
     horizontal view"; "why can't we render both lines"). One line is **the
     edited line**: drawn on top, at scale, with its handles, gauges, hose
     labels and floating toolbars, and it is the line the pressure split and
-    "Ver cálculo" describe. Every other line leaves its wye in its own
-    **lane**, 18 screen px below: hoses on one floor lie side by side, so
-    they are drawn as a bundle with the edited line in front (owner,
-    2026-10-17: "allow some overlap"; a screen offset like the hose
-    thickness, heights stay data; hose labels carry a halo where hoses
-    cross):
-    hoses with moving water at their own flow, couplings, its nozzle with
-    bale and stream, and a reading ("Línea 2 · 107 gpm · 114 psi", or
-    "válvula cerrada"). Tapping another line makes it the edited line with
-    that hose selected; its bale works in place. **On the canvas the wye is
-    a plain side view** (owner, 2026-10-17: from the side its outlets sit
-    one behind the other; "side view doesn't need much detail"): swivel,
-    body and an outlet coupling per lane, nothing to operate. **Its valves
-    live in its close-up, drawn from above**: selecting the wye opens its
-    panel with the gated wye seen from above — inlet swivel with rocker
-    lugs, the Y casting, and on each arm a ball valve whose quarter-turn
-    lever lies along the arm when open and across it when shut, tapped to
-    open or close; each arm ends in its line's name and flow. It follows
-    the Operate / Close-up preference: with plain controls each outlet has
-    Abierta / Cerrada buttons instead. Below, each outlet with its flow
-    and nozzle pressure, "Editar esta línea", "Añadir línea" and "Quitar
+    "Ver cálculo" describe. **Every line sits at its true height and
+    lines overlap** (owner, 2026-10-17: hoses on one floor lie together;
+    "allow overlap"), the edited line in front; hose labels carry a halo
+    where hoses cross. Each other line shows its hoses with moving water
+    at their own flow, couplings, its nozzle with bale and stream, and
+    **its gauges — none hidden, each tagged with its line's name** beside
+    the dial and lifted clear of the others; the edited line's gauges past
+    the first wye are tagged too. **Reaching what is behind:** on desktop,
+    hovering an overlap brings the line behind forward with a tag
+    ("Línea 2 · clic para editarla") and a click edits it; on any device a
+    second tap on the same overlap (the same hoses, wherever the drawing
+    has moved) edits the next line there in outlet order, with a toast
+    ("2 líneas aquí · toca de nuevo para la siguiente"); right-click or
+    long-press lists "Editar Línea n" for every line under the pointer;
+    where line ends coincide a "×n" badge picks the next line's nozzle.
+    Hover is only a preview, never the only way. **The wye in the side
+    view** (owner, 2026-10-17: "side view doesn't need much detail"):
+    swivel, body and outlet coupling, with each outlet's quarter-turn
+    valve lever on top, staggered along the body — open, a bar along the
+    hose; shut, turned across it toward the eye (its red end) — tapped to
+    open or close. **Its close-up is drawn from above**: selecting the wye
+    opens its panel with the gated wye seen from above — inlet swivel with
+    rocker lugs, the Y casting, and on each arm a ball valve whose lever
+    lies along the arm when open and across it when shut; each arm ends in
+    its line's name and flow. It follows the Operate / Close-up
+    preference: with plain controls each outlet has Abierta / Cerrada
+    buttons instead. Below, each outlet with its flow and nozzle
+    pressure, "Editar esta línea", "Añadir línea" and "Quitar
     bifurca". The edited line's hoses and nozzle use the ordinary
     canvas and inspector; an edit maps back to the segment it belongs to
     (`branch-edit.ts` `applyPathEdit`), hoses never merge across a wye and
