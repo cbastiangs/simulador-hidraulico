@@ -292,7 +292,7 @@ Options for the law, not exclusive (a method bundle can pick one):
 | | Law | Needs before shipping | Fits |
 |---|---|---|---|
 | A. Heat balance | cooling = Q × 163 kW/gpm × η vs a fire's heat release (MW) | η (Särdqvist 2002; Grimwood); sourced HRR for each fire preset | `physical` |
-| B. Fire-flow convention | required gpm from fire size: NFA (area ft² / 3 × fraction involved) or Iowa (volume ft³ / 100) | Both formulas verified against their publications (written from memory so far); no η | `us-training` / a training label; a "caudal requerido" mark on the flow gauge |
+| B. Fire-flow convention | required gpm from fire size: NFA (area ft² / 3 × fraction involved); Iowa (volume ft³ / 100) not planned | NFA verified against its publication (2026-10-16: NFA *Initial Company Operations* SM, SM2-28–30); no η | `us-training` / a training label; a "caudal requerido" mark on the flow gauge |
 
 Out of scope either way: time to knockdown, fire dynamics, quantified reach
 or droplet size (qualitative labels only). Never present pressure as
@@ -300,6 +300,10 @@ irrelevant.
 
 **Decided (owner, 2026-10-15; §11 decision 8):** B first, NFA only; A
 later beside it; right after §10c's polish, ahead of M2–M4.
+**Engine only now (owner, 2026-10-16):** the NFA fire-flow law and its
+delivered-vs-required comparison ship in `src/extinguishment/` on their own,
+with the screen's visuals (the "caudal requerido" gauge mark, the fire-size
+picker) **deferred**. No UI or scenario wiring yet.
 
 ### 7.7 Two pumps
 
@@ -447,13 +451,17 @@ station-maniobra presets).
 
 ### Extinguishment (owner, 2026-10-15)
 
-8. **Fire flow first, heat balance later** (§7.6). Ships right after §10c's
-   polish, ahead of M2–M4: it needs only the solved nozzle flow.
+8. **Fire flow first, heat balance later** (§7.6). Needs only the solved
+   nozzle flow. **Engine first (2026-10-16):** the law and the comparison are
+   built in `src/extinguishment/`; the screen's visuals are deferred
+   (see §7.6).
    - **First: NFA formula only** (`extinguish.fire-flow`): a "caudal
      requerido" mark on the flow gauge, from a preset's floor area and
      fraction involved. Says the message in the firefighter's units and
-     needs no η. Labelled a training convention. Verify against the NFA
-     publication before use.
+     needs no η. Labelled a training convention. **Verified** 2026-10-16
+     against the NFA *Strategy and Tactics for Initial Company Operations*
+     student manual, SM2-28–30 (MODEL.md §3.12, §9); no caps and no
+     automatic halving.
    - **Iowa: not planned.** Volume-based, built for confined spaces; a
      second number that disagrees without teaching more. Revisit only if
      the station teaches it.

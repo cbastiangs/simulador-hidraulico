@@ -574,7 +574,7 @@ than a fog nozzle at 100 psi (185 gpm: 69 vs 93 lbf).
   pressure, so the solver walks the line forward; still monotone in Q.
   Set points: `verify`.
 
-### 3.12 Extinguishment: `extinguish.absorption` ⏳ M5
+### 3.12 Extinguishment: `extinguish.fire-flow` ✅, `extinguish.absorption` ⏳ M5
 
 - Water from 20 °C to steam absorbs 4.18 × 80 + 2257 = **2591 kJ/kg ≈
   2.6 MJ/kg** (`physics`; IAPWS [E6] for the latent heat).
@@ -584,11 +584,29 @@ than a fog nozzle at 100 psi (185 gpm: 69 vs 93 lbf).
 - The message the model must support: **flow sets the cooling capacity;
   pressure moves the flow and shapes the stream.**
 - Its own folder (`src/extinguishment/`), never imported by the hydraulics.
-- **Convention, `extinguish.fire-flow`** ⏳ first (ROADMAP §11 decision 8):
-  NFA required flow, gpm = area ft² / 3 × fraction involved. Area is in m²
-  in the scenario; ft² is converted inside the law (`units.ts`). Written
-  from memory: `verify` against the NFA publication before use. A training
-  convention, not physics. Iowa (volume ft³ / 100) is not planned.
+- **Convention, `extinguish.fire-flow` ✅ first** (ROADMAP §11 decision 8).
+  Required flow **Q = A_ft² / 3 × f**, Q in US gpm, A_ft² the **one fully
+  involved floor's** area in square feet, f the fraction involved (0–1).
+  The scenario gives area in m²; ft² is converted inside the law
+  (`units.ts`). 40 ft × 30 ft = 111.483648 m² gives 400 gpm at f = 1 and
+  100 gpm at f = 0.25. Source: NFA *Strategy and Tactics for Initial Company
+  Operations*, Student Manual 3rd ed (2016), SM2-28 (PDF p. 102); the
+  40 × 30 ft = 400 gpm example is SM2-29 (p. 103), where that flow is named
+  for the **confinement, extinguishment and backup lines together**, and
+  SM2-30 (p. 103) scales 1000 gpm to 500 at 50 % and 250 at 25 % involved.
+  A **training convention, not physics**. Iowa (volume ft³ / 100) is not
+  planned.
+  - **Scope.** One building, **one fully involved floor**, f the fraction of
+    that floor's area involved. Exposures and extension to further floors
+    (SM2-31–SM2-35) are **out of scope** for this law.
+  - **Limits are context, not caps.** This is a fire-service rule, not a
+    heat-release model. Ed Hartin (commandcompetence.com) records that its
+    original development assumed **≤ 50 % involvement**, and that it grows
+    **increasingly inaccurate above 50 % or 1000 gpm** and for ceilings over
+    10 ft. The engine therefore applies **no hard cap and no automatic
+    halving**; it returns the number the convention computes. Independent
+    cross-check: JIBC FIRE-1114 ch. 5 gives the same 40 × 30 ft at 25 % =
+    100 gpm ([`extinguishment-research.md`](extinguishment-research.md)).
 
 ### 3.13 Pressures and speed: vocabulary
 
@@ -779,4 +797,4 @@ geometry or crashes (see AGENTS.md).
 | Hydrant curve form | `supply.hydrant` | later | NFPA 291 [E8] |
 | Application efficiency η | `extinguish.absorption` | M5 | Särdqvist 2002; Grimwood |
 | Fire-preset heat release rates (MW) | `extinguish.absorption` | M5 | a published HRR source (to choose) |
-| NFA fire-flow formula | `extinguish.fire-flow` | M5 (first) | NFA fire-flow formula publication |
+| NFA fire-flow formula | `extinguish.fire-flow` | M5 (first) | verified 2026-10-16: NFA *Strategy and Tactics for Initial Company Operations* Student Manual 3rd ed (2016), SM2-28–30 (PDF pp. 102–103), Q = area_ft² / 3, 40 × 30 ft = 400 gpm; JIBC FIRE-1114 ch. 5 cross-check (same area at 25 % = 100 gpm) |
