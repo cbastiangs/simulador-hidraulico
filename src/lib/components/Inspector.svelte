@@ -202,7 +202,7 @@
     {@const wye = junctionAt(scenario, selection.index)!}
     <header>
       <h3>{jointName(scenario, selection.index)}</h3>
-      <p>Cada salida tiene su válvula: abierta o cerrada · arrastra la bifurca para moverla</p>
+      <p>Cada salida tiene su válvula: toca la palanca para abrir o cerrar · arrastra la bifurca para moverla</p>
     </header>
     <JunctionPanel {tree} junction={wye} {outlets} {onTree} {onLine} />
   {:else if selection.kind === "joint"}

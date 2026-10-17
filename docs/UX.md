@@ -152,13 +152,19 @@
     hoses with moving water at their own flow, couplings, its nozzle with
     bale and stream, and a reading ("Línea 2 · 107 gpm · 114 psi", or
     "válvula cerrada"). Tapping another line makes it the edited line with
-    that hose selected; its bale works in place. **The wye is drawn as a
-    gated wye** (owner, 2026-10-17: not the reducer's outline): inlet
-    swivel with rocker lugs, the Y casting, and on each outlet a ball valve
-    whose quarter-turn lever lies along the hose when open and across it
-    when shut (pointing away from the other arms), tapped to open or close. Selecting the wye opens its panel: each outlet with its
-    gate, flow and nozzle pressure, "Editar esta línea", "Añadir línea" and
-    "Quitar bifurca". The edited line's hoses and nozzle use the ordinary
+    that hose selected; its bale works in place. **On the canvas the wye is
+    a plain side view** (owner, 2026-10-17: from the side its outlets sit
+    one behind the other; "side view doesn't need much detail"): swivel,
+    body and an outlet coupling per lane, nothing to operate. **Its valves
+    live in its close-up, drawn from above**: selecting the wye opens its
+    panel with the gated wye seen from above — inlet swivel with rocker
+    lugs, the Y casting, and on each arm a ball valve whose quarter-turn
+    lever lies along the arm when open and across it when shut, tapped to
+    open or close; each arm ends in its line's name and flow. It follows
+    the Operate / Close-up preference: with plain controls each outlet has
+    Abierta / Cerrada buttons instead. Below, each outlet with its flow
+    and nozzle pressure, "Editar esta línea", "Añadir línea" and "Quitar
+    bifurca". The edited line's hoses and nozzle use the ordinary
     canvas and inspector; an edit maps back to the segment it belongs to
     (`branch-edit.ts` `applyPathEdit`), hoses never merge across a wye and
     each line keeps a hose. "Añadir bifurca al final" in the Línea section

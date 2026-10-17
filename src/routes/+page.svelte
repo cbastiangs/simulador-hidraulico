@@ -383,7 +383,6 @@
       onAction={runAction}
       {fitSignal}
       {others}
-      onGate={(path) => applyTree(branch.toggleGate(scenario, path))}
       onPick={(path, sel) => {
         selectedPath = path;
         select(sel);

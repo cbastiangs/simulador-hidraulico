@@ -60,7 +60,6 @@
     coverPx = 0,
     onTapEmpty,
     onDeselect,
-    onGate,
     others = [],
     onPick,
     onOtherNozzle,
@@ -96,8 +95,6 @@
     onTapEmpty?: () => void;
     /** The floating toolbars' ×. */
     onDeselect: () => void;
-    /** Open or shut a wye outlet's gate. */
-    onGate?: (path: string[]) => void;
     /**
      * A branched lay's other lines (owner, 2026-10-17: every line drawn), each
      * as its own one-line scenario and reading; drawn from `from`, the joint of
@@ -856,9 +853,9 @@
     let beforeX = 0;
     let afterX = 0;
     if (junctionAtJoint(i)) {
-      // The gated wye's drawing: inlet swivel to outlet couplings (WyeDrawing).
-      beforeX = -21;
-      afterX = 42;
+      // The wye's side view: inlet swivel to outlet couplings (WyeDrawing).
+      beforeX = -14;
+      afterX = 19;
     } else if (j.auto || j.placed.includes("adapter")) {
       const ratio = (j.upIn ?? 1) / (j.downIn || 1);
       const l = i > 0 ? halfWidth(i - 1) : halfWidth(i) * ratio;
@@ -1152,7 +1149,7 @@
             {#each o.layout.hoses.filter((h) => h.index >= o.from) as h (h.index)}
               {@const sec = o.scenario.sections[h.index]}
               <!-- The first hose starts at the wye's outlet coupling, not under the casting. -->
-              {@const d = drawnHose(h.geom, h.index === o.from ? 42 * k : 0).d}
+              {@const d = drawnHose(h.geom, h.index === o.from ? 19 * k : 0).d}
               {@const q = sectionFlow(o.result, h.index)}
               {@const p = q > 0.5 ? particles(sec.diameterIn, q) : null}
               <path class="hose" class:idle={!p} {d} stroke-width={hoseWidth(h.thicknessPx, sec.diameterIn)} />
@@ -1308,10 +1305,7 @@
           {@const jd = drawing.joints[wye.joint]}
           {#if jd}
             <g transform={`translate(${jd.x} ${jd.y}) scale(${k}) rotate(${jd.angle})`}>
-              <WyeDrawing
-                outlets={wye.outlets.map((o) => ({ ...o, dy: o.active ? 0 : laneOf(o.path) * LANE_PX }))}
-                onGate={(path) => tap(() => onGate?.(path))()}
-              />
+              <WyeDrawing lanes={wye.outlets.map((o) => (o.active ? 0 : laneOf(o.path) * LANE_PX))} />
             </g>
           {/if}
         {/each}
