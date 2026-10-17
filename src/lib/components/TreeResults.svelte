@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { Scenario, ScenarioBranch, ScenarioTreeResult, TreeSegmentResult } from "$hydraulics/scenario.ts";
   import * as branch from "$lib/branch-edit.ts";
+  import { leafColor } from "$lib/line-colors.ts";
 
   // Every line of a branched lay at once (UX.md §2/§3), read-only: the drawn
   // line's pressure split and breakdown sit above it, and a line is drawn from
@@ -76,7 +77,7 @@
       <li>
         <div class="row" style:padding-left={`${12 + entry.depth * 14}px`}>
           <span class="name">
-            {entry.depth === 0 ? "Alimentación" : entry.segment.name}
+            {#if !entry.segment.wye && entry.depth > 0}<span class="line-dot" style:background={leafColor(scenario, entry.path)}></span>{/if}{entry.depth === 0 ? "Alimentación" : entry.segment.name}
             {#if r.isolated}<span class="badge">aislada</span>{/if}
           </span>
           <span class="state">{gateState(entry.segment, entry.depth)}{#if !entry.segment.wye} · {entry.segment.nozzle.open ? "pitón abierto" : "pitón cerrado"}{:else} · bifurca{/if}</span>

@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { Scenario } from "$hydraulics/scenario.ts";
   import * as branch from "$lib/branch-edit.ts";
+  import { leafColor } from "$lib/line-colors.ts";
   import { prefs, setControls } from "$lib/prefs.svelte.ts";
   import WyeCloseUp from "./WyeCloseUp.svelte";
 
@@ -44,7 +45,7 @@
     {@const r = outlets[o.path.join("/")]}
     <li class:active={o.active}>
       <div class="who">
-        <b>{o.name}</b>
+        <b>{#if !o.segment.wye}<span class="line-dot" style:background={leafColor(tree, o.path)}></span>{/if}{o.name}</b>
         <span>{branch.branchLabel(o.segment).slice(o.name.length + 3)}</span>
         <span class="reading">
           {#if !o.open}Válvula cerrada · 0 gpm{:else if r?.isolated}Aislada aguas arriba{:else if r}{r.flowGpm.toFixed(0)} gpm{r.nozzlePsi !== null ? ` · pitón ${r.nozzlePsi.toFixed(0)} psi` : ""}{/if}

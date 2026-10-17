@@ -17,6 +17,7 @@
   import type { Selection } from "$lib/selection.ts";
   import TreeResults from "$lib/components/TreeResults.svelte";
   import * as branch from "$lib/branch-edit.ts";
+  import { leafColor } from "$lib/line-colors.ts";
 
   // Built to docs/design/main-screen.html (UX.md §6).
   // Presets are parsed like any outside document: the same gate as a share link.
@@ -310,7 +311,7 @@
 {/snippet}
 
 {#snippet results()}
-  {#if network}<p class="line-name">Reparto de <b>{lineName}</b> · toca otra línea en el dibujo para ver la suya</p>{/if}
+  {#if network}<p class="line-name">Reparto de <span class="line-dot" style:background={leafColor(scenario, view?.path ?? [])}></span><b>{lineName}</b> · toca otra línea en el dibujo para ver la suya</p>{/if}
   <div bind:this={budgetEl}><BudgetBar {result} {reference} referenceLabel={refName} /></div>
   <details class="card">
     <summary>Ver cálculo ({result.terms.length} fórmulas) · {methodName}{comparing ? ` y ${refName}` : ""}</summary>
@@ -387,9 +388,9 @@
       editedName={view ? lineName.split(" › ").at(-1) : ""}
       linePaths={network ? branch.leafPaths(scenario) : []}
       onGate={(path) => applyTree(branch.toggleGate(scenario, path))}
-      onPick={(path, sel) => {
+      onPick={(path, sel, open) => {
         selectedPath = path;
-        select(sel);
+        select(sel, open);
       }}
       onOtherNozzle={(path) => applyTree(branch.editSegment(scenario, path, (s) => ({ ...s, nozzle: { ...s.nozzle, open: !s.nozzle.open } })))}
     />

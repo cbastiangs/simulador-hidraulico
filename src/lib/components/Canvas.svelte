@@ -24,6 +24,7 @@
   import Gauge from "./Gauge.svelte";
   import JointControls from "./JointControls.svelte";
   import NozzleDrawing from "./NozzleDrawing.svelte";
+  import { lineColor } from "$lib/line-colors.ts";
   import WyeDrawing from "./WyeDrawing.svelte";
   import { hoseVelocityMps } from "$hydraulics/velocity.ts";
 
@@ -106,7 +107,8 @@
      */
     others?: { path: string[]; name: string; scenario: Scenario; result: SeriesResult; from: number; shut: boolean }[];
     /** A tap on another line: edit that line, with this selected (its own coordinates). */
-    onPick?: (path: string[], selection: Selection) => void;
+    /** Edit another line of a branched lay; `open` false when a drag picks it, as for `onSelect`. */
+    onPick?: (path: string[], selection: Selection, open?: boolean) => void;
     onOtherNozzle?: (path: string[]) => void;
     /** Open or shut a wye outlet's valve (its lever on the side-view wye). */
     onGate?: (path: string[]) => void;
@@ -283,6 +285,8 @@
     zoom: number;
     bounds: Bounds;
     filled: Bounds;
+    /** Pressed on another line, which then becomes the edited one: its element is redrawn, so the press is followed on the window. */
+    detached?: boolean;
   };
   let press = $state.raw<Press | null>(null);
   let dragging = $state<number | null>(null);
@@ -350,6 +354,8 @@
   );
   const editedKey = $derived(editedPath.join("/"));
   const lineOrder = $derived(linePaths.map((p) => p.join("/")));
+  /** A line's colour dot (line-colors.ts), by its place in outlet order. */
+  const colorOf = (key: string) => lineColor(Math.max(0, lineOrder.indexOf(key)));
   const nameOf = (key: string) => (key === editedKey ? editedName : (otherLines.find((o) => o.key === key)?.name ?? ""));
   const pathOf = (key: string) => (key === editedKey ? editedPath : (otherLines.find((o) => o.key === key)?.path ?? []));
 
@@ -700,6 +706,35 @@
     (event.currentTarget as Element).setPointerCapture(event.pointerId);
   }
 
+  /**
+   * A press on another line's coupling or nozzle (owner, 2026-10-17): no need
+   * to pick the line first. It becomes the edited line at once and the same
+   * press drags; its layout is the edited one's to the pixel (same bounds and
+   * floors), so the press is measured on it. A tap still just selects.
+   */
+  function downOther(event: PointerEvent, o: (typeof otherLines)[number], node: number) {
+    if (event.button !== 0 || press) return;
+    freezeCamera();
+    const nodes = o.layout.nodes;
+    const target: Selection = node === nodes.length - 1 ? { kind: "nozzle" } : { kind: "joint", index: node };
+    holdStart(event, target);
+    press = {
+      node,
+      pointerId: event.pointerId,
+      x: event.clientX,
+      y: event.clientY,
+      runM: nodes[node].distanceM - nodes[node - 1].distanceM,
+      elevationM: nodes[node].elevationM,
+      upElevationM: nodes[node - 1].elevationM,
+      zoom,
+      bounds: fitted,
+      filled,
+      detached: true,
+    };
+    frozen = { bounds: press.bounds, filled: press.filled, zoom: press.zoom };
+    onPick?.(o.path, target, false);
+  }
+
   function move(event: PointerEvent) {
     if (!press || event.pointerId !== press.pointerId) return;
     const dx = event.clientX - press.x;
@@ -893,35 +928,62 @@
       if (i === last) y -= 34 * gaugeK;
       return { x, y };
     });
-    // Greedy clearance: while a candidate overlaps an earlier gauge (within
-    // ~70 × 68 screen px) or its numeric/readout box (x ± 36k, y − 24k …
+    // Greedy clearance: while its numeric/readout box (x ± 36k, y − 24k …
     // + 40k) covers a sampled hose contour point, lift it a whole gauge height
-    // and retry. Bounded by the node count, so a coil can't loop forever.
+    // and retry; then step it sideways clear of the gauges already placed.
+    // Bounded by the node count, so a coil can't loop forever.
     const hosePts = layout.hoses.flatMap((h) => h.geom.points);
     const placed: { x: number; y: number }[] = [];
     for (const g of at) {
       let guard = at.length + 1;
-      while (
-        guard-- > 0 &&
-        (placed.some((p) => Math.abs(p.x - g.x) * zoom < 70 && Math.abs(p.y - g.y) * zoom < 68) ||
-          hosePts.some((p) => Math.abs(p.x - g.x) <= 36 * k && p.y >= g.y - 24 * k && p.y <= g.y + 40 * k))
-      ) {
+      while (guard-- > 0 && hosePts.some((p) => Math.abs(p.x - g.x) <= 36 * k && p.y >= g.y - 24 * k && p.y <= g.y + 40 * k)) {
         g.y -= 68 * k;
       }
+      Object.assign(g, besideClear(g, placed));
       placed.push({ x: g.x, y: g.y });
     }
     return at;
   });
+  const nozzleSpots = $derived([layout.nodes[last], ...otherLines.map((o) => o.layout.nodes.at(-1)!)]);
+  const layEndX = $derived(Math.max(...layout.nodes.map((n) => n.x), ...otherLines.flatMap((o) => o.layout.nodes.map((n) => n.x))));
+  /** Gauge footprint in gauge units (scaled by `gaugeK`), the line's name above the dial included. */
+  const GAUGE_W = 76;
+  const GAUGE_H = 84;
+  /**
+   * Gauges that would overlap sit in a row, not a column (owner, 2026-10-17):
+   * the nearest free slot left or right of the coupling, one gauge width apart.
+   * Left first: a lay runs left to right, so past its nozzle the view ends.
+   * A slot stays over the lay (not past its farthest nozzle, where a fitted
+   * view ends) and next to its coupling; when neither neighbour is free the
+   * gauge goes up a row and retries.
+   */
+  function besideClear(g: { x: number; y: number }, placed: { x: number; y: number }[]) {
+    const w = GAUGE_W * gaugeK;
+    const h = GAUGE_H * gaugeK;
+    const inside = (x: number) => x - w / 2 >= 0 && x <= layEndX;
+    // 1 % slack: a slot exactly one width away is free, whatever the rounding.
+    // A dial is drawn over everything, so it must also keep off every nozzle (its body and bale, not its spray).
+    const onNozzle = (x: number, y: number) =>
+      nozzleSpots.some((n) => x + w / 2 > n.x - 30 * k && x - w / 2 < n.x + 50 * k && y + h / 2 > n.y - 30 * k && y - h / 2 < n.y + 16 * k);
+    const hits = (x: number, y: number) => onNozzle(x, y) || placed.some((p) => Math.abs(p.x - x) < w * 0.99 && Math.abs(p.y - y) < h);
+    for (let row = 0; row <= placed.length + nozzleSpots.length; row++) {
+      const y = g.y - row * h;
+      // Only the next slot either side: farther out, a dial loses its coupling, so it goes up a row instead.
+      for (let n = 0; n <= 1; n++) {
+        for (const x of n === 0 ? [g.x] : [g.x - n * w, g.x + n * w]) if ((n === 0 || inside(x)) && !hits(x, y)) return { x, y };
+      }
+    }
+    return g;
+  }
   const gaugeAt = (i: number) => gauges[i];
-  /** Every line's gauges (owner, 2026-10-17: none hidden), lifted clear of those already placed and tagged with the line. */
+  /** Every line's gauges (owner, 2026-10-17: none hidden), beside those already placed and tagged with the line. */
   const otherGauges = $derived.by(() => {
     const placed = gauges.map((g) => ({ x: g.x, y: g.y }));
     return otherLines.map((o) =>
       o.layout.nodes.map((n, i) => {
         if (i <= o.from || !Number.isFinite(o.result.nodes[i]?.pressurePsi)) return null;
         const g = { x: n.x, y: n.y - 72 * gaugeK - (i === o.layout.nodes.length - 1 ? 34 * gaugeK : 0) };
-        let guard = placed.length + 1;
-        while (guard-- > 0 && placed.some((p) => Math.abs(p.x - g.x) * zoom < 70 && Math.abs(p.y - g.y) * zoom < 68)) g.y -= 68 * k;
+        Object.assign(g, besideClear(g, placed));
         placed.push(g);
         return g;
       }),
@@ -1167,8 +1229,8 @@
     if (e.key.toLowerCase() === "y" && !e.ctrlKey && !e.metaKey && !t.closest("input, textarea, select, [contenteditable]")) locked = !locked;
   }}
   bind:innerHeight={windowHeight}
-  onpointermove={gestureMove}
-  onpointerup={gestureUp}
+  onpointermove={(e) => (gestureMove(e), press?.detached && move(e))}
+  onpointerup={(e) => (press?.detached && up(e), gestureUp(e))}
   onpointercancel={(e) => {
     if (press && press.pointerId === e.pointerId) cancelPress();
     gestureUp(e);
@@ -1284,6 +1346,22 @@
             {/each}
             {#each o.layout.nodes as n, i (i)}
               {#if i > o.from && i <= lastSection}<circle class="lane-coupling" cx={n.x} cy={n.y} r={4 * k} />{/if}
+            {/each}
+            <!-- Its couplings and nozzle drag at once, picking the line on the way (owner, 2026-10-17). -->
+            {#each o.layout.nodes as n, i (i)}
+              {#if i > o.from}
+                <circle
+                  class="handle lane-handle"
+                  cx={n.x}
+                  cy={n.y}
+                  r={18 * k}
+                  role="slider"
+                  tabindex="-1"
+                  aria-label={`${o.name}: arrastrar mueve`}
+                  aria-valuenow={n.elevationM}
+                  onpointerdown={(e) => downOther(e, o, i)}
+                />
+              {/if}
             {/each}
             <g transform={`translate(${end.x} ${end.y}) scale(${k})`}>
               <NozzleDrawing nozzle={o.scenario.nozzle} flowGpm={o.result.flowGpm} x={0} y={0} selected={false} onToggle={() => onOtherNozzle?.(o.path)} />
@@ -1432,19 +1510,16 @@
           {/if}
         {/each}
 
-        <!-- Gauges above the line; tap one for its reading. The nozzle comes after, so its bale takes the tap. -->
-        <!-- The height axis (owner, 2026-10-16): pinned to the view's left edge, over the drawing (a halo keeps it legible on the truck), under the gauges, which float above it. -->
+                <!-- The height axis (owner, 2026-10-16): pinned to the view's left edge, over the drawing (a halo keeps it legible on the truck), under the gauges, which float above it. -->
         {#each layout.floors as f (f.elevationM)}
           {#if f.number > 0 && f.number % labelEvery === 0}<text class="floor-label axis" x={camX / zoom + 8 * k} y={f.y + 14 * k}>Piso {f.number} · {f.elevationM} m</text>{/if}
         {/each}
+        <!-- Gauge tap targets stay under the nozzle, so its bale takes the tap; the dials are drawn after it (below). -->
         {#if showGauges}
           {#each layout.nodes as n, i (i)}
             {@const g = gaugeAt(i)}
-            <!-- Behind a shut gate the pressure is unknown (MODEL.md §2): no gauge rather than a made-up reading. -->
             {#if Number.isFinite(n.pressurePsi)}
             <g class="gauge" transform={`translate(${g.x} ${g.y}) scale(${gaugeK})`}>
-              <Gauge psi={n.pressurePsi} mark={i === last ? scenario.nozzle.ratedPressurePsi : undefined} />
-              {#if i > firstWye && editedName}<text class="gauge-tag" x="-36" y="4">{editedName}</text>{/if}
               <circle
                 class="gauge-hit"
                 r={Math.max(24, 22 / (gaugeK * zoom))}
@@ -1456,19 +1531,6 @@
               />
             </g>
             {/if}
-          {/each}
-        {/if}
-        {#if showGauges}
-          {#each otherLines as o, li (o.key)}
-            {#each o.layout.nodes as n, i (i)}
-              {@const g = otherGauges[li]?.[i]}
-              {#if g}
-                <g class="gauge other-gauge" transform={`translate(${g.x} ${g.y}) scale(${gaugeK})`}>
-                  <Gauge psi={o.result.nodes[i].pressurePsi} mark={i === o.layout.nodes.length - 1 ? o.scenario.nozzle.ratedPressurePsi : undefined} />
-                  <text class="gauge-tag" x="-36" y="4">{o.name}</text>
-                </g>
-              {/if}
-            {/each}
           {/each}
         {/if}
         <!-- Where line ends coincide: "×n", a tap edits the next line's nozzle. -->
@@ -1497,10 +1559,34 @@
             onToggle={onToggleNozzle}
           />
         </g>
+        <!-- The dials over everything, the spray included (owner, 2026-10-17); they take no pointer, so the bale still works under them. -->
+        {#if showGauges}
+          {#each layout.nodes as n, i (i)}
+            {@const g = gaugeAt(i)}
+            <!-- Behind a shut gate the pressure is unknown (MODEL.md §2): no gauge rather than a made-up reading. -->
+            {#if Number.isFinite(n.pressurePsi)}
+              <g class="gauge" transform={`translate(${g.x} ${g.y}) scale(${gaugeK})`}>
+                <Gauge psi={n.pressurePsi} mark={i === last ? scenario.nozzle.ratedPressurePsi : undefined} />
+                {#if i > firstWye && editedName}<text class="gauge-tag" y="-32"><tspan class="gauge-dot" fill={colorOf(editedKey)}>●</tspan> {editedName}</text>{/if}
+              </g>
+            {/if}
+          {/each}
+          {#each otherLines as o, li (o.key)}
+            {#each o.layout.nodes as n, i (i)}
+              {@const g = otherGauges[li]?.[i]}
+              {#if g}
+                <g class="gauge other-gauge" transform={`translate(${g.x} ${g.y}) scale(${gaugeK})`}>
+                  <Gauge psi={o.result.nodes[i].pressurePsi} mark={i === o.layout.nodes.length - 1 ? o.scenario.nozzle.ratedPressurePsi : undefined} />
+                  <text class="gauge-tag" y="-32"><tspan class="gauge-dot" fill={colorOf(o.key)}>●</tspan> {o.name}</text>
+                </g>
+              {/if}
+            {/each}
+          {/each}
+        {/if}
 
       </svg>
       {#if peek}
-        <div class="peek-tag" style:left={`${peek.x + 14}px`} style:top={`${peek.y - 34}px`}>{nameOf(peek.key)} · clic para editarla</div>
+        <div class="peek-tag" style:left={`${peek.x + 14}px`} style:top={`${peek.y - 34}px`}><span class="line-dot" style:background={colorOf(peek.key)}></span>{nameOf(peek.key)} · clic para editarla</div>
       {/if}
 
       {#if selectedHose && dragging === null && !phone}
@@ -1660,7 +1746,8 @@
   .hose.idle { opacity: 0.55; }
   .lane-coupling { fill: var(--steel); pointer-events: none; }
   .peek-outline { fill: none; stroke: var(--accent); opacity: 0.55; pointer-events: none; }
-  .gauge-tag { font-size: 11px; font-weight: 700; text-anchor: end; fill: var(--ink); paint-order: stroke; stroke: var(--bg); stroke-width: 3px; pointer-events: none; }
+  .gauge-dot { font-size: 13px; }
+  .gauge-tag { font-size: 11px; font-weight: 700; text-anchor: middle; fill: var(--ink); paint-order: stroke; stroke: var(--bg); stroke-width: 3px; pointer-events: none; }
   .stack-badge { cursor: pointer; outline: none; }
   .stack-badge rect { fill: var(--ink); }
   .stack-badge text { fill: var(--bg); font-size: 12px; font-weight: 700; text-anchor: middle; }
@@ -1681,6 +1768,7 @@
   .handle { fill: transparent; stroke: var(--ink); stroke-opacity: 0.3; stroke-dasharray: 3 3; cursor: grab; touch-action: none; outline: none; }
   .handle.selected { stroke: var(--accent); stroke-opacity: 0.7; }
   .handle.active, .handle:focus-visible { stroke: var(--accent); stroke-opacity: 1; cursor: grabbing; }
+  .handle.lane-handle { stroke: none; }
   .handle.constrained { stroke: var(--warn); stroke-opacity: 1; stroke-width: 3px; }
   .drag-label { font-size: calc(13px * var(--k)); font-weight: 700; text-anchor: middle; fill: var(--accent); pointer-events: none; }
   .drag-label.constrained { fill: var(--warn); }

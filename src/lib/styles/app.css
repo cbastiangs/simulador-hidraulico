@@ -6,6 +6,8 @@
   --hose: #c2412d; --pump: #c0392b; --steel: #6b747d; --water: #1c7ed6; --water-soft: #a5d8ff;
   --accent: #1f6feb; --accent-soft: #e7f0ff; --warn: #c62828; --ok-bg: #1b4d2e; --ok-ink: #b2f2bb;
   --friction: #f08c00; --elevation: #7048e8; --fitting: #0c8599; --needle: #c62828;
+  /* One per line of a branched lay, kept apart from hose red, water blue and the pressure split's colours. */
+  --line-1: #2f9e44; --line-2: #d6336c; --line-3: #e8a100; --line-4: #1098ad; --line-5: #8d5524; --line-6: #495057;
   --radius: 10px; --gap: 12px;
   color-scheme: light dark;
 }
@@ -14,8 +16,11 @@
     --bg: #12161a; --surface: #1b2128; --band: #20272f; --ground: #171c21; --line: #343d47;
     --ink: #e7eaee; --muted: #9aa4ae; --accent-soft: #15284a;
     --hose: #e0735a; --water: #4dabf7; --water-soft: #1c4a73; --needle: #ff6b6b;
+    --line-1: #69db7c; --line-2: #f783ac; --line-3: #ffd43b; --line-4: #66d9e8; --line-5: #d8a47f; --line-6: #ced4da;
   }
 }
+/* A line's colour (line-colors.ts): a dot before its name. */
+.line-dot { display: inline-block; width: 0.7em; height: 0.7em; border-radius: 50%; margin-right: 0.35em; vertical-align: 0.05em; box-shadow: 0 0 0 1.5px var(--surface); flex: none; }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.35 system-ui, sans-serif; font-variant-numeric: tabular-nums; }
 button, select, input { font: inherit; color: inherit; }

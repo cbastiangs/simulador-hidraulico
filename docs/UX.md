@@ -53,7 +53,8 @@
   fought for the same spot): pinned to the view's left edge so they stay
   while panning, never hidden for a gauge, drawn over the drawing with a
   halo. **Gauges float above them**, lifted by a shadow, their reading
-  haloed.
+  haloed, and above everything else drawn, the spray included (owner,
+  2026-10-17); a dial takes no pointer, so the bale under it still works.
 - **Slack is always visible.** A hose in the air sags; slack on the floor
   (it cannot hang) is drawn piled in arches along the chord, taller when the
   chord is short. Drawing only; the label says "holgura x m".
@@ -148,9 +149,23 @@
     "allow overlap"), the edited line in front; hose labels carry a halo
     where hoses cross. Each other line shows its hoses with moving water
     at their own flow, couplings, its nozzle with bale and stream, and
-    **its gauges — none hidden, each tagged with its line's name** beside
-    the dial and lifted clear of the others; the edited line's gauges past
-    the first wye are tagged too. **Reaching what is behind:** on desktop,
+    **its gauges — none hidden, each tagged with its line's name** above
+    the dial; gauges that would overlap **sit side by side in a row**, not
+    stacked in a column (owner, 2026-10-17): the slot left of the coupling
+    first, then right, never past the lay's farthest nozzle and never over a
+    nozzle's body; when neither neighbour is free it goes up a row rather
+    than drifting away from its coupling. The edited line's gauges past
+    the first wye are tagged too. **Each line has a colour** (owner,
+    2026-10-17), shown as a dot before its name: on its gauge tags, the
+    hover tag, the "Reparto de" line, the wye panel and the per-line
+    results. Hoses stay hose-red; the colour follows the line's place in
+    outlet order (`src/lib/line-colors.ts`, tokens `--line-1…6`), so it
+    doesn't change with the line being edited, and the name tells apart
+    lines that share a colour past the sixth. **Its couplings and nozzle drag straight
+    away** (owner, 2026-10-17): pressing one makes that line the edited one
+    and the same press moves it, no tap to pick the line first; a tap still
+    only selects. Picking is needed only where lines overlap and the edited
+    line's handle is on top. **Reaching what is behind:** on desktop,
     hovering an overlap brings the line behind forward with a tag
     ("Línea 2 · clic para editarla") and a click edits it; on any device a
     second tap on the same overlap (the same hoses, wherever the drawing
