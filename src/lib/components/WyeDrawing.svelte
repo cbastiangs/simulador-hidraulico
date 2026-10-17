@@ -1,10 +1,11 @@
 <script lang="ts">
-  // A wye on the side-view canvas (UX.md §2 "Branched lays"), in screen px
-  // with the flow to the right: inlet swivel, casting and outlet coupling,
-  // and on top each outlet's quarter-turn valve lever, as a gated wye shows
-  // them from the side. Open, the lever lies along the hose (a bar); shut, it
-  // turns across the hose, toward the eye (its end, red). A tap works it; the
-  // close-up seen from above (WyeCloseUp) does the same.
+  // A gated wye on the side-view canvas (UX.md §2 "Branched lays"), in
+  // screen px with the flow to the right, drawn as one reads from the side:
+  // the inlet swivel with its rocker lugs, the round casting, the outlets
+  // leaving it one behind the other (the far one shaded and a little higher),
+  // and on top each outlet's valve bonnet with its quarter-turn lever. Open,
+  // the lever lies along the hose; shut, it turns across it, toward the eye
+  // (its red end). A tap works it; the close-up from above does the same.
   let {
     outlets,
     onGate,
@@ -13,17 +14,29 @@
     onGate: (path: string[]) => void;
   } = $props();
 
-  /** Stems staggered along the body so each lever is its own target. */
-  const STEP = 13;
-  const stem = (i: number) => -1 + i * STEP;
-  const right = $derived(Math.max(14, stem(outlets.length - 1) + 9));
+  /** Bonnets staggered along the casting so each lever is its own target. */
+  const STEP = 11;
+  const bonnet = (i: number) => -4 + i * STEP;
+  /** Far outlets, drawn behind the near one (the edited line's). */
+  const far = $derived(Math.max(0, outlets.length - 1));
 </script>
 
 <g class="wye-side">
-  <rect class="swivel" x="-14" y="-8" width="9" height="16" rx="2" />
-  <path class="body" d={`M -5 -7 L ${right - 6} -7 L ${right} -5 L ${right} 5 L ${right - 6} 7 L -5 7 Z`} />
-  <rect class="coupling" x={right} y="-6" width="5" height="12" rx="1.5" />
+  <!-- Far outlets behind, each a little higher, so the split reads. -->
+  {#each Array.from({ length: far }, (_, i) => far - i) as n (n)}
+    <rect class="spout far" x="6" y={-4 - 4 * n} width="15" height="8" rx="2" />
+    <rect class="ring far" x="19" y={-6 - 4 * n} width="5" height="12" rx="1.5" />
+  {/each}
+  <!-- Inlet swivel with its rocker lugs. -->
+  <rect class="swivel" x="-19" y="-9" width="10" height="18" rx="2.5" />
+  <rect class="lug" x="-16" y="-13.5" width="4" height="5" rx="1" />
+  <rect class="lug" x="-16" y="8.5" width="4" height="5" rx="1" />
+  <!-- The casting, then the near outlet in line with the hose. -->
+  <ellipse class="casting" cx="1" cy="0" rx="11" ry="9.5" />
+  <rect class="spout" x="7" y="-4" width="14" height="8" rx="2" />
+  <rect class="ring" x="19" y="-6" width="5" height="12" rx="1.5" />
   {#each outlets as o, i (o.id)}
+    <rect class="bonnet" x={bonnet(i) - 2.5} y="-14" width="5" height="6" rx="1" />
     <g
       class="valve"
       class:shut={!o.open}
@@ -31,30 +44,33 @@
       tabindex="0"
       aria-checked={o.open}
       aria-label={`Válvula de ${o.name}: ${o.open ? "abierta, tocar para cerrar" : "cerrada, tocar para abrir"}`}
-      transform={`translate(${stem(i)} -7)`}
+      transform={`translate(${bonnet(i)} -14)`}
       onclick={(e) => (e.stopPropagation(), onGate(o.path))}
       onkeydown={(e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), onGate(o.path))}
     >
-      <rect class="hit" x="-6" y="-16" width={STEP} height="18" />
-      <line class="stem" x1="0" y1="0" x2="0" y2="-4" />
+      <rect class="hit" x={-STEP / 2} y="-10" width={STEP} height="14" />
       {#if o.open}
-        <line class="lever" x1="-1" y1="-5" x2="10" y2="-5" />
+        <line class="lever" x1="-1" y1="-1.5" x2="6.5" y2="-1.5" />
       {:else}
-        <circle class="end" cx="0" cy="-6" r="3.5" />
+        <circle class="end" cx="0" cy="-3" r="3.2" />
       {/if}
     </g>
   {/each}
 </g>
 
 <style>
-  .swivel, .body, .coupling, .stem { pointer-events: none; }
-  .swivel { fill: #6b747d; stroke: #2b3036; stroke-width: 1.5; }
-  .body { fill: #9aa3ab; stroke: #2b3036; stroke-width: 1.5; stroke-linejoin: round; }
-  .coupling { fill: #6b747d; stroke: #2b3036; stroke-width: 1; }
+  .swivel, .lug, .casting, .spout, .ring, .bonnet { pointer-events: none; stroke: #2b3036; stroke-linejoin: round; }
+  .swivel { fill: #7b848c; stroke-width: 1.5; }
+  .lug { fill: #2b3036; stroke: none; }
+  .casting { fill: #a7afb6; stroke-width: 1.5; }
+  .spout { fill: #a7afb6; stroke-width: 1.2; }
+  .spout.far { fill: #7b848c; }
+  .ring { fill: #6b747d; stroke-width: 1; }
+  .ring.far { fill: #565e66; }
+  .bonnet { fill: #8a939b; stroke-width: 1; }
   .valve { cursor: pointer; outline: none; }
   .hit { fill: transparent; }
-  .stem { stroke: #2b3036; stroke-width: 2; }
-  .lever { stroke: #1b2128; stroke-width: 3.5; stroke-linecap: round; pointer-events: none; }
+  .lever { stroke: #1b2128; stroke-width: 3.2; stroke-linecap: round; pointer-events: none; }
   .end { fill: #c0392b; stroke: #2b3036; stroke-width: 1; pointer-events: none; }
-  .valve:focus-visible .stem { stroke: var(--accent); stroke-width: 3; }
+  .valve:focus-visible .hit { stroke: var(--accent); stroke-width: 2; }
 </style>

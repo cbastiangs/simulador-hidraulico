@@ -160,8 +160,10 @@
     where line ends coincide a "×n" badge picks the next line's nozzle.
     Hover is only a preview, never the only way. **The wye in the side
     view** (owner, 2026-10-17: "side view doesn't need much detail"):
-    swivel, body and outlet coupling, with each outlet's quarter-turn
-    valve lever on top, staggered along the body — open, a bar along the
+    the lugged inlet swivel, a round casting (not the reducer's taper:
+    owner, 2026-10-17), the outlets leaving it one behind the other (the
+    far one shaded and a little higher), and each outlet's valve bonnet
+    with its quarter-turn lever on top, staggered along the casting — open, a bar along the
     hose; shut, turned across it toward the eye (its red end) — tapped to
     open or close. **Its close-up is drawn from above**: selecting the wye
     opens its panel with the gated wye seen from above — inlet swivel with
