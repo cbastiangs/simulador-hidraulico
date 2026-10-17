@@ -25,10 +25,15 @@
   const reduced = typeof matchMedia !== "undefined" && matchMedia("(prefers-reduced-motion: reduce)").matches;
   const ms = (d: number) => (reduced ? 0 : d);
 
-  const OPEN_DEG = -18;
-  const CLOSED_DEG = 64;
-  const PIVOT = { x: 72, y: 94 };
-
+  // Seen from above, hose on the left, tip on the right. The bale is a U
+  // pivoting on both sides of the valve body: pushed forward (toward the tip)
+  // it lies over the barrel and the valve is shut; pulled back (toward the
+  // hose) it is open. Angles are from upright, positive toward the tip.
+  const OPEN_DEG = -72;
+  const CLOSED_DEG = 72;
+  const PIVOT = { x: 97, y: 88 };
+  const ARM = 60;
+  const AXIS = 88;
   const settings = $derived(nozzle.kind === "selectable" ? nozzle.settingsGpm : []);
   const settingIndex = $derived(Math.max(0, settings.indexOf(nozzle.ratedFlowGpm)));
 
@@ -44,6 +49,13 @@
     const length = 96 * (1 - 0.4 * collar.current) * flow.current;
     const dy = Math.tan(halfAngle) * length;
     return { length, dy, core: dy * 0.35 };
+  });
+
+  // The bale's crossbar, projected from above: it travels along the axis and
+  // looks thickest, with the longest shadow, when upright (nearest the eye).
+  const crossbar = $derived.by(() => {
+    const r = (baleDeg * Math.PI) / 180;
+    return { x: PIVOT.x + ARM * Math.sin(r), lift: Math.cos(r) };
   });
 
   const patternName = (p: number) => (p < 0.08 ? "Chorro directo" : p < 0.55 ? "Niebla estrecha" : "Niebla amplia");
@@ -66,14 +78,14 @@
     if (Math.hypot(e.clientX - baleDrag.x, e.clientY - baleDrag.y) > 6) baleDrag.moved = true;
     if (!baleDrag.moved) return;
     const p = toSvg(e);
-    const deg = (Math.atan2(p.x - PIVOT.x, PIVOT.y - p.y) * 180) / Math.PI;
+    const deg = (Math.asin(Math.min(1, Math.max(-1, (p.x - PIVOT.x) / ARM))) * 180) / Math.PI;
     dragDeg = Math.min(CLOSED_DEG, Math.max(OPEN_DEG, deg));
   }
   function baleUp() {
     if (!baleDrag) return;
     if (!baleDrag.moved) onOpen(!nozzle.open);
     else if (dragDeg !== null) {
-      const open = dragDeg < (OPEN_DEG + CLOSED_DEG) / 2;
+      const open = dragDeg < 0;
       if (open !== nozzle.open) onOpen(open);
     }
     // Hand the lever back to the tween from where the finger left it.
@@ -82,7 +94,8 @@
     baleDrag = null;
   }
 
-  // Ring and collar turn with a vertical drag, as a knob seen from the side.
+  // Ring and collar turn about the nozzle's axis, so from above their surface
+  // moves up or down: they turn with a vertical drag.
   // Deltas are measured on screen, scaled to drawing units, so a warning
   // appearing above the drawing mid-drag cannot reverse the turn.
   let turn: { y: number; scale: number; from: number; kind: "ring" | "collar" } | null = null;
@@ -121,27 +134,33 @@
   const ribs = $derived(
     Array.from({ length: RIBS }, (_, k) => {
       const a = (k / RIBS) * Math.PI * 2 + collar.current * Math.PI * 1.5;
-      return { y: 110 - 21 * Math.sin(a), shown: Math.cos(a) > 0, depth: Math.cos(a) };
+      return { y: AXIS - 20 * Math.sin(a), shown: Math.cos(a) > 0, depth: Math.cos(a) };
     }),
   );
 </script>
 
 <div class="closeup">
-  <svg bind:this={svg} viewBox="0 0 400 176" role="group" aria-label="Pitón en primer plano">
+  <svg bind:this={svg} viewBox="0 0 400 176" role="group" aria-label="Pitón visto desde arriba">
     <!-- Stream (illustrative). -->
     {#if stream.length > 1}
-      <path class="spray" d={`M 286 110 L ${286 + stream.length} ${110 - stream.dy} L ${286 + stream.length} ${110 + stream.dy} Z`} />
-      <path class="core" d={`M 286 110 L ${286 + stream.length} ${110 - stream.core} L ${286 + stream.length} ${110 + stream.core} Z`} />
+      <path class="spray" d={`M 282 ${AXIS} L ${282 + stream.length} ${AXIS - stream.dy} L ${282 + stream.length} ${AXIS + stream.dy} Z`} />
+      <path class="core" d={`M 282 ${AXIS} L ${282 + stream.length} ${AXIS - stream.core} L ${282 + stream.length} ${AXIS + stream.core} Z`} />
     {/if}
-    {#if nozzle.open && flowGpm > 0}<text class="flow" x="392" y="164">{flowGpm.toFixed(0)} gpm</text>{/if}
+    {#if nozzle.open && flowGpm > 0}<text class="flow" x="392" y="168">{flowGpm.toFixed(0)} gpm</text>{/if}
 
-    <!-- Inlet swivel and body. -->
-    <rect class="swivel" x="8" y="90" width="36" height="40" rx="4" />
-    {#each [17, 26, 35] as x (x)}<line class="knurl" x1={x} y1="92" x2={x} y2="128" />{/each}
-    <path class="body" d="M 44 96 L 152 98 L 152 122 L 44 124 Z" />
-    <rect class="boss" x="62" y="88" width="20" height="10" rx="3" />
+    <!-- Hose, inlet swivel with its rocker lugs, valve body with the bale's pivot bosses, barrel. -->
+    <rect class="hose" x="0" y="77" width="38" height="22" />
+    <text class="tag" x="4" y="132">Manguera</text>
+    <rect class="lug" x="43" y="64" width="14" height="8" rx="2" />
+    <rect class="lug" x="43" y="104" width="14" height="8" rx="2" />
+    <rect class="swivel" x="36" y="70" width="28" height="36" rx="4" />
+    {#each [44, 50, 56] as x (x)}<line class="knurl" x1={x} y1="72" x2={x} y2="104" />{/each}
+    <rect class="body" x="64" y="73" width="66" height="30" rx="7" />
+    <circle class="boss" cx={PIVOT.x} cy="68" r="6" />
+    <circle class="boss" cx={PIVOT.x} cy="108" r="6" />
+    <rect class="barrel" x="130" y="79" width="32" height="18" />
 
-    <!-- Gallonage ring. -->
+    <!-- Gallonage ring: its numbers roll past the mark as it turns. -->
     {#if settings.length}
       <g
         class="turn ring"
@@ -158,23 +177,23 @@
         onpointercancel={turnUp}
         onkeydown={(e) => sliderKeys(e, stepSetting, 1)}
       >
-        <rect class="hit" x="150" y="62" width="40" height="96" />
-        <rect class="ring-body" x="152" y="88" width="36" height="44" rx="4" />
-        <clipPath id="ring-window"><rect x="152" y="91" width="36" height="38" /></clipPath>
+        <rect class="hit" x="160" y="40" width="44" height="96" />
+        <rect class="ring-body" x="162" y="70" width="40" height="36" rx="4" />
+        <clipPath id="ring-window"><rect x="162" y="72" width="40" height="32" /></clipPath>
         <g clip-path="url(#ring-window)">
           {#each settings as q, i (q)}
             {@const dy = (i - ring.current) * 15}
-            <text class="ring-num" class:now={i === settingIndex} x="170" y={114 + dy} opacity={Math.max(0, 1 - Math.abs(dy) / 22)}>{q}</text>
+            <text class="ring-num" class:now={i === settingIndex} x="182" y={AXIS + 5 + dy} opacity={Math.max(0, 1 - Math.abs(dy) / 20)}>{q}</text>
           {/each}
         </g>
-        <path class="mark" d="M 166 82 L 174 82 L 170 87 Z" />
+        <path class="mark" d={`M 155 ${AXIS - 5} L 161 ${AXIS} L 155 ${AXIS + 5} Z`} />
       </g>
     {:else}
-      <rect class="ring-body fixed" x="152" y="88" width="36" height="44" rx="4" />
-      <text class="ring-num now" x="170" y="114">{nozzle.ratedFlowGpm}</text>
+      <rect class="ring-body fixed" x="162" y="70" width="40" height="36" rx="4" />
+      <text class="ring-num now" x="182" y={AXIS + 5}>{nozzle.ratedFlowGpm}</text>
     {/if}
 
-    <!-- Pattern collar. -->
+    <!-- Pattern collar: the rubber bumper, ribs sliding round as it turns, teeth at the tip. -->
     <g
       class="turn"
       role="slider"
@@ -190,35 +209,35 @@
       onpointercancel={turnUp}
       onkeydown={(e) => sliderKeys(e, stepPattern, 0.1)}
     >
-      <rect class="hit" x="190" y="62" width="76" height="96" />
-      <rect class="collar" x="192" y="86" width="72" height="48" rx="6" />
+      <rect class="hit" x="204" y="40" width="80" height="96" />
+      {#each [70, 79, 88, 97, 106] as y (y)}<rect class="tooth" x="270" y={y - 3} width="12" height="6" rx="2" />{/each}
+      <rect class="collar" x="204" y="64" width="70" height="48" rx="8" />
       {#each ribs as r, k (k)}
-        {#if r.shown}<line class="rib" x1="196" y1={r.y} x2="260" y2={r.y} opacity={0.25 + 0.6 * r.depth} />{/if}
+        {#if r.shown}<line class="rib" x1="210" y1={r.y} x2="268" y2={r.y} opacity={0.25 + 0.6 * r.depth} />{/if}
       {/each}
     </g>
-    <!-- Bumper with teeth. -->
-    <path class="bumper" d="M 264 90 L 284 94 L 284 126 L 264 130 Z" />
-    {#each [98, 106, 114, 122] as y (y)}<line class="tooth" x1="272" y1={y} x2="284" y2={y} />{/each}
+    <text class="tag" x="278" y="134" text-anchor="end">Punta</text>
 
-    <!-- The bale. -->
+    <!-- The bale: two arms from the pivots, joined by the grip across the top. -->
     <g
       class="bale"
       role="switch"
       tabindex="0"
       aria-checked={nozzle.open}
-      aria-label={nozzle.open ? "Manija abierta: tocar o empujar para cerrar" : "Manija cerrada: tocar o tirar para abrir"}
+      aria-label={nozzle.open ? "Manija abierta: tocar o empujar hacia la punta para cerrar" : "Manija cerrada: tocar o tirar hacia la manguera para abrir"}
       onpointerdown={baleDown}
       onpointermove={baleMove}
       onpointerup={baleUp}
       onpointercancel={baleUp}
       onkeydown={(e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), onOpen(!nozzle.open))}
     >
-      <g transform={`rotate(${baleDeg} ${PIVOT.x} ${PIVOT.y})`}>
-        <rect class="hit" x={PIVOT.x - 24} y={PIVOT.y - 84} width="48" height="88" />
-        <line class="lever" x1={PIVOT.x} y1={PIVOT.y} x2={PIVOT.x} y2={PIVOT.y - 62} />
-        <rect class="grip" x={PIVOT.x - 8} y={PIVOT.y - 74} width="16" height="18" rx="6" />
-      </g>
-      <circle class="pivot" cx={PIVOT.x} cy={PIVOT.y} r="5" />
+      <rect class="hit" x={crossbar.x - 22} y="50" width="44" height="76" />
+      <rect class="shadow" x={crossbar.x - 6 + 10 * crossbar.lift} y={60 + 6 * crossbar.lift} width="12" height="56" rx="6" />
+      <line class="arm" x1={PIVOT.x} y1="68" x2={crossbar.x} y2="64" />
+      <line class="arm" x1={PIVOT.x} y1="108" x2={crossbar.x} y2="112" />
+      <rect class="grip" x={crossbar.x - 6 - 3 * crossbar.lift} y={58 - 2 * crossbar.lift} width={12 + 6 * crossbar.lift} height={60 + 4 * crossbar.lift} rx="6" />
+      <circle class="pin" cx={PIVOT.x} cy="68" r="2.5" />
+      <circle class="pin" cx={PIVOT.x} cy="108" r="2.5" />
     </g>
   </svg>
 
@@ -246,33 +265,37 @@
       </div>
     </div>
   </div>
-  <p class="hint">Toca o tira de la manija; gira el anillo y el collar arrastrando arriba o abajo.</p>
+  <p class="hint">Vista desde arriba. Toca la manija o deslízala: hacia la manguera abre, hacia la punta cierra. Gira el anillo y el collar arrastrando arriba o abajo.</p>
 </div>
 
 <style>
   .closeup { display: grid; gap: 8px; }
   svg { width: 100%; height: auto; background: var(--band); border-radius: 12px; touch-action: none; user-select: none; }
-  .spray, .core, .flow, .swivel, .knurl, .body, .boss, .ring-body, .ring-num, .mark, .collar, .rib, .bumper, .tooth, .pivot { pointer-events: none; }
+  .spray, .core, .flow, .tag, .hose, .lug, .swivel, .knurl, .body, .boss, .barrel, .ring-body, .ring-num, .mark, .collar, .rib, .tooth, .shadow, .pin { pointer-events: none; }
   .spray { fill: var(--water-soft); opacity: 0.8; }
   .core { fill: var(--water); opacity: 0.6; }
   .flow { font-size: 12px; font-weight: 700; text-anchor: end; fill: var(--water); font-variant-numeric: tabular-nums; }
-  .swivel { fill: var(--steel); }
+  .tag { font-size: 10px; fill: var(--muted); }
+  .hose { fill: var(--hose); }
+  .swivel, .lug { fill: var(--steel); }
   .knurl { stroke: rgba(0, 0, 0, 0.25); stroke-width: 2; }
-  .body, .boss { fill: var(--ink); }
+  .body { fill: #c0392b; }
+  .boss { fill: var(--steel); stroke: #2b2f33; stroke-width: 1.5; }
+  .barrel { fill: #8f989f; }
   .ring-body { fill: #c9ced3; stroke: var(--steel); stroke-width: 1.5; }
   .ring-num { font-size: 13px; font-weight: 700; text-anchor: middle; fill: #4a535c; font-variant-numeric: tabular-nums; }
   .ring-num.now { fill: #111; }
   .mark { fill: var(--warn); }
-  .collar { fill: var(--water); }
-  .rib { stroke: #0b3d6e; stroke-width: 2; }
-  .bumper { fill: #2b2f33; }
-  .tooth { stroke: #55606a; stroke-width: 2; }
-  .lever { stroke: var(--ink); stroke-width: 7; stroke-linecap: round; }
-  .grip { fill: #2b2f33; stroke: var(--ink); stroke-width: 1; }
-  .pivot { fill: var(--steel); stroke: var(--ink); stroke-width: 2; }
+  .collar { fill: #2b2f33; }
+  .rib { stroke: #5b656e; stroke-width: 2; }
+  .tooth { fill: #2b2f33; }
+  .shadow { fill: #000; opacity: 0.18; }
+  .arm { stroke: #a9b1b8; stroke-width: 5; stroke-linecap: round; }
+  .grip { fill: #2b2f33; stroke: #11151a; stroke-width: 1; }
+  .pin { fill: #2b2f33; }
   .hit { fill: transparent; }
   .bale, .turn { cursor: grab; outline: none; }
-  .bale:focus-visible .lever, .turn:focus-visible .collar, .turn:focus-visible .ring-body { stroke: var(--accent); stroke-width: 3; }
+  .bale:focus-visible .grip, .turn:focus-visible .collar, .turn:focus-visible .ring-body { stroke: var(--accent); stroke-width: 3; }
   .readouts { display: grid; grid-template-columns: repeat(auto-fit, minmax(84px, 1fr)); gap: 6px; }
   .readout { min-width: 0; }
   .readout { display: grid; gap: 4px; align-content: start; }

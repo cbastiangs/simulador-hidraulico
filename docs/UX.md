@@ -592,7 +592,14 @@ falling short." The features named live in the proposed patterns (§10.1):
   finger); arrow keys work on each; a readout with ‹ › under each control
   covers every state too. A link above it ("Ver controles simples" / "Ver
   pitón dibujado") switches to the plain controls and is remembered per
-  browser (`view.controls`). The under-pressure warning sits after the
+  browser (`view.controls`). **Drawn from above (owner, 2026-10-17)**,
+  modelled on a TFT combination nozzle, not from the side: hose and
+  swivel on the left, tip and stream on the right, so the direction of
+  the water is never in doubt. The bale is the U seen from above: pushed
+  forward toward the tip it lies over the barrel (shut), pulled back
+  toward the hose it is open, as on the real nozzle; a tap or a sideways
+  drag works it. The canvas nozzle stays a side view (the lay is an
+  elevation). The under-pressure warning sits after the
   controls, so it appearing mid-turn never moves them under the finger.
 - **Full truck-specs editor** and **preset trucks** with pump and discharge
   diameters: **Configure** and **Choose** (`ROADMAP` §6, M3).
