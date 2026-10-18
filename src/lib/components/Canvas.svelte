@@ -28,7 +28,7 @@
   import * as edit from "$lib/edit.ts";
   import WyeDrawing from "./WyeDrawing.svelte";
   import PieceStrip from "./PieceStrip.svelte";
-  import { PIECES, isAdding, spotsFor, type PieceId, type Spot } from "$lib/pieces.ts";
+  import { PIECES, isAdding, removalFor, spotsFor, type PieceId, type Spot } from "$lib/pieces.ts";
   import { hoseVelocityMps } from "$hydraulics/velocity.ts";
 
   // The canvas (UX.md §2, polish §10.8): one uniform scale, the lay auto-fitted
@@ -315,11 +315,11 @@
    */
   const gaugeK = $derived(k * Math.min(1, Math.max(0.75, zoom / 0.8)));
   /**
-   * Nozzles shrink further, to 45 % (owner, 2026-10-17: "comically big" zoomed
+   * Nozzles shrink further, to 30 %, from zoom 1.2 down (owner, 2026-10-17: "comically big" zoomed
    * out): a drawing, not a control. Their handles keep full size, so they stay
    * as easy to grab.
    */
-  const nozzleK = $derived(k * Math.min(1, Math.max(0.45, zoom / 1.2)));
+  const nozzleK = $derived(k * Math.min(1, Math.max(0.3, zoom / 1.2)));
   /** Floor labels are constant-size: every Nth floor is named so two labels are never under 22 px apart. */
   const labelEvery = $derived.by(() => {
     const need = Math.ceil(22 / (floorM * PX_PER_M * zoom));
@@ -1249,6 +1249,8 @@
   let hoseBarH = $state(0);
   let jointBarW = $state(0);
   let jointBarH = $state(0);
+  let wyeBarW = $state(0);
+  let wyeBarH = $state(0);
   let nozzleBarW = $state(0);
   let nozzleBarH = $state(0);
   /** The pattern collar's three stops on the toolbar; the panel's slider sets anything between. */
@@ -1359,6 +1361,45 @@
     }
     return out;
   });
+  /**
+   * Removing what is selected, where it is (owner, 2026-10-18: "we should be
+   * able to remove stuff while there"): a × on the selection, by Quitar's
+   * own rules (lib/pieces.ts), so it removes and refuses the same things.
+   * Delete or Backspace does the same.
+   */
+  const removable = $derived.by(() => {
+    if (!selection || armed || dragging !== null) return null;
+    const c = removalFor(selection, scenario);
+    // Above the thing, never on it: the tap that selected it must not land on the ×.
+    const at = c.spot ? spotPoint(c.spot, "eraser") : selectionPoint(selection) ?? layout.nodes[0];
+    return { ...c, at: { x: at.x, y: at.y - 34 * k } };
+  });
+  /**
+   * The button just says "Quitar": the selection is highlighted beside it
+   * (owner, 2026-10-18). It says more only when more goes than what is
+   * highlighted, a wye taking its lines; the full sentence is its tooltip
+   * and the notice afterwards.
+   */
+  const removeShort = $derived.by(() => {
+    const lines = removable && /y sus (\d+) líneas/.exec(removable.label);
+    return lines ? `Quitar con sus ${lines[1]} líneas` : "Quitar";
+  });
+  // A touch selects on the way down and clicks on the way up: a click this
+  // soon after the × appeared belongs to the tap that made it appear.
+  let removableSince = 0;
+  $effect(() => {
+    if (removable) untrack(() => (removableSince = performance.now()));
+  });
+  function removeSelected(e?: Event) {
+    if (!removable) return;
+    if (e?.type === "click" && performance.now() - removableSince < 400) return;
+    if (removable.blocked) return say(removable.blocked);
+    // Read before placing: the removal clears the selection, and with it `removable`.
+    const { spot, label } = removable;
+    if (!spot) return;
+    onPlace?.("eraser", spot);
+    say(label);
+  }
   function hitSpot(c: (typeof spots)[number]) {
     if (!armed) return;
     if (c.blocked) return say(c.blocked);
@@ -1369,10 +1410,20 @@
   }
 </script>
 
+{#snippet removeButton()}
+  {#if removable}
+    <button type="button" class="bar-remove" class:blocked={removable.blocked !== null} title={removable.blocked ?? `${removable.label} (Supr)`} aria-label={removable.label} onclick={removeSelected}>{removeShort}</button>
+  {/if}
+{/snippet}
+
 <svelte:window
   onkeydown={(e) => {
     const t = e.target as Element;
     if (e.key === "Escape" && armed) armed = null;
+    if ((e.key === "Delete" || e.key === "Backspace") && removable && !t.closest("input, textarea, select, [contenteditable], dialog")) {
+      e.preventDefault();
+      removeSelected();
+    }
     if (e.key.toLowerCase() === "y" && !e.ctrlKey && !e.metaKey && !t.closest("input, textarea, select, [contenteditable]")) locked = !locked;
   }}
   bind:innerHeight={windowHeight}
@@ -1753,6 +1804,24 @@
           {/each}
         {/if}
 
+        <!-- Remove the selection, where it is (Quitar's rules): the phone's ×, as it has no floating toolbar; not a placement prompt, so it doesn't pulse. -->
+        {#if removable && phone}
+          <g
+            class="spot erase remove"
+            class:blocked={removable.blocked !== null}
+            transform={`translate(${removable.at.x} ${removable.at.y}) scale(${k})`}
+            role="button"
+            tabindex="0"
+            aria-label={removable.blocked ? `${removable.label}: ${removable.blocked}` : `${removable.label} (Supr)`}
+            onclick={(e) => (e.stopPropagation(), removeSelected(e))}
+            onkeydown={(e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), removeSelected())}
+          >
+            <title>{removable.blocked ?? `${removable.label} (Supr)`}</title>
+            <circle class="spot-hit" r="20" />
+            <circle class="spot-ring" r="11" />
+            <path class="spot-mark" d="M -4 -4 L 4 4 M 4 -4 L -4 4" />
+          </g>
+        {/if}
         <!-- Where the picked piece can go (lib/pieces.ts), over everything. -->
         {#each spots as c (c.key)}
           {#if c.at.from}<line class="spot-leader" x1={c.at.from.x} y1={c.at.from.y} x2={c.at.x} y2={c.at.y} stroke-width={1.5 * k} />{/if}
@@ -1804,6 +1873,7 @@
             <button type="button" class="lock" class:on={!s.lengthFree} aria-pressed={!s.lengthFree} onclick={() => onToggleLock(i)}>{s.lengthFree ? "🔓 Libre" : "🔒 Largo fijo"}</button>
           </div>
           <Actions target={{ kind: "section", index: i }} {scenario} requiredPsi={result.requiredPumpPressurePsi} place="quick" {onAction} />
+          {@render removeButton()}
         </div>
       {/if}
 
@@ -1820,6 +1890,16 @@
           <button type="button" class="bar-close" aria-label="Quitar selección (Esc)" title="Quitar selección (Esc)" onclick={onDeselect}>×</button>
           <JointControls {scenario} flowGpm={result.flowGpm} joint={selection.index} onToggle={(kind) => onToggleFitting(selection.index, kind)} />
           <Actions target={selection} {scenario} requiredPsi={result.requiredPumpPressurePsi} place="quick" {onAction} />
+          {@render removeButton()}
+        </div>
+      {/if}
+      <!-- A wye's and the pump's controls are their panels'; on the canvas they only offer Quitar, like everything else. -->
+      {#if ((selection?.kind === "joint" && junctionAtJoint(selection.index)) || selection?.kind === "pump") && removable && dragging === null && !phone}
+        {@const at = selection.kind === "joint" ? layout.nodes[selection.index] : selectionPoint(selection)!}
+        {@const pos = overlayPos(at.x * zoom - camX, (at.y + 30 * k) * zoom - camY, wyeBarW, wyeBarH, "below")}
+        <div class="hose-bar" style:left={`${pos.left}px`} style:top={`${pos.top}px`} style:max-width={`${pos.maxWidth}px`} bind:clientWidth={wyeBarW} bind:clientHeight={wyeBarH}>
+          <button type="button" class="bar-close" aria-label="Quitar selección (Esc)" title="Quitar selección (Esc)" onclick={onDeselect}>×</button>
+          {@render removeButton()}
         </div>
       {/if}
       <!-- The nozzle's shortcuts on the canvas (owner, 2026-10-17), like the hose's: operating it, not configuring it. -->
@@ -1860,6 +1940,7 @@
             {/if}
           {/if}
           <Actions target={{ kind: "nozzle" }} {scenario} requiredPsi={result.requiredPumpPressurePsi} place="quick" {onAction} />
+          {@render removeButton()}
         </div>
       {/if}
       {#if inspected !== null && showGauges && inspected < layout.nodes.length}
@@ -1950,7 +2031,7 @@
   .spot-mark { stroke: #fff; stroke-width: 2.6; stroke-linecap: round; fill: none; pointer-events: none; }
   .spot.erase .spot-ring { fill: var(--warn); }
   .spot.blocked .spot-ring { fill: var(--muted); opacity: 0.45; }
-  .spot:not(.blocked) .spot-ring { animation: spot 1.4s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+  .spot:not(.blocked):not(.remove) .spot-ring { animation: spot 1.4s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
   .spot:hover:not(.blocked) .spot-ring, .spot:focus-visible .spot-ring { stroke: var(--ink); }
   .spot-leader { stroke: var(--accent); stroke-dasharray: 3 3; pointer-events: none; }
   @keyframes spot { 50% { transform: scale(1.15); } }
@@ -2043,6 +2124,9 @@
   .lock.on { background: var(--surface); border-color: var(--accent); }
   .zoom { display: flex; gap: 4px; }
   .zoom button { min-width: 44px; height: 44px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); cursor: pointer; }
+  .bar-remove { justify-self: center; min-height: 36px; padding: 0 12px; border-radius: 8px; border: 1px solid color-mix(in srgb, var(--warn) 40%, var(--line)); background: var(--surface); color: var(--warn); font-weight: 600; font-size: 13px; cursor: pointer; }
+  .bar-remove:hover:not(.blocked) { background: color-mix(in srgb, var(--warn) 10%, var(--surface)); }
+  .bar-remove.blocked { opacity: 0.5; }
   .zoom button:disabled { opacity: 0.4; cursor: default; }
   .camera-lock.on { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
 </style>

@@ -154,9 +154,8 @@ export const ACTIONS: Action[] = [
   {
     id: "joint.join",
     label: "Unir los dos tramos",
-    short: "Unir tramos",
+    // Not in the toolbar: its "Quitar" removes a plain coupling by joining the hoses (lib/pieces.ts).
     on: ["joint"],
-    quick: true,
     menu: true,
     blocked: (c) => (index(c.target) === 0 ? "La salida de la bomba no une tramos" : acrossWye(c, index(c.target))),
     run: (c) => ({

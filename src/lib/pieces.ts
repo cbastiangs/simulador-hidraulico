@@ -32,7 +32,7 @@ export const PIECES: readonly Piece[] = [
   { id: "hose-2-1/2", label: "2½″", name: "Tramo de 2½″" },
   { id: "wye", label: "Bifurco", name: "Bifurco" },
   { id: "trifurca", label: "Trifurco", name: "Trifurco" },
-  { id: "fog", label: "Niebla", name: "Pitón combinado" },
+  { id: "fog", label: "Neblina", name: "Pitón combinado" },
   { id: "smooth-bore", label: "Liso", name: "Pitón de chorro sólido" },
   { id: "eraser", label: "Quitar", name: "Quitar" },
 ];
@@ -148,13 +148,46 @@ export function spotsFor(piece: PieceId, line: Scenario): SpotChoice[] {
   return out;
 }
 
+/**
+ * Quitar on a plain coupling, which the eraser's spots leave out (it would
+ * light every coupling beside every hose): removing it joins the two hoses.
+ * Only hoses of one size join; anything else would quietly resize one.
+ */
+function couplingRemoval(line: Scenario, j: number): SpotChoice | null {
+  if (j <= 0 || j >= line.sections.length || branch.junctionAt(line, j) || joints(line)[j].placed.length) return null;
+  const [a, b] = [line.sections[j - 1], line.sections[j]];
+  const blocked = a.hoseSizeId !== b.hoseSizeId || a.diameterIn !== b.diameterIn ? "Solo se unen tramos del mismo diámetro" : null;
+  return { spot: { kind: "joint", index: j }, label: "Quitar el acople (une los dos tramos)", blocked };
+}
+
+/**
+ * What "Quitar" does to the selection (UX.md §2 "Pieces": every selectable
+ * thing offers it, where it is). Quitar's own spots where it has one, the
+ * coupling's join, else a refusal that says why (`spot` null).
+ */
+export function removalFor(selection: Selection, line: Scenario): SpotChoice | { spot: null; label: string; blocked: string } {
+  const n = line.sections.length;
+  const spot: Spot | null =
+    selection.kind === "section" ? { kind: "section", index: selection.index }
+    : selection.kind === "joint" ? { kind: "joint", index: selection.index }
+    : selection.kind === "nozzle" ? { kind: "joint", index: n }
+    : null;
+  const key = JSON.stringify(spot);
+  const choice = spot && (spotsFor("eraser", line).find((c) => JSON.stringify(c.spot) === key) ?? (spot.kind === "joint" ? couplingRemoval(line, spot.index) : null));
+  if (choice) return choice;
+  if (selection.kind === "nozzle") return { spot: null, label: "Quitar", blocked: "Es la punta de la manguera: no hay pitón que quitar" };
+  if (selection.kind === "joint" && selection.index === 0) return { spot: null, label: "Quitar", blocked: "La salida de la bomba no se quita: quita el tramo" };
+  if (selection.kind === "joint") return { spot: null, label: "Quitar", blocked: "Este acople no se puede quitar" };
+  return { spot: null, label: "Quitar", blocked: "La bomba no se quita" };
+}
+
 /** The hose's published size on section `i`, by the piece's catalog id. */
 const sized = (scenario: Scenario, i: number, hoseSizeId: string) => edit.setSectionHose(scenario, i, hoseSizeId);
 
 /** Drops the piece on the spot. A spot `spotsFor` didn't offer, or offered blocked, changes nothing. */
 export function place(piece: PieceId, spot: Spot, line: Scenario): Placed {
   const same = (a: Spot, b: Spot) => JSON.stringify(a) === JSON.stringify(b);
-  const choice = spotsFor(piece, line).find((c) => same(c.spot, spot));
+  const choice = spotsFor(piece, line).find((c) => same(c.spot, spot)) ?? (piece === "eraser" && spot.kind === "joint" ? couplingRemoval(line, spot.index) : null);
   if (!choice || choice.blocked) return {};
   const n = line.sections.length;
   const hose = HOSE_OF[piece];
@@ -198,5 +231,6 @@ export function place(piece: PieceId, spot: Spot, line: Scenario): Placed {
   }
   if (spot.index === n) return { scenario: edit.removeNozzle(line), select: null };
   const placed = joints(line)[spot.index].placed;
+  if (placed.length === 0) return { scenario: edit.mergeAtJoint(line, spot.index), hint: spot.index, select: { kind: "section", index: spot.index - 1 } };
   return { scenario: placed.reduce((s, kind) => edit.toggleFitting(s, spot.index, kind), line), select: null };
 }

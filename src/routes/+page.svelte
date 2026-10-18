@@ -4,6 +4,7 @@
   import BudgetBar from "$lib/components/BudgetBar.svelte";
   import PowerSplit from "$lib/components/PowerSplit.svelte";
   import { powerSplit } from "$hydraulics/power.ts";
+  import { untrack } from "svelte";
   import Canvas from "$lib/components/Canvas.svelte";
   import Concepts from "$lib/components/Concepts.svelte";
   import Inspector from "$lib/components/Inspector.svelte";
@@ -15,6 +16,8 @@
   import { METHOD_IDS, METHOD_LABELS } from "$lib/methods.ts";
   import type { MethodId } from "$hydraulics/references.ts";
   import Settings from "$lib/components/Settings.svelte";
+  import ScenarioText from "$lib/components/ScenarioText.svelte";
+  import * as share from "$lib/share.ts";
   import type { Selection } from "$lib/selection.ts";
   import TreeResults from "$lib/components/TreeResults.svelte";
   import * as branch from "$lib/branch-edit.ts";
@@ -28,7 +31,10 @@
     .map(([path, doc]) => ({ id: path.split("/").pop()!.replace(".json", ""), scenario: parseScenario(doc) }))
     .sort((a, b) => (a.id === "ataque-segundo-piso" ? -1 : b.id === "ataque-segundo-piso" ? 1 : a.id.localeCompare(b.id)));
 
-  let presetId = $state(presets[0].id);
+  /** The preset loaded last; null when the scenario came from a link or a paste. */
+  let presetId = $state<string | null>(presets[0].id);
+  /** What "Reiniciar este escenario" returns to: the preset, link or paste loaded last. */
+  let base: Scenario = $state.raw(presets[0].scenario);
   // Counts loads, so reloading the same preset also refits the canvas.
   let loads = $state(0);
   // Replaced whole by each edit (lib/edit.ts), never mutated in place.
@@ -98,7 +104,7 @@
       selectedPath = out.tree.path;
       keepSelection();
     }
-    if (out.select === null) selection = null;
+    if (out.select === null) deselect();
     else if (out.select) select(out.select, false);
   }
 
@@ -289,7 +295,7 @@
     if (id === presetId) return;
     presetId = id;
     loads += 1;
-    scenario = presets.find((p) => p.id === id)!.scenario;
+    scenario = base = presets.find((p) => p.id === id)!.scenario;
     selection = null;
     selectedPath = [];
     past = [];
@@ -301,7 +307,7 @@
   // refit the canvas; a preset starts a fresh history.
   let scenarioMenu: HTMLDetailsElement | undefined = $state();
   /** Changed since the preset was loaded: what "Reiniciar" would undo. */
-  const edited = $derived(scenario !== presets.find((p) => p.id === presetId)!.scenario);
+  const edited = $derived(scenario !== base);
   function newLine() {
     apply(edit.blankLine(scenario));
     selectedPath = [];
@@ -310,11 +316,83 @@
     if (scenarioMenu) scenarioMenu.open = false;
   }
   function resetPreset() {
-    apply(presets.find((p) => p.id === presetId)!.scenario);
+    apply(base);
     selectedPath = [];
     loads += 1;
     deselect();
     if (scenarioMenu) scenarioMenu.open = false;
+  }
+
+  // Copy, paste and links (lib/share.ts, UX.md §4): only the scenario travels.
+  let notice = $state("");
+  let noticeTimer: ReturnType<typeof setTimeout> | undefined;
+  function say(text: string) {
+    notice = text;
+    clearTimeout(noticeTimer);
+    noticeTimer = setTimeout(() => (notice = ""), 3000);
+  }
+  /** A scenario from outside becomes what Reiniciar returns to; a paste is an undo step, a link opens fresh. */
+  function loadShared(next: Scenario, undoable: boolean) {
+    if (undoable) apply(next);
+    else {
+      scenario = next;
+      past = [];
+      future = [];
+    }
+    base = next;
+    presetId = null;
+    selectedPath = [];
+    loads += 1;
+    deselect();
+  }
+  async function openLink(undoable: boolean) {
+    const fragment = location.hash;
+    if (!fragment) return;
+    try {
+      const next = await share.fromFragment(fragment);
+      if (!next) return;
+      loadShared(next, undoable);
+      say(`Abierto desde el enlace: ${next.name}`);
+    } catch (error) {
+      say(error instanceof share.ShareError ? error.message : "No se pudo abrir el enlace.");
+    }
+    // The address stops naming the lay once it is open: edits would make it stale.
+    history.replaceState(history.state, "", location.pathname + location.search);
+  }
+  $effect(() => {
+    untrack(() => openLink(false));
+    const changed = () => openLink(true);
+    addEventListener("hashchange", changed);
+    return () => removeEventListener("hashchange", changed);
+  });
+  let textMode = $state<"copy" | "paste" | null>(null);
+  let textCopy = $state("");
+  let pasteError = $state("");
+  async function copy(kind: "link" | "text") {
+    if (scenarioMenu) scenarioMenu.open = false;
+    const text = kind === "link" ? await share.linkOf(scenario, location.href) : share.toText(scenario);
+    try {
+      await navigator.clipboard.writeText(text);
+      say(kind === "link" ? "Enlace copiado: quien lo abra ve este escenario" : "Escenario copiado como texto");
+    } catch {
+      textCopy = text;
+      textMode = "copy";
+    }
+  }
+  function paste() {
+    if (scenarioMenu) scenarioMenu.open = false;
+    pasteError = "";
+    textMode = "paste";
+  }
+  async function openPasted(text: string) {
+    try {
+      const next = await share.fromText(text);
+      textMode = null;
+      loadShared(next, true);
+      say(`Escenario pegado: ${next.name}`);
+    } catch (error) {
+      pasteError = error instanceof share.ShareError ? error.message : "No se pudo abrir.";
+    }
   }
 </script>
 
@@ -392,13 +470,17 @@
       <button type="button" onclick={redo} disabled={future.length === 0} aria-label="Rehacer" title="Rehacer (Ctrl+Shift+Z)">↷<span class="word"> Rehacer</span></button>
     </div>
     <details class="scenario" bind:this={scenarioMenu}>
-      <summary aria-label={`Escenario: ${scenario.name}`} title="Escenario: elegir otro, línea en blanco, reiniciar"><span class="name">{scenario.name}</span><span class="caret" aria-hidden="true">▾</span></summary>
+      <summary aria-label={`Escenario: ${scenario.name}`} title="Escenario: elegir otro, copiar, pegar, reiniciar"><span class="name">{scenario.name}</span><span class="caret" aria-hidden="true">▾</span></summary>
       <div class="scenario-menu">
         <span class="menu-title">Empezar desde</span>
         {#each presets as p (p.id)}
           <button type="button" class:on={p.id === presetId} aria-current={p.id === presetId} onclick={() => choosePreset(p.id)}>{p.scenario.name}</button>
         {/each}
         <button type="button" class="blank" onclick={newLine}>Línea en blanco</button>
+        <hr />
+        <button type="button" onclick={() => copy("link")}>Copiar enlace</button>
+        <button type="button" onclick={() => copy("text")}>Copiar como texto</button>
+        <button type="button" onclick={paste}>Pegar escenario…</button>
         <hr />
         <button type="button" disabled={!edited} title={edited ? undefined : "Sin cambios desde que se cargó"} onclick={resetPreset}>Reiniciar este escenario</button>
       </div>
@@ -458,6 +540,9 @@
   {/if}
 </div>
 
+<ScenarioText mode={textMode} text={textMode === "copy" ? textCopy : ""} error={pasteError} onOpen={openPasted} onClose={() => (textMode = null)} />
+{#if notice}<div class="notice" role="status">{notice}</div>{/if}
+
 <Settings
   open={settingsOpen}
   onClose={() => (settingsOpen = false)}
@@ -510,6 +595,7 @@
   .history { display: flex; gap: 6px; margin-left: auto; }
   .history button { height: 44px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); font-weight: 600; cursor: pointer; }
   .history button:disabled { opacity: 0.4; cursor: default; }
+  .notice { position: fixed; left: 50%; top: 64px; transform: translateX(-50%); z-index: 60; max-width: calc(100vw - 32px); padding: 10px 14px; border-radius: 10px; background: var(--ink); color: var(--surface); font-size: 14px; font-weight: 600; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25); }
   .gear { width: 44px; height: 44px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); font-size: 20px; cursor: pointer; color: var(--ink); }
   .scenario { position: relative; min-width: 0; max-width: 420px; }
   .scenario summary { list-style: none; display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); cursor: pointer; font-weight: 600; font-size: 14px; }

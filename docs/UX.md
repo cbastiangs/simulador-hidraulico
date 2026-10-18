@@ -155,9 +155,24 @@
   **Adding and removing happen here, not in the panel** (owner,
   2026-10-18: "having any button control on the panel doing that feels
   really awkward"): the panel edits what a thing is, the canvas what is
-  there. The floating toolbar doesn't repeat them either (owner,
-  2026-10-18). The right-click / long-press menu keeps them for the
-  selected thing, so the keyboard and screen readers can still build.
+  there. **Adding** happens only from the strip; the right-click /
+  long-press menu keeps it for the selected thing, so the keyboard and
+  screen readers can still build. **Removing what is selected happens
+  where it is** (owner, 2026-10-18: "we should be able to remove stuff
+  while there"): a red "Quitar" at the foot of its floating toolbar
+  (desktop; just "Quitar", since the selection is highlighted beside it,
+  or "Quitar con sus 2 líneas" when a wye takes its lines), a red × just above it on the drawing (phone, which has no
+  floating toolbar), and Delete or Backspace. **Everything selectable
+  offers it** (owner, 2026-10-18), a wye and the pump in a small bar of
+  their own. What can't go shows it dimmed and says why: the pump, the
+  pump's outlet, an open end, the last hose. Removing a plain coupling
+  joins its two hoses, only when they are one size (otherwise one would
+  quietly change size); a hand-placed adapter or valve goes from its
+  coupling. The rules are Quitar's (`removalFor` in `src/lib/pieces.ts`),
+  so the strip's eraser and the selection's button can't disagree. The
+  coupling toolbar's "Unir tramos" is gone, since Quitar does it; the menu
+  keeps "Unir los dos tramos". The phone's × ignores the click of the tap that made
+  it appear.
   **Dragging a piece from the strip is deferred** (ROADMAP §10e):
   tap-then-tap is the phone's way anyway, and a drag would reuse the same
   spots.
@@ -392,9 +407,20 @@ and dropped: the pump was edited in two places and line settings in three.
   and the "⋯" menu. Its button shows the scenario's name. The menu lists
   "Empezar desde" and the presets, with the loaded one ticked, then
   "Línea en blanco" and "Reiniciar este escenario" (greyed out until
-  something changes). "Copiar enlace" and "Pegar" will join it with
-  backlog item 2. Loading a preset starts a fresh history; a blank line
-  and reset are undo steps.
+  something changes), "Copiar enlace", "Copiar como texto" and "Pegar
+  escenario…". Loading a preset starts a fresh history; a blank line,
+  reset and a paste are undo steps.
+- **Copy, paste, links (owner, 2026-10-18; ROADMAP §10e item 2).** Only
+  the scenario travels (the lay, method, floor height, fittings mode),
+  never Ajustes › Vista. A link carries the document in the URL's
+  fragment (`src/lib/share.ts`), so it reaches no server and works
+  offline. Opening one loads it with a fresh history, says so in a
+  notice, and clears the address, which would go stale with the first
+  edit. "Pegar escenario…" opens a box that takes the copied text or a
+  link, and says in Spanish why it won't open. Where the browser keeps
+  the clipboard closed (an http address on the station's network), copying
+  shows the text to copy by hand. What comes in passes `parseScenario`,
+  like the presets; "Reiniciar" returns to the last thing loaded.
 - **Settings, not buttons (owner, 2026-10-18).** A choice about the whole
   simulation rather than a piece goes in **Ajustes**, a dialog from the
   header's ⚙ (full width on a phone), never as a button in a panel.
@@ -617,7 +643,7 @@ allowed, with the reason.
 
 | Object | Create / add | Edit | Move | Remove | Inspect | Other |
 |---|---|---|---|---|---|---|
-| **Scenario** | preset ✅; blank line ✅ ("Línea en blanco", Escenario menu) | rename ✅ (Línea) | — | reset to preset ✅ (Escenario menu, undoable) | — | share link ⏳ (deferred); cloud save ⏳ (paid) |
+| **Scenario** | preset ✅; blank line ✅ ("Línea en blanco", Escenario menu) | rename ✅ (Línea) | — | reset to preset ✅ (Escenario menu, undoable) | — | share link ✅, copy / paste ✅ (Escenario menu); cloud save ⏳ (paid) |
 | **Method** | clone a built-in ⏳ | edit a clone ⏳; built-ins ✕ (read-only) | — | delete a clone ⏳ | sources ✅ ("Fuentes" card) | pick "Método" ✅; "Comparar con" ✅ (Ajustes; per browser, off when equal to Método) |
 | **Pump** | ✕ (a line needs a source) | pressure ✅, apply required ✅, outlet size ✅; spec ⏳ M3 | ✕ | ✕ | flow, state ✅ | — |
 | **Truck** | choose a truck file / preset ⏳ M3; clone a built-in ⏳ M3 | discharges open / shut, tank ⏳ M3; partial valves ⏳ (`valve.partial`); **specs editor** (pump, discharge sizes and diameters) ⏳ M3 | ✕ | ✕ | capacity ⏳ M3 | presets carry pump and discharge diameters ⏳ M3 |

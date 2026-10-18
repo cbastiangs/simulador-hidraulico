@@ -100,7 +100,9 @@ never changes the hydraulics.
 (links, files). Additions are new optional fields with defaults, so old
 documents parse unchanged; a change of meaning bumps `version` and adds one
 migration function from the previous version, so old links keep opening.
-Until the first document is shared, the format can still change freely.
+Documents are shared since 2026-10-18 (links, copied text): from then on
+a change of meaning needs its migration, so links already sent keep
+opening.
 Data-collection CSV templates (`data/templates/`) and sourced equipment
 reference CSVs (`data/catalog/`) are not this schema: their columns can be
 added at any time. Catalog rows retain their manufacturer source and may be
@@ -468,12 +470,17 @@ Agreed, in this order; each is usable on its own. Before M3 unless noted.
    course teaches pressure, not power (owner, 2026-10-17). Its stream share
    is the lay's efficiency. Built: branched lays only; a single line's split
    equals its pressure split, so Conceptos gives the pump's power instead.
-2. **Copy / paste a scenario, then share links** (M1's last feature): the
+2. ✅ **Copy / paste a scenario, then share links** (M1's last feature): the
    scenario JSON to the clipboard and back through `parseScenario`, then the
    same document encoded in the URL. Bug reports carry the exact lay.
+   Built 2026-10-18 in the Escenario menu (UX.md §4). A link carries only
+   the lay, not the viewer's Vista settings (owner). The fragment is
+   `#e=` (deflate-raw, base64url; about 600 characters for a three-way lay)
+   or `#j=` where the browser can't compress.
 3. **Before / after deltas**: after a change, "+12 gpm · −8 psi fricción"
    for a moment, or a result pinned as "antes" to compare against.
-4. **Desktop keyboard**: Delete removes the selection, arrows nudge a
+4. **Desktop keyboard**: Delete removes the selection (✅ 2026-10-18, with
+   removing in place, UX.md §2 "Pieces"), arrows nudge a
    coupling, Tab steps through the parts (Ctrl+Z / Ctrl+Y exist).
 5. **"Mis líneas"**: the person's own lays saved in the browser beside the
    presets (builds on 2).
@@ -569,9 +576,9 @@ and couplings, PLT-11's load chart.
 
 ### Saving and sharing (owner, 2026-10-15)
 
-8. **Share link: wanted, deferred** until the current polish is done (§10c,
-   UX.md §8). A link carries the whole scenario document; opening it
-   rebuilds that lay (top task 9, UX.md §9).
+8. **Share link: built** (2026-10-18, §10e item 2). A link carries the
+   whole scenario document; opening it rebuilds that lay (top task 9,
+   UX.md §9).
 9. **Cloud saves and permanent lays are the planned paid feature.** The
    share link stays free beside them. Accounts, storage and pricing are not
    designed yet, and they bring back PLAN §1's licence and hosting question.
