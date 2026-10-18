@@ -218,7 +218,7 @@
         {:else if reaction.law === "fog"}
           NR = 0.0505 · Q · √NP = 0.0505 × {fmt(reaction.inputs.flowGpm, 1)} × √{fmt(reaction.inputs.nozzlePressurePsi, 1)} · Task Force Tips
         {:else if reaction.law === "fog-kg-per-gpm"}
-          kg ≈ {fmt(reaction.inputs.kgfPerGpm)} × Q = {fmt(reaction.inputs.kgfPerGpm)} × {fmt(reaction.inputs.flowGpm, 1)} · Manual CGBVP 2019, p. 46, válida a {reaction.inputs.atPsi} psi
+          kg ≈ {fmt(reaction.inputs.kgfPerGpm)} × Q = {fmt(reaction.inputs.kgfPerGpm)} × {fmt(reaction.inputs.flowGpm, 1)} · Manual de Hidráulica CGBVP 2019, p. 46, válida a {reaction.inputs.atPsi} psi
         {:else}
           NR = 1.57 · c · d² · p = 1.57 × {fmt(reaction.inputs.coefficient)} × {fmt(reaction.inputs.boreIn, 3)}² × {fmt(reaction.inputs.pressurePsi, 1)} · cantidad de movimiento del chorro
         {/if}
@@ -271,7 +271,7 @@
     {@const wye = junctionAt(scenario, selection.index)!}
     <header>
       <h3>{jointName(scenario, selection.index)}</h3>
-      <p>Cada salida tiene su válvula: toca la palanca para abrir o cerrar · arrastra la bifurca para moverla</p>
+      <p>Cada salida tiene su válvula: toca la palanca para abrir o cerrar · arrastra el bifurco para moverlo</p>
     </header>
     <JunctionPanel {tree} junction={wye} {outlets} {onTree} {onLine} />
   {:else if selection.kind === "joint"}

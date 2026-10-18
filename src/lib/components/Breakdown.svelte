@@ -9,7 +9,7 @@
   let { terms, methodId, scenario }: { terms: Term[]; methodId: MethodId; scenario: Scenario } = $props();
 
   const SOURCE_LABELS: Record<SourceId, string> = {
-    cgbvpManual2019: "Manual CGBVP 2019",
+    cgbvpManual2019: "Manual de Hidráulica CGBVP 2019",
     coloradoPumperChart: "Colorado DFPC, Pumper chart 2020",
     tftReaction: "Task Force Tips, reacción del pitón",
     temeculaFireFlow: "Temecula Fire Prevention Bureau (NFPA 291)",
@@ -50,7 +50,7 @@
           EP = k × h = {f(k, 3)} psi/m × {f(h)} m = <strong>{f(term.valuePsi)} psi</strong>
         </span>
       {:else if term.lawId === "appliance.fixed" || term.lawId === "appliance.step"}
-        <span class="name">{term.kind === "wye" ? "Bifurca · caudal total de entrada" : term.kind === "adapter" && term.joint > 0 && term.joint < scenario.sections.length ? jointName(scenario, term.joint) : `${term.kind === "valve" ? "Válvula en línea" : "Adaptador"}, ${jointNameIn(scenario, term.joint)}`}</span>
+        <span class="name">{term.kind === "wye" ? "Bifurco · caudal total de entrada" : term.kind === "adapter" && term.joint > 0 && term.joint < scenario.sections.length ? jointName(scenario, term.joint) : `${term.kind === "valve" ? "Válvula en línea" : "Adaptador"}, ${jointNameIn(scenario, term.joint)}`}</span>
         {#if term.lawId === "appliance.step"}
           {@const { aboveGpm: qs, stepPsi: dp, flowGpm: q } = term.inputs}
           <span class="formula">
