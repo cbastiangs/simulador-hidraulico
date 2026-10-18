@@ -598,13 +598,17 @@ at any step; ending it counts as seen.
 |---|---|---|---|
 | 0 | nothing (a card) | "Simulador hidráulico: cambias el tendido y la bomba; el caudal lo calcula la física. Un minuto." · Empezar / Ahora no | a button |
 | 1 | the canvas, whole lay | "El tendido, de lado: bomba → mangueras → pitones. Las líneas grises son los pisos." | Siguiente |
-| 2 | the pump (panel head; phone: the strip) | "La presión de la bomba: súbela o bájala. «Ideal» marca la que pide el pitón; tócala para ponerla." | Siguiente |
-| 3 | a nozzle, then its Manija (lever on wide screens; the sheet's control on a phone, where the drawn lever is too small, §8.1) | "Cierra este pitón con su manija." | the nozzle closes |
-| 4 | the pump's flow | Branched: "Bajó el caudal total, y la otra línea recibe un poco más: comparten la bomba. Ábrelo otra vez." Single line: "Sin caudal no hay fricción. Ábrelo otra vez." | the nozzle opens |
-| 5 | a coupling's handle (else the nozzle's) | "Arrastra el acople a otro piso: la altura cuesta presión." | a move |
-| 6 | a hose | "Toca una manguera para cambiar diámetro o largo. Mantén pulsado (clic derecho) para más." | a hose is selected |
-| 7 | the pressure bar (phone: the closed sheet; wide: the dock or the results' bar) | "En qué se gasta la presión: pitón, fricción, altura." | Siguiente |
-| 8 | the Escenario menu | "Otros tendidos, y copiar o pegar el tuyo, aquí. El recorrido vuelve en «?»" (phone: "en Escenario › Ver recorrido") | Listo |
+| 2 | nothing (a card in the empty building, so the lay and the view buttons stay in sight) | Phone: "Un dedo arrastra el dibujo; dos dedos lo acercan o alejan (pellizco). «Ver todo» lo muestra completo." Wide: "Arrastra el fondo para moverlo; la rueda del ratón acerca o aleja. «Ver todo» lo muestra completo." (owner, 2026-10-18: the tour had no navigation) | Siguiente; the person may try it first |
+| 3 | the pump (panel head; phone: the strip) | "La presión de la bomba: súbela o bájala. «Ideal» marca la que pide el pitón; tócala para ponerla." | Siguiente |
+| 4 | Wide: the nozzle's drawn lever, tinted in the accent colour. Phone: the nozzle, then, once selected, the sheet's "Abierta" button (the drawn lever is too small to aim at, §8.1) | Wide: "Haz clic en la manija, la palanca sobre el pitón, para cerrarlo." Phone: "Toca el pitón para seleccionarlo." then "Ahora toca «Abierta», en el panel, para cerrar la manija." (owner, 2026-10-18: say where to act and highlight that control) | the nozzle closes |
+| 5 | the pump's flow | Branched: "Bajó el caudal total, y la otra línea recibe un poco más: comparten la bomba. Ábrelo otra vez." Single line: "Sin caudal no hay fricción. Ábrelo otra vez." | the nozzle opens |
+| 6 | a coupling's handle (else the nozzle's) | "Arrastra esta pieza a otro piso: subir cuesta presión." | a move |
+| 7 | a hose | "Toca una manguera para cambiar diámetro o largo. Mantén pulsado (clic derecho) para más." | a hose is selected |
+| 8 | the pressure bar (phone: the closed sheet; wide: the dock or the results' bar) | "En qué se gasta la presión: pitón, fricción, altura." | Siguiente |
+| 9 | the Escenario menu | "Otros tendidos, y copiar o pegar el tuyo, aquí. El recorrido vuelve en «?»" (phone: "en Escenario › Ver recorrido") | Listo |
+
+Steps 4, 6 and 7 re-frame the lay first ("Ver todo"), since the person may
+have panned or zoomed in step 2.
 
 **Look.** One popover by the target with the step count ("3 de 8"), Saltar
 and, on information steps, Siguiente; the rest of the screen dims except the

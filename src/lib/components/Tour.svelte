@@ -67,6 +67,9 @@
     return all.find(onScreen) ?? all[0] ?? null;
   }
 
+  /** The lever drawn on the edited line's nozzle: a click target on a mouse screen. */
+  const baleOnCanvas = () => [...document.querySelectorAll('[data-tour="nozzle"] .bale')].find(shown) ?? null;
+
   type Step = {
     title: string;
     text: () => string;
@@ -99,17 +102,32 @@
       enter: () => (onDeselect(), onFit()),
     },
     {
+      title: "Moverse por el dibujo",
+      text: () =>
+        phone
+          ? "Un dedo arrastra el dibujo; dos dedos lo acercan o alejan (pellizco). «Ver todo» lo muestra completo."
+          : "Arrastra el fondo para moverlo; la rueda del ratón acerca o aleja. «Ver todo» lo muestra completo.",
+      // A card in the empty building above the lay, not a highlight: it covers neither the lay nor the
+      // buttons it names (− + Ver todo), and the person may try the gestures before going on.
+      target: () => null,
+    },
+    {
       title: "La bomba",
       text: () => "Su presión: súbela o bájala. «Ideal» marca la que pide el pitón; tócala para ponerla.",
       target: () => find("pump"),
     },
     {
       title: "Cerrar un pitón",
+      // Wide: the drawn lever, clicked in place. Phone: the lever is too small to aim at (§8.1), so the
+      // nozzle is selected first and its panel's button is the target.
       text: () =>
-        selection?.kind === "nozzle" || !phone ? "Cierra este pitón con su manija." : "Toca este pitón y ciérralo con su manija.",
-      // Once the nozzle is selected its Manija control is the target: on a phone the drawn lever is too small (§8.1).
-      target: () => (selection?.kind === "nozzle" ? find("manija") : null) ?? find("nozzle"),
-      enter: () => onDeselect(),
+        !phone
+          ? "Haz clic en la manija, la palanca sobre el pitón, para cerrarlo."
+          : selection?.kind === "nozzle"
+            ? "Ahora toca «Abierta», en el panel, para cerrar la manija."
+            : "Toca el pitón para seleccionarlo.",
+      target: () => (phone ? (selection?.kind === "nozzle" ? find("manija") : find("nozzle")) : baleOnCanvas() ?? find("nozzle")),
+      enter: () => (onDeselect(), onFit()),
       done: () => openBales(scenario) < start.open,
       applies: () => hasBale(scenario),
     },
@@ -127,7 +145,7 @@
       title: "Mover",
       text: () => "Arrastra esta pieza a otro piso: subir cuesta presión.",
       target: () => find("coupling") ?? find("nozzle-handle"),
-      enter: () => onDeselect(),
+      enter: () => (onDeselect(), onFit()),
       done: () => geometry(scenario) !== start.geometry,
     },
     {
@@ -135,7 +153,7 @@
       text: () => `Toca una manguera para cambiar diámetro o largo. ${phone ? "Mantén pulsado" : "Clic derecho"} para más.`,
       target: () => find("hose"),
       // Closes the dragged hose's toolbar, which would cover the lay.
-      enter: () => onDeselect(),
+      enter: () => (onDeselect(), onFit()),
       // A new selection: dragging a coupling, the step before, already selects its hose.
       done: () => selection?.kind === "section" && selection !== start.selection,
     },
@@ -295,6 +313,9 @@
     align-items: center;
   }
   :global(.tour .tour-skip) { order: -1; }
+  /* The nozzle's lever is a thin line: tint it while it is the step's target. */
+  :global(.bale.driver-active-element .lever) { stroke: var(--accent); stroke-width: 6; }
+  :global(.bale.driver-active-element .knob) { fill: var(--accent); r: 6; }
   :global(.tour .driver-popover-next-btn) { background: var(--accent); border-color: var(--accent); color: #fff; }
   :global(.tour .driver-popover-prev-btn) { display: none !important; }
   :global(.tour .driver-popover-footer-btn:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
