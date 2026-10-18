@@ -485,8 +485,8 @@
   <header class="top">
     <h1>Simulador hidráulico</h1>
     <div class="history">
-      <button type="button" onclick={undo} disabled={past.length === 0} aria-label="Deshacer" title="Deshacer (Ctrl+Z)">↶<span class="word"> Deshacer</span></button>
-      <button type="button" onclick={redo} disabled={future.length === 0} aria-label="Rehacer" title="Rehacer (Ctrl+Shift+Z)">↷<span class="word"> Rehacer</span></button>
+      <button type="button" onclick={undo} disabled={past.length === 0} aria-label="Deshacer" title="Deshacer (Ctrl+Z)">↶<span class="word">Deshacer</span></button>
+      <button type="button" onclick={redo} disabled={future.length === 0} aria-label="Rehacer" title="Rehacer (Ctrl+Shift+Z)">↷<span class="word">Rehacer</span></button>
     </div>
     <details class="scenario" bind:this={scenarioMenu}>
       <summary data-tour="escenario" aria-label={`Escenario: ${scenario.name}`} title="Escenario: elegir otro, copiar, pegar, reiniciar"><span class="name">{scenario.name}</span><span class="caret" aria-hidden="true">▾</span></summary>
@@ -617,8 +617,13 @@
     grid-template-rows: auto auto 1fr;
   }
   .app.wide .head { position: sticky; top: 0; z-index: 5; }
-  /* Shorter than the viewport by the bottom padding, so it can stay stuck to the end of the page. */
-  .app.wide .side { position: sticky; top: var(--gap); align-self: start; max-height: calc(100dvh - var(--gap) - 90px); overflow: auto; }
+  /* One header row when wide: a long scenario name truncates rather than pushing ? and ⚙ to a second row, which would shift the panel under the dock. */
+  .app.wide .top { flex-wrap: nowrap; }
+  .app.wide .top h1 { flex: none; white-space: nowrap; }
+  .app.wide .top > * { flex-shrink: 0; }
+  .app.wide .top > .scenario { flex-shrink: 1; }
+  /* Shorter than the viewport by the header (44 px and a gap) and the dock's 90 px, so its end never sits under the dock, scrolled or not. */
+  .app.wide .side { position: sticky; top: var(--gap); align-self: start; max-height: calc(100dvh - 2 * var(--gap) - 44px - 90px); overflow: auto; }
   .dock { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; padding: 8px var(--gap) calc(8px + env(safe-area-inset-bottom)); background: var(--bg); box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.15); }
   .dock > :global(*) { max-width: 1976px; margin: 0 auto; }
   .top { grid-area: top; display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; justify-content: space-between; }
@@ -670,6 +675,8 @@
     grid-template-rows: auto auto minmax(0, 1fr);
   }
   .app.phone .top { flex-wrap: nowrap; }
+  /* Svelte trims a leading space inside the span, so the gap after the arrow is a margin. */
+  .word { margin-left: 0.35em; }
   .app.phone .top h1, .app.phone .word { display: none; }
   .app.phone .history { order: 2; margin-left: 0; }
   .app.phone .history button { min-width: 44px; padding: 0; font-size: 20px; }
