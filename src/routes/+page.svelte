@@ -17,6 +17,7 @@
   import type { MethodId } from "$hydraulics/references.ts";
   import Settings from "$lib/components/Settings.svelte";
   import ScenarioText from "$lib/components/ScenarioText.svelte";
+  import Tour, { tourSeen } from "$lib/components/Tour.svelte";
   import * as share from "$lib/share.ts";
   import type { Selection } from "$lib/selection.ts";
   import TreeResults from "$lib/components/TreeResults.svelte";
@@ -327,11 +328,14 @@
 
   // Copy, paste and links (lib/share.ts, UX.md §4): only the scenario travels.
   let notice = $state("");
+  /** A button in the notice, e.g. the tour offered to a first visit that came by a link. */
+  let noticeAction = $state<{ label: string; run: () => void } | null>(null);
   let noticeTimer: ReturnType<typeof setTimeout> | undefined;
-  function say(text: string) {
+  function say(text: string, action: typeof noticeAction = null) {
     notice = text;
+    noticeAction = action;
     clearTimeout(noticeTimer);
-    noticeTimer = setTimeout(() => (notice = ""), 3000);
+    noticeTimer = setTimeout(() => ((notice = ""), (noticeAction = null)), action ? 8000 : 3000);
   }
   /** A scenario from outside becomes what Reiniciar returns to; a paste is an undo step, a link opens fresh. */
   function loadShared(next: Scenario, undoable: boolean) {
@@ -347,22 +351,35 @@
     loads += 1;
     deselect();
   }
+  /** Opens the lay a link names; false when the address names none. */
   async function openLink(undoable: boolean) {
     const fragment = location.hash;
-    if (!fragment) return;
+    if (!fragment) return false;
     try {
       const next = await share.fromFragment(fragment);
-      if (!next) return;
+      if (!next) return false;
       loadShared(next, undoable);
-      say(`Abierto desde el enlace: ${next.name}`);
+      // A first visit by a link is offered the tour rather than shown it over the lay it was sent (UX.md §8.4).
+      say(`Abierto desde el enlace: ${next.name}`, tourSeen() ? null : { label: "¿Primera vez? Ver recorrido", run: startTour });
     } catch (error) {
       say(error instanceof share.ShareError ? error.message : "No se pudo abrir el enlace.");
     }
     // The address stops naming the lay once it is open: edits would make it stale.
     history.replaceState(history.state, "", location.pathname + location.search);
+    return true;
+  }
+  // The welcome tour (UX.md §8.4): on a first visit, unless a link opened a lay.
+  let touring = $state(false);
+  function startTour() {
+    if (scenarioMenu) scenarioMenu.open = false;
+    notice = "";
+    noticeAction = null;
+    touring = true;
   }
   $effect(() => {
-    untrack(() => openLink(false));
+    untrack(async () => {
+      if (!(await openLink(false)) && !tourSeen()) startTour();
+    });
     const changed = () => openLink(true);
     addEventListener("hashchange", changed);
     return () => removeEventListener("hashchange", changed);
@@ -436,7 +453,7 @@
 {/snippet}
 
 {#snippet results()}
-  <div bind:this={budgetEl}><BudgetBar {result} {reference} referenceLabel={refName} openEnd={lineScenario.nozzle.design === "open-end"} line={budgetLine} lines={budgetLines} onPickLine={(key) => selectLine(key.split("/"))} /></div>
+  <div bind:this={budgetEl} data-tour="budget"><BudgetBar {result} {reference} referenceLabel={refName} openEnd={lineScenario.nozzle.design === "open-end"} line={budgetLine} lines={budgetLines} onPickLine={(key) => selectLine(key.split("/"))} /></div>
   {#if network}<PowerSplit split={power} flowGpm={network.totalFlowGpm} pumpPsi={pumpResult.nodes[0].pressurePsi} lines={budgetLines} reference={referencePower} referenceLabel={refName} />{/if}
   <details class="card">
     <summary>Ver cálculo ({result.terms.length} fórmulas) · {methodName}{comparing ? ` y ${refName}` : ""}</summary>
@@ -461,7 +478,7 @@
 {/snippet}
 
 {#snippet summary()}
-  <BudgetBar {result} {reference} referenceLabel={refName} openEnd={lineScenario.nozzle.design === "open-end"} line={budgetLine} compact />
+  <div data-tour="budget"><BudgetBar {result} {reference} referenceLabel={refName} openEnd={lineScenario.nozzle.design === "open-end"} line={budgetLine} compact /></div>
 {/snippet}
 
 <div class="app" class:phone class:wide style:--sheet-closed={`${CLOSED_PX}px`}>
@@ -472,7 +489,7 @@
       <button type="button" onclick={redo} disabled={future.length === 0} aria-label="Rehacer" title="Rehacer (Ctrl+Shift+Z)">↷<span class="word"> Rehacer</span></button>
     </div>
     <details class="scenario" bind:this={scenarioMenu}>
-      <summary aria-label={`Escenario: ${scenario.name}`} title="Escenario: elegir otro, copiar, pegar, reiniciar"><span class="name">{scenario.name}</span><span class="caret" aria-hidden="true">▾</span></summary>
+      <summary data-tour="escenario" aria-label={`Escenario: ${scenario.name}`} title="Escenario: elegir otro, copiar, pegar, reiniciar"><span class="name">{scenario.name}</span><span class="caret" aria-hidden="true">▾</span></summary>
       <div class="scenario-menu">
         <span class="menu-title">Empezar desde</span>
         {#each presets as p (p.id)}
@@ -485,16 +502,22 @@
         <button type="button" onclick={paste}>Pegar escenario…</button>
         <hr />
         <button type="button" disabled={!edited} title={edited ? undefined : "Sin cambios desde que se cargó"} onclick={resetPreset}>Reiniciar este escenario</button>
+        {#if phone}
+          <!-- A phone's header has no room for "?" (UX.md §8.4). -->
+          <hr />
+          <button type="button" onclick={startTour}>Ver recorrido</button>
+        {/if}
       </div>
     </details>
+    {#if !phone}<button type="button" class="gear" aria-label="Ver recorrido" title="Ver recorrido: cómo se usa" onclick={startTour}>?</button>{/if}
     <button type="button" class="gear" aria-label="Ajustes" title="Ajustes: método, altura de piso, accesorios, vista" onclick={() => (settingsOpen = true)}>⚙</button>
   </header>
 
   {#if !wide}
-    <div class="pump">{@render pumpPanel(phone ? "strip" : "bar")}</div>
+    <div class="pump" data-tour="pump">{@render pumpPanel(phone ? "strip" : "bar")}</div>
   {/if}
 
-  <div class="canvas">
+  <div class="canvas" data-tour="canvas">
     <Canvas
       scenario={lineScenario}
       {result}
@@ -535,7 +558,7 @@
 
   {#if !phone}
     <div class="side">
-      {#if wide}<div class="head">{@render pumpPanel("head")}</div>{/if}
+      {#if wide}<div class="head" data-tour="pump">{@render pumpPanel("head")}</div>{/if}
       {@render side()}
     </div>
     <div class="results">{@render results()}</div>
@@ -543,7 +566,13 @@
 </div>
 
 <ScenarioText mode={textMode} text={textMode === "copy" ? textCopy : ""} error={pasteError} onOpen={openPasted} onClose={() => (textMode = null)} />
-{#if notice}<div class="notice" role="status">{notice}</div>{/if}
+{#if notice}
+  <div class="notice" role="status">
+    {notice}
+    {#if noticeAction}<button type="button" onclick={noticeAction.run}>{noticeAction.label}</button>{/if}
+  </div>
+{/if}
+<Tour running={touring} {phone} {scenario} {selection} onFit={() => (fitSignal += 1)} onDeselect={deselect} onEnd={() => (touring = false)} />
 
 <Settings
   open={settingsOpen}
@@ -567,7 +596,7 @@
     {@render results()}
   </Sheet>
 {:else if !budgetVisible}
-  <div class="dock"><BudgetBar {result} {reference} referenceLabel={refName} openEnd={lineScenario.nozzle.design === "open-end"} line={budgetLine} compact /></div>
+  <div class="dock" data-tour="budget"><BudgetBar {result} {reference} referenceLabel={refName} openEnd={lineScenario.nozzle.design === "open-end"} line={budgetLine} compact /></div>
 {/if}
 
 <style>
@@ -598,6 +627,8 @@
   .history button { height: 44px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); font-weight: 600; cursor: pointer; }
   .history button:disabled { opacity: 0.4; cursor: default; }
   .notice { position: fixed; left: 50%; top: 64px; transform: translateX(-50%); z-index: 60; max-width: calc(100vw - 32px); padding: 10px 14px; border-radius: 10px; background: var(--ink); color: var(--surface); font-size: 14px; font-weight: 600; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25); }
+  .notice { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; width: max-content; }
+  .notice button { min-height: 44px; padding: 0 12px; border-radius: 8px; border: 0; background: var(--accent); color: #fff; font: inherit; cursor: pointer; }
   .gear { width: 44px; height: 44px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); font-size: 20px; cursor: pointer; color: var(--ink); }
   .scenario { position: relative; min-width: 0; max-width: 420px; }
   .scenario summary { list-style: none; display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); cursor: pointer; font-weight: 600; font-size: 14px; }

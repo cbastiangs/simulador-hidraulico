@@ -490,7 +490,7 @@ Agreed, in this order; each is usable on its own. Before M3 unless noted.
    views).
 8. **UX-05 and UX-06** (`UX.md` §10.7): the toolbar past the canvas edge
    at 1024 px; the pressure bar's faint labels.
-9. **Welcome tour** (`UX.md` §8.4), once the screen settles.
+9. ✅ **Welcome tour** (`UX.md` §8.4; built 2026-10-18 with Driver.js, on the Bifurcada default).
 
 Then M3 as decided in §10d (truck, envelope, tank with its clock, several
 discharges with a flowmeter readout each, the pump × system chart; the

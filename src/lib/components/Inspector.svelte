@@ -148,7 +148,7 @@
       <section class="operate" aria-label="Operar el pitón">
         <div>
           <div class="label">Manija</div>
-          <div class="lever" role="radiogroup" aria-label="Manija">
+          <div class="lever" role="radiogroup" aria-label="Manija" data-tour="manija">
             <button type="button" role="radio" aria-checked={!n.open} class:on={!n.open} onclick={() => onchange(edit.setNozzleOpen(scenario, false))}>Cerrado</button>
             <button type="button" role="radio" aria-checked={n.open} class:on={n.open} onclick={() => onchange(edit.setNozzleOpen(scenario, true))}>Abierto</button>
           </div>
@@ -174,7 +174,7 @@
     <section class="operate" aria-label="Operar el pitón">
       <div>
         <div class="label">Manija</div>
-        <div class="lever" role="radiogroup" aria-label="Manija">
+        <div class="lever" role="radiogroup" aria-label="Manija" data-tour="manija">
           <button type="button" role="radio" aria-checked={!n.open} class:on={!n.open} onclick={() => onchange(edit.setNozzleOpen(scenario, false))}>Cerrado</button>
           <button type="button" role="radio" aria-checked={n.open} class:on={n.open} onclick={() => onchange(edit.setNozzleOpen(scenario, true))}>Abierto</button>
         </div>

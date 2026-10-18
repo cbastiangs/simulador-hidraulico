@@ -7,6 +7,10 @@ settings:
 importers:
 
   .:
+    dependencies:
+      driver.js:
+        specifier: 1.9.0
+        version: 1.9.0
     devDependencies:
       '@sveltejs/adapter-static':
         specifier: 3.0.10
@@ -429,6 +433,9 @@ packages:
 
   devalue@5.9.4:
     resolution: {integrity: sha512-sPAT4pztbu6586/hrhOnMKS17IJrvg12mXiSPSS3W5qDeN2RGgvZ0diZCm31dBbnevfVmujNO3IM2wrS4Y2Rhg==}
+
+  driver.js@1.9.0:
+    resolution: {integrity: sha512-+YWVdNVUrY1/2spszQshohWYY4soIjNBnMFS6lfmousT8igos2lmswhlqyuuNMhr+qbV0EjJ+L6i2FECPr6Ygg==}
 
   esbuild@0.28.2:
     resolution: {integrity: sha512-HKVLS8dvII+xoKW9kmqxbRKrnWEXfJJr/FZhhJmiqIB0e053QNYFqOBouTMO/k5sID4MvCiUCvv8b9M4h32wIA==}
@@ -857,6 +864,8 @@ snapshots:
   deepmerge@4.3.1: {}
 
   devalue@5.9.4: {}
+
+  driver.js@1.9.0: {}
 
   esbuild@0.28.2:
     optionalDependencies:

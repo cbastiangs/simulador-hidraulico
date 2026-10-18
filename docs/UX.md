@@ -610,6 +610,11 @@ at any step; ending it counts as seen.
 and, on information steps, Siguiente; the rest of the screen dims except the
 target, which stays usable. Under `prefers-reduced-motion` nothing slides.
 
+**Built (2026-10-18)** in `src/lib/components/Tour.svelte`; targets carry
+`data-tour` marks (`canvas`, `pump`, `nozzle`, `manija`, `coupling`, `hose`,
+`budget`, `escenario`), so a redesign moves a mark, not the tour. Walked at
+390 and 1024 px, every step done by hand.
+
 **Library.** [Driver.js](https://driverjs.com) (MIT, no dependencies,
 pinned exactly): it highlights any element, SVG included, and the app moves
 it on from its own events; `refresh()` follows the camera. Not Intro.js
@@ -711,7 +716,7 @@ allowed, with the reason.
 | **Fire** | ⏳ M5 | fire size ⏳ M5 | — | — | required vs delivered flow ⏳ M5 (NFA first) | — |
 | **Canvas view** | — | pan, zoom, fit ✅; zoom to selection ✅ ("Enfocar") | — | — | — | — |
 | **History** | — | undo, redo ✅ | — | — | — | — |
-| **Help** | — | — | — | — | tour ◻ (§8.4) | — |
+| **Help** | — | — | — | — | tour ✅ (§8.4; "?" wide, Escenario › Ver recorrido on a phone) | — |
 
 ### 10.3 Phone walkthrough of the built tasks
 

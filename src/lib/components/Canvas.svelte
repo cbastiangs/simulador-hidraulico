@@ -1628,6 +1628,7 @@
             class="hit"
             d={hd.d}
             data-line={editedKey}
+            data-tour="hose"
             data-index={hd.index}
             stroke-width={44 * k}
             role="button"
@@ -1720,6 +1721,7 @@
               role="slider"
               tabindex="0"
               aria-label={i === last ? "Pitón: tocar selecciona, arrastrar mueve" : `${jointName(scenario, i)}: tocar selecciona, arrastrar mueve`}
+              data-tour={i === last ? "nozzle-handle" : "coupling"}
               aria-valuenow={n.elevationM}
               aria-valuetext={`${scenario.sections[i - 1].lengthM} m de largo, ${n.elevationM} m de altura`}
               onpointerdown={(e) => down(e, i)}
@@ -1789,7 +1791,7 @@
           </g>
         {/each}
         <!-- The nozzle above its handle and the gauges: the highest event layer -->
-        <g transform={`translate(${layout.nodes[last].x} ${layout.nodes[last].y}) scale(${nozzleK})`}>
+        <g data-tour="nozzle" transform={`translate(${layout.nodes[last].x} ${layout.nodes[last].y}) scale(${nozzleK})`}>
           <NozzleDrawing
             small={nozzleSmall}
             nozzle={scenario.nozzle}
@@ -1943,7 +1945,7 @@
           {#if n.design === "open-end"}
             <div class="chips"><span class="len">Sin pitón · {result.flowGpm.toFixed(0)} gpm</span></div>
           {:else}
-            <div class="chips" role="radiogroup" aria-label="Manija">
+            <div class="chips" role="radiogroup" aria-label="Manija" data-tour="manija">
               <button type="button" role="radio" aria-checked={!n.open} class:on={!n.open} onclick={() => onEdit(edit.setNozzleOpen(scenario, false))}>Cerrado</button>
               <button type="button" role="radio" aria-checked={n.open} class:on={n.open} onclick={() => onEdit(edit.setNozzleOpen(scenario, true))}>Abierto</button>
             </div>

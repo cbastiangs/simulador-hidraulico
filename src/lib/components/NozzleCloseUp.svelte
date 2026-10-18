@@ -242,7 +242,7 @@
   </svg>
 
   <div class="readouts">
-    <div class="readout">
+    <div class="readout" data-tour="manija">
       <span class="label">Manija</span>
       <button type="button" class="state" class:on={nozzle.open} aria-pressed={nozzle.open} onclick={() => onOpen(!nozzle.open)}>{nozzle.open ? "Abierta" : "Cerrada"}</button>
     </div>
