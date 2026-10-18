@@ -573,20 +573,48 @@ actions; "inspector" = the side column (desktop) or the sheet at full.
 | | undo, redo | header; Ctrl+Z, Ctrl+Shift+Z | header icons |
 | Read | gauges, flow, pressure split | canvas, panel, floating bar | canvas, top strip, sheet |
 | | calculation, concepts | below the canvas | sheet, full |
-| Help | welcome tour, again | "?" in the header | "?" in the header |
+| Help | welcome tour, again | "?" in the header | "Ver recorrido" in the Escenario menu |
 
-### 8.4 Welcome tour
+### 8.4 Welcome tour (owner, 2026-10-18; replaces the 2026-10-15 steps)
 
-First visit only (remembered per browser), skippable, and reopened from
-"?". Each step points at the real element on the screen and, where it asks
-for an action, moves on when the person does it:
+**When.** First visit only, remembered per browser (a failed storage read
+shows it again, never breaks the page). It starts on the default lay
+(§4, "Bifurcada"). A shared link or a pasted scenario never starts it: the
+notice that names the lay offers "¿Primera vez? Ver recorrido" instead, and
+the tour then runs on that lay. Reopened from **"?" in the header** (wide
+and tablet) and **"Ver recorrido" in the Escenario menu** (phone, whose
+header has no room left at 360–390 px).
 
-1. "Esta es una línea: bomba → mangueras → pitón."
-2. Pump strip: "La presión de la bomba. Súbela o bájala."
-3. Nozzle: "Toca el pitón para abrirlo." (advances on open)
-4. A coupling: "Arrastra el acople a otro piso." (advances on a move)
-5. A hose: "Toca una manguera para cambiarla; mantén pulsado para más."
-6. Pressure split: "En qué se gasta la presión: fricción, altura, pitón."
+**Generic steps.** Every step points at a kind of thing (the pump, a
+nozzle, a coupling, a hose, the pressure bar), never at a preset's piece,
+so the tour works on any lay. A step whose target the lay lacks (no
+coupling, an open end with no bale) is skipped. Each step frames its target
+first ("Ver todo" for the lay, the selection otherwise) and, on a phone,
+keeps it above the sheet. What the person does during the tour is ordinary
+editing: undo steps, nothing restored at the end. "Saltar" and Esc end it
+at any step; ending it counts as seen.
+
+| # | Points at | Text (Spanish UI) | Moves on |
+|---|---|---|---|
+| 0 | nothing (a card) | "Simulador hidráulico: cambias el tendido y la bomba; el caudal lo calcula la física. Un minuto." · Empezar / Ahora no | a button |
+| 1 | the canvas, whole lay | "El tendido, de lado: bomba → mangueras → pitones. Las líneas grises son los pisos." | Siguiente |
+| 2 | the pump (panel head; phone: the strip) | "La presión de la bomba: súbela o bájala. «Ideal» marca la que pide el pitón; tócala para ponerla." | Siguiente |
+| 3 | a nozzle, then its Manija (lever on wide screens; the sheet's control on a phone, where the drawn lever is too small, §8.1) | "Cierra este pitón con su manija." | the nozzle closes |
+| 4 | the pump's flow | Branched: "Bajó el caudal total, y la otra línea recibe un poco más: comparten la bomba. Ábrelo otra vez." Single line: "Sin caudal no hay fricción. Ábrelo otra vez." | the nozzle opens |
+| 5 | a coupling's handle (else the nozzle's) | "Arrastra el acople a otro piso: la altura cuesta presión." | a move |
+| 6 | a hose | "Toca una manguera para cambiar diámetro o largo. Mantén pulsado (clic derecho) para más." | a hose is selected |
+| 7 | the pressure bar (phone: the closed sheet; wide: the dock or the results' bar) | "En qué se gasta la presión: pitón, fricción, altura." | Siguiente |
+| 8 | the Escenario menu | "Otros tendidos, y copiar o pegar el tuyo, aquí. El recorrido vuelve en «?»" (phone: "en Escenario › Ver recorrido") | Listo |
+
+**Look.** One popover by the target with the step count ("3 de 8"), Saltar
+and, on information steps, Siguiente; the rest of the screen dims except the
+target, which stays usable. Under `prefers-reduced-motion` nothing slides.
+
+**Library.** [Driver.js](https://driverjs.com) (MIT, no dependencies,
+pinned exactly): it highlights any element, SVG included, and the app moves
+it on from its own events; `refresh()` follows the camera. Not Intro.js
+(AGPL or a paid licence, and the licence question is open, ROADMAP §11 item 4);
+React Joyride needs React.
 
 ### 8.1b Hover and tap feedback (owner, 2026-10-18: deferred)
 
