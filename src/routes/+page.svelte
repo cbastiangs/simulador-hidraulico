@@ -175,6 +175,7 @@
     const target = event.target as HTMLElement;
     if (target.closest("input, textarea, select, [contenteditable]")) return;
     // Esc clears the selection, unless it is closing a menu.
+    if (event.key === "Escape" && scenarioMenu?.open) return void (scenarioMenu.open = false);
     if (event.key === "Escape" && !document.querySelector("[role=menu]")) return deselect();
     if (!(event.ctrlKey || event.metaKey)) return;
     const key = event.key.toLowerCase();
@@ -284,6 +285,8 @@
   });
 
   function choosePreset(id: string) {
+    if (scenarioMenu) scenarioMenu.open = false;
+    if (id === presetId) return;
     presetId = id;
     loads += 1;
     scenario = presets.find((p) => p.id === id)!.scenario;
@@ -293,26 +296,34 @@
     future = [];
   }
 
-  // Global (UX.md §10.1): both are undoable and refit the canvas.
-  let fileMenu: HTMLDetailsElement | undefined = $state();
+  // The header's "Escenario" menu (UX.md §4): the presets, a blank line,
+  // reset; later copy and paste. A blank line and reset are undoable and
+  // refit the canvas; a preset starts a fresh history.
+  let scenarioMenu: HTMLDetailsElement | undefined = $state();
+  /** Changed since the preset was loaded: what "Reiniciar" would undo. */
+  const edited = $derived(scenario !== presets.find((p) => p.id === presetId)!.scenario);
   function newLine() {
     apply(edit.blankLine(scenario));
     selectedPath = [];
     loads += 1;
     deselect();
-    if (fileMenu) fileMenu.open = false;
+    if (scenarioMenu) scenarioMenu.open = false;
   }
   function resetPreset() {
     apply(presets.find((p) => p.id === presetId)!.scenario);
     selectedPath = [];
     loads += 1;
     deselect();
-    if (fileMenu) fileMenu.open = false;
+    if (scenarioMenu) scenarioMenu.open = false;
   }
 </script>
 
 <svelte:head><title>Simulador hidráulico</title></svelte:head>
-<svelte:window onkeydown={onKey} bind:innerHeight={windowHeight} />
+<svelte:window
+  onkeydown={onKey}
+  onpointerdown={(e) => scenarioMenu?.open && !scenarioMenu.contains(e.target as Node) && (scenarioMenu.open = false)}
+  bind:innerHeight={windowHeight}
+/>
 
 {#snippet line()}
   <section class="line-tools" aria-label="Línea">
@@ -380,17 +391,19 @@
       <button type="button" onclick={undo} disabled={past.length === 0} aria-label="Deshacer" title="Deshacer (Ctrl+Z)">↶<span class="word"> Deshacer</span></button>
       <button type="button" onclick={redo} disabled={future.length === 0} aria-label="Rehacer" title="Rehacer (Ctrl+Shift+Z)">↷<span class="word"> Rehacer</span></button>
     </div>
-    <select value={presetId} onchange={(e) => choosePreset(e.currentTarget.value)} aria-label="Escenario inicial">
-      {#each presets as p (p.id)}<option value={p.id}>{p.scenario.name}</option>{/each}
-    </select>
-    <button type="button" class="gear" aria-label="Ajustes" title="Ajustes: método, altura de piso, accesorios, vista" onclick={() => (settingsOpen = true)}>⚙</button>
-    <details class="file" bind:this={fileMenu}>
-      <summary aria-label="Más: línea nueva, reiniciar" title="Línea nueva, reiniciar">⋯</summary>
-      <div class="file-menu">
-        <button type="button" onclick={newLine}>Línea nueva</button>
-        <button type="button" onclick={resetPreset}>Reiniciar escenario</button>
+    <details class="scenario" bind:this={scenarioMenu}>
+      <summary aria-label={`Escenario: ${scenario.name}`} title="Escenario: elegir otro, línea en blanco, reiniciar"><span class="name">{scenario.name}</span><span class="caret" aria-hidden="true">▾</span></summary>
+      <div class="scenario-menu">
+        <span class="menu-title">Empezar desde</span>
+        {#each presets as p (p.id)}
+          <button type="button" class:on={p.id === presetId} aria-current={p.id === presetId} onclick={() => choosePreset(p.id)}>{p.scenario.name}</button>
+        {/each}
+        <button type="button" class="blank" onclick={newLine}>Línea en blanco</button>
+        <hr />
+        <button type="button" disabled={!edited} title={edited ? undefined : "Sin cambios desde que se cargó"} onclick={resetPreset}>Reiniciar este escenario</button>
       </div>
     </details>
+    <button type="button" class="gear" aria-label="Ajustes" title="Ajustes: método, altura de piso, accesorios, vista" onclick={() => (settingsOpen = true)}>⚙</button>
   </header>
 
   {#if !wide}
@@ -497,14 +510,21 @@
   .history { display: flex; gap: 6px; margin-left: auto; }
   .history button { height: 44px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); font-weight: 600; cursor: pointer; }
   .history button:disabled { opacity: 0.4; cursor: default; }
-  .top select { height: 44px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); padding: 0 10px; max-width: 100%; }
   .gear { width: 44px; height: 44px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); font-size: 20px; cursor: pointer; color: var(--ink); }
-  .file { position: relative; }
-  .file summary { list-style: none; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); font-size: 20px; font-weight: 700; cursor: pointer; }
-  .file summary::-webkit-details-marker { display: none; }
-  .file-menu { position: absolute; right: 0; top: 50px; z-index: 30; min-width: 200px; display: grid; padding: 6px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2); }
-  .file-menu button { min-height: 44px; padding: 0 12px; text-align: left; border: 0; border-radius: 6px; background: transparent; color: var(--ink); font-size: 14px; cursor: pointer; }
-  .file-menu button:hover { background: var(--accent-soft); }
+  .scenario { position: relative; min-width: 0; max-width: 420px; }
+  .scenario summary { list-style: none; display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); cursor: pointer; font-weight: 600; font-size: 14px; }
+  .scenario summary::-webkit-details-marker { display: none; }
+  .scenario .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .scenario .caret { margin-left: auto; color: var(--muted); }
+  .scenario-menu { position: absolute; right: 0; top: 50px; z-index: 30; width: max-content; min-width: 100%; max-width: min(420px, calc(100vw - 16px)); display: grid; padding: 6px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2); }
+  .scenario-menu .menu-title { padding: 6px 12px 4px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+  .scenario-menu button { min-height: 44px; padding: 0 12px 0 30px; text-align: left; border: 0; border-radius: 6px; background: transparent; color: var(--ink); font-size: 14px; cursor: pointer; position: relative; }
+  .scenario-menu button:hover:not(:disabled) { background: var(--accent-soft); }
+  .scenario-menu button:disabled { opacity: 0.45; cursor: default; }
+  .scenario-menu button.on { font-weight: 700; }
+  .scenario-menu button.on::before { content: "✓"; position: absolute; left: 10px; color: var(--accent); }
+  .scenario-menu button.blank { color: var(--accent); font-weight: 600; }
+  .scenario-menu hr { width: 100%; margin: 4px 0; border: 0; border-top: 1px solid var(--line); }
   .pump { grid-area: pump; display: grid; gap: var(--gap); align-content: start; }
   .line-tools { display: grid; gap: 8px; background: var(--surface); border-radius: var(--radius); padding: 12px 14px; }
   .field { display: grid; gap: 6px; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
@@ -534,8 +554,8 @@
   .app.phone .top h1, .app.phone .word { display: none; }
   .app.phone .history { order: 2; margin-left: 0; }
   .app.phone .history button { min-width: 44px; padding: 0; font-size: 20px; }
-  .app.phone .top select { flex: 1; min-width: 0; }
+  .app.phone .scenario { flex: 1; }
+  .app.phone .scenario-menu { left: 0; right: auto; }
   .app.phone .gear { order: 3; flex: none; }
-  .app.phone .file { order: 4; }
   .app.phone .canvas { min-height: 0; }
 </style>

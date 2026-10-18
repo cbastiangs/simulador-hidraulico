@@ -88,7 +88,7 @@
 - **Nozzle toolbar (owner, 2026-10-17).** Selecting the nozzle opens a
   toolbar on the canvas like the hose's (desktop; the phone uses the sheet):
   the bale (Cerrado / Abierto), the gallonage ring's settings, the pattern
-  at three stops (Directo / Medio / Niebla; the panel's slider sets anything
+  at three stops (Directo / Medio / Neblina; the panel's slider sets anything
   between), "Quitar pitón" / "Poner pitón". An open
   end shows its flow and "Poner pitón"; a smooth bore has no ring or pattern.
 - **Fittings (owner 2026-10-15).** Tapping a coupling (or the small ring at
@@ -128,7 +128,7 @@
   coupling, nozzle) as buttons, for discovery and the keyboard.
 - **Pieces (owner, 2026-10-18).** A **"Piezas" strip** on the canvas's left
   edge (wider than a phone; a column, 78 px) holds what can be added: a
-  hose of 1½″ or 2½″, Bifurco, Trifurco, a combination ("Niebla") or
+  hose of 1½″ or 2½″, Bifurco, Trifurco, a combination ("Neblina") or
   smooth-bore ("Liso") nozzle, and **Quitar**, the eraser. On a phone a
   "+ Piezas" button by the zoom controls opens it as a row of seven above
   the toolbar. **Tap a piece, then tap a spot**: picking one lights where
@@ -387,7 +387,14 @@ and dropped: the pump was edited in two places and line settings in three.
   size, fittings; Camión, Control and Abastecimiento with M3). A hose, a
   coupling, the nozzle: its editor, with × back to Línea.
 - **Under the canvas:** view only (zoom, Ver todo, Cámara, Enfocar).
-  **Header of the page:** undo, scenario, **Ajustes (⚙)**, ⋯.
+  **Header of the page:** undo, the **Escenario** menu, **Ajustes (⚙)**.
+- **One Escenario menu (owner, 2026-10-18)** replaces the preset dropdown
+  and the "⋯" menu. Its button shows the scenario's name. The menu lists
+  "Empezar desde" and the presets, with the loaded one ticked, then
+  "Línea en blanco" and "Reiniciar este escenario" (greyed out until
+  something changes). "Copiar enlace" and "Pegar" will join it with
+  backlog item 2. Loading a preset starts a fresh history; a blank line
+  and reset are undo steps.
 - **Settings, not buttons (owner, 2026-10-18).** A choice about the whole
   simulation rather than a piece goes in **Ajustes**, a dialog from the
   header's ⚙ (full width on a phone), never as a button in a panel.
@@ -610,7 +617,7 @@ allowed, with the reason.
 
 | Object | Create / add | Edit | Move | Remove | Inspect | Other |
 |---|---|---|---|---|---|---|
-| **Scenario** | preset ✅; blank line ✅ ("Línea nueva", header ⋯) | rename ✅ (Línea) | — | reset to preset ✅ (header ⋯, undoable) | — | share link ⏳ (deferred); cloud save ⏳ (paid) |
+| **Scenario** | preset ✅; blank line ✅ ("Línea en blanco", Escenario menu) | rename ✅ (Línea) | — | reset to preset ✅ (Escenario menu, undoable) | — | share link ⏳ (deferred); cloud save ⏳ (paid) |
 | **Method** | clone a built-in ⏳ | edit a clone ⏳; built-ins ✕ (read-only) | — | delete a clone ⏳ | sources ✅ ("Fuentes" card) | pick "Método" ✅; "Comparar con" ✅ (Ajustes; per browser, off when equal to Método) |
 | **Pump** | ✕ (a line needs a source) | pressure ✅, apply required ✅, outlet size ✅; spec ⏳ M3 | ✕ | ✕ | flow, state ✅ | — |
 | **Truck** | choose a truck file / preset ⏳ M3; clone a built-in ⏳ M3 | discharges open / shut, tank ⏳ M3; partial valves ⏳ (`valve.partial`); **specs editor** (pump, discharge sizes and diameters) ⏳ M3 | ✕ | ✕ | capacity ⏳ M3 | presets carry pump and discharge diameters ⏳ M3 |
@@ -641,7 +648,7 @@ they know what to do, would they see how, would they understand the result?
 | T1 1½″ vs 2½″ | Tapping a hose opens the sheet at peek, which can hide that hose; comparing means remembering the first number | ✅ The canvas scrolls the selection above the sheet (its stage grows by the covered height); A/B compare is M2 |
 | T2 gallonage ring | **Tapping the nozzle to select it also works the bale**, so looking at the ring shuts the line (0 gpm) | ✅ Tapping the nozzle only selects; the bale lever is its own target, drawn above the handle |
 | T3 3rd floor | At a fitted zoom floors are 12 px apart and their labels hide; the drag label says "9 m", not the floor | ✅ The drag label names the floor ("piso 3 · 9 m", "sobre piso 1 · 3.5 m"); the typed "± piso" stays |
-| T4 build a maniobra | No blank line, so you start from a preset and edit; the nozzle model sits under "Ajustes avanzados" | "Línea nueva" in the header menu; model chips at the top of the nozzle's sheet |
+| T4 build a maniobra | No blank line, so you start from a preset and edit; the nozzle model sits under "Ajustes avanzados" | "Línea en blanco" in the Escenario menu; model chips at the top of the nozzle's sheet |
 | T5 nozzle under its rating | The rating vs the actual pressure is only in the Conceptos card (sheet, full) | A rated-pressure mark on the nozzle's gauge, and a one-line note when it falls short |
 | T6 change one thing | Works; each change shows in the strip and the closed sheet's split bar | — |
 | T7 vs CGBVP | Only the table in "Ver cálculo" (sheet, full); no method switch | "Método" / "Comparar con" (§10.2) |
@@ -658,8 +665,9 @@ they know what to do, would they see how, would they understand the result?
    true-scale toggle, Fuentes (2026-10-16). Left: the welcome tour (§8.4),
    after the polish.
 
-**Where the new controls live (2026-10-16).** Global (header ⋯): "Línea
-nueva", "Reiniciar escenario". Línea section: name. Ajustes (⚙, since
+**Where the new controls live (2026-10-16).** Global (the header's
+Escenario menu since 2026-10-18, before that "⋯"): "Línea en blanco",
+"Reiniciar este escenario". Línea section: name. Ajustes (⚙, since
 2026-10-18; §4 "Settings, not buttons"): Método, floor height, automatic
 fittings (with the lay); Comparar con, gauges on/off, true hose thickness
 (per browser). Under the canvas, "Enfocar" zooms to the selection. Inspect: tap a gauge for its reading (pressure here,
