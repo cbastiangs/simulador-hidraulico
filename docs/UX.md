@@ -342,13 +342,18 @@
   fitting object, see §2 "Fittings"); length and size labelled on the hose.
 - **Gauges:** real dials: ticks every 50 psi, numbers, needle, and the
   reading below. Same component everywhere (pump, couplings, nozzle).
-- **Nozzle:** drawn as a combination or smooth-bore nozzle, with its
-  controls on the drawing and mirrored in the inspector:
-  - **Bale:** a lever. Flick or drag it between shut and open, or tap it.
-    Partial opening is not modelled until a valve law with a source exists
-    (MODEL.md).
+- **Nozzle:** drawn as the model's own anatomy (§3.1): the shutoff it really
+  has, its grip, rings, collar and teeth, with its working controls on the
+  drawing and mirrored in the inspector:
+  - **Shutoff:** the model's bale lever, slide valve or ball valve. Flick,
+    slide, turn or tap it between shut and open. Partial opening is not
+    modelled until a valve law with a source exists (MODEL.md).
   - **Gallonage ring** (selectable nozzles): the actual settings as
-    segments.
+    segments. Where a model indexes its flow on the slide valve (POK), the
+    index marks are drawn on the valve instead.
+  - **Pressure ring:** a dual-pressure model's selection ring (POK
+    50/100 psi) is drawn as part of the model; it is not worked until the
+    rating story for dual-pressure automatics is decided.
   - **Pattern collar:** straight stream ↔ wide fog. Drawn on the stream.
   - **Stream:** grows and collapses with the flow; shape follows the
     pattern.
@@ -372,6 +377,57 @@
 - **Controls:** no unstyled browser defaults in the main UI. Segmented
   controls for small choice sets, ± steppers for numbers, sheets or side
   panels for inspectors.
+
+### 3.1 Nozzle anatomy (owner, 2026-10-19)
+
+The in-canvas nozzle and the close-up are drawn from one map of the model's
+controls and their stations, `src/lib/nozzle-anatomy.ts`, with one entry per
+researched row of `data/catalog/nozzles.csv` (columns `ctrl_*`). Stations,
+hose to tip: **valve** (the shutoff body), **grip** (pistol, under the
+valve), **barrel**, **flow** (gallonage or pressure ring), **pattern** (the
+collar), **tip** (teeth, or a smooth bore's stack). A control sits at another
+station when its model puts it there: POK indexes the flow on the slide valve
+itself. A generic or hand-entered nozzle draws the shape from before
+2026-10-19 (bale, ring when selectable, collar); a smooth bore draws its
+shutoff and stacked tip; an open end nothing.
+
+Control locations differ between models and may need tuning: `verify` in the
+map and `ctrl_source` in the CSV say what still needs the model's plate,
+photo or manual. What the drawings show today:
+
+| Model | Shutoff | Flow | Pattern | Grip | Teeth | Checked |
+|---|---|---|---|---|---|---|
+| TFT Mid-Matic HM-VPGI | slide | — (auto) | collar | pistol | rubber | page |
+| TFT Handline H-2VPGI | slide | — (auto) | collar | pistol | rubber | series |
+| TFT G-Force GF3D2S | slide | ring | collar | pistol | metal | series |
+| TFT G-Force GF3C2S | slide | ring | collar | pistol | metal | page |
+| TFT QuadraFog FQS125F | ball | ring | collar | — | metal | page |
+| TFT ThunderFog FTS200PS | ball | ring | collar | pistol | metal | page |
+| TFT ThunderFog JTS250PS | ball | ring | collar | pistol | metal | note |
+| TFT Handline H-VPGI | slide | — (auto) | collar | pistol | rubber | page |
+| TFT Ultimatic BGH-125 | slide | — (auto) | collar | pistol | rubber | note |
+| TFT Master Stream M-RS1000-NJ | — | ring | collar | — | metal | pending |
+| Elkhart Chief XD mid/high tip | bale | — | collar | — | metal | series |
+| Elkhart Phantom XD mid/high | bale | ring | collar | — | metal | page |
+| Elkhart Select-O-Matic XD mid/high | bale | — (auto) | collar | — | metal | series |
+| Elkhart X-Stream SM-1250 | — | — (auto) | collar | — | metal | pending |
+| Elkhart Select-O-Flow CSW-LB | — | ring | collar | — | metal | pending |
+| Akron Turbojet 1720 | bale | ring | collar | pistol | metal | page |
+| Akron Mid-Range Assault 48634028 | bale | — | collar | pistol | — | series |
+| Akron Akromatic 1250 5160 | — | — (auto) | collar | — | metal | pending |
+| Akron 4AN Navy 2069 | bale | — | collar | — | — | pending |
+| POK Slide-O-Matic 150/300 | slide | index (valve) | collar | — | — | pending |
+| Smooth bores (TFT FSS10-IF, Elkhart XD, Akron 1499) | bale | — | — | — | — | tip only |
+
+- **Master streams draw without a shutoff:** the monitor's valve shuts them,
+  not the nozzle. Their silhouette gets its own pass when monitors arrive
+  (M6); until then the map is a placeholder.
+- **POK's 50/100 psi ring is drawn, not worked.** Switching it would change
+  `ratedPressurePsi`, and what an automatic regulates at each pressure is an
+  engine question (MODEL.md §3.5), not a drawing one.
+- **The researched catalog is not runtime yet** (ROADMAP §3): only linked or
+  hand-edited documents carry a researched `specId`, and they already draw
+  with its entry. When the catalog becomes runtime this map moves into it.
 
 ## 4. Layout
 
