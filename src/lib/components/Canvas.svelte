@@ -320,6 +320,8 @@
    * as easy to grab.
    */
   const nozzleK = $derived(k * Math.min(1, Math.max(0.3, zoom / 1.2)));
+  /** Under 70 % of full size the bale's target is under 31 px: too small for a finger (UX.md §8.1). */
+  const nozzleSmall = $derived(nozzleK * zoom < 0.7);
   /** Floor labels are constant-size: every Nth floor is named so two labels are never under 22 px apart. */
   const labelEvery = $derived.by(() => {
     const need = Math.ceil(22 / (floorM * PX_PER_M * zoom));
@@ -1588,6 +1590,7 @@
             {/each}
             <g transform={`translate(${end.x} ${end.y}) scale(${nozzleK})`}>
               <NozzleDrawing
+                small={nozzleSmall}
                 nozzle={o.scenario.nozzle}
                 flowGpm={o.result.flowGpm}
                 x={0}
@@ -1788,6 +1791,7 @@
         <!-- The nozzle above its handle and the gauges: the highest event layer -->
         <g transform={`translate(${layout.nodes[last].x} ${layout.nodes[last].y}) scale(${nozzleK})`}>
           <NozzleDrawing
+            small={nozzleSmall}
             nozzle={scenario.nozzle}
             flowGpm={result.flowGpm}
             x={0}

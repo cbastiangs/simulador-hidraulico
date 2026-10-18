@@ -15,6 +15,7 @@
     onToggle,
     onGrab,
     color = null,
+    small = false,
   }: {
     nozzle: ScenarioNozzle;
     flowGpm: number;
@@ -26,6 +27,8 @@
     onGrab?: (e: PointerEvent) => void;
     /** The line's colour on a branched lay (line-colors.ts): a band at the inlet, like tape on a coupling. */
     color?: string | null;
+    /** Drawn too small to aim a finger at: on touch screens the bale is drawing only (UX.md §8.1). */
+    small?: boolean;
   } = $props();
 
   // Fog: body, gallonage ring, pattern collar. Smooth bore: shutoff and a
@@ -79,6 +82,7 @@
   {#if design !== "open-end"}
   <g
     class="bale"
+    class:small
     role="switch"
     tabindex="0"
     aria-checked={nozzle.open}
@@ -110,6 +114,8 @@
   .lever { stroke: var(--ink); stroke-width: 4; stroke-linecap: round; }
   .knob { fill: var(--ink); }
   .bale { cursor: pointer; outline: none; }
+  /* A finger's tap near a tiny bale is a tap on the nozzle: touch adjustment would otherwise snap it to the bale. */
+  @media (pointer: coarse) { .bale.small { pointer-events: none; } }
   .bale:focus-visible .lever { stroke: var(--accent); }
   .hit { fill: transparent; }
   .grab { fill: transparent; cursor: grab; touch-action: none; }

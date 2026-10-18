@@ -506,6 +506,7 @@ welcome tour is interactive.
 | Whole lay | "Ver todo" | "Ver todo", double tap on empty canvas |
 | Select | click | tap (moves < 6 px) |
 | Move a coupling or the nozzle | drag its handle | drag its handle, at once (no hold) |
+| Open / shut the bale | click the lever | tap the lever when drawn at 70 % size or more; smaller, a tap selects the nozzle and Manija is in the sheet (owner, 2026-10-18) |
 | More actions | right click | hold 0.5 s without moving |
 
 - **On a phone the canvas owns every touch inside it.** The page never
