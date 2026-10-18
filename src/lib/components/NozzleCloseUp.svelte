@@ -296,7 +296,10 @@
   .hit { fill: transparent; }
   .bale, .turn { cursor: grab; outline: none; }
   .bale:focus-visible .grip, .turn:focus-visible .collar, .turn:focus-visible .ring-body { stroke: var(--accent); stroke-width: 3; }
-  .readouts { display: grid; grid-template-columns: repeat(auto-fit, minmax(84px, 1fr)); gap: 6px; }
+  /* Patrón, always last, takes the room its two-word names need ("Neblina estrecha") between its arrows. */
+  .readouts { display: flex; flex-wrap: wrap; gap: 6px; }
+  .readouts > .readout { flex: 1 1 84px; }
+  .readouts > .readout:last-child { flex: 1.6 1 132px; }
   .readout { min-width: 0; }
   .readout { display: grid; gap: 4px; align-content: start; }
   .label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
