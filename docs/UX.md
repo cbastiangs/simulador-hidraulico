@@ -605,7 +605,7 @@ at any step; ending it counts as seen.
 | 6 | a coupling's handle (else the nozzle's) | "Arrastra esta pieza a otro piso: subir cuesta presión." | a move |
 | 7 | a hose | "Toca una manguera para cambiar diámetro o largo. Mantén pulsado (clic derecho) para más." | a hose is selected |
 | 8 | the pressure bar (phone: the closed sheet; wide: the dock or the results' bar) | "En qué se gasta la presión: pitón, fricción, altura." | Siguiente |
-| 9 | the Escenario menu | "Otros tendidos, y copiar o pegar el tuyo, aquí. El recorrido vuelve en «?»" (phone: "en Escenario › Ver recorrido") | Listo |
+| 9 | The control that reopens the tour: wide, the "?"; phone, the Escenario menu opens and "Ver recorrido" is highlighted inside it (owner, 2026-10-18: the step named the control without showing it); the menu closes when the tour ends | Wide: "Para repetir el recorrido, pulsa «?». Otros tendidos, y copiar o pegar el tuyo, están en Escenario." Phone: "Para repetir el recorrido: «Ver recorrido», al final de este menú. Aquí también están los otros tendidos, copiar y pegar." | Listo |
 
 Steps 4, 6 and 7 re-frame the lay first ("Ver todo"), since the person may
 have panned or zoomed in step 2.

@@ -505,11 +505,11 @@
         {#if phone}
           <!-- A phone's header has no room for "?" (UX.md §8.4). -->
           <hr />
-          <button type="button" onclick={startTour}>Ver recorrido</button>
+          <button type="button" data-tour="help-item" onclick={startTour}>Ver recorrido</button>
         {/if}
       </div>
     </details>
-    {#if !phone}<button type="button" class="gear" aria-label="Ver recorrido" title="Ver recorrido: cómo se usa" onclick={startTour}>?</button>{/if}
+    {#if !phone}<button type="button" class="gear" data-tour="help" aria-label="Ver recorrido" title="Ver recorrido: cómo se usa" onclick={startTour}>?</button>{/if}
     <button type="button" class="gear" aria-label="Ajustes" title="Ajustes: método, altura de piso, accesorios, vista" onclick={() => (settingsOpen = true)}>⚙</button>
   </header>
 
@@ -572,7 +572,7 @@
     {#if noticeAction}<button type="button" onclick={noticeAction.run}>{noticeAction.label}</button>{/if}
   </div>
 {/if}
-<Tour running={touring} {phone} {scenario} {selection} onFit={() => (fitSignal += 1)} onDeselect={deselect} onEnd={() => (touring = false)} />
+<Tour running={touring} {phone} {scenario} {selection} onFit={() => (fitSignal += 1)} onDeselect={deselect} onMenu={(open) => scenarioMenu && (scenarioMenu.open = open)} onEnd={() => (touring = false)} />
 
 <Settings
   open={settingsOpen}
