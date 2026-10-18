@@ -414,6 +414,14 @@ and dropped: the pump was edited in two places and line settings in three.
   something changes), "Copiar enlace", "Copiar como texto" and "Pegar
   escenario…". Loading a preset starts a fresh history; a blank line,
   reset and a paste are undo steps.
+- **The first lay is "Bifurcada" (owner, 2026-10-18)**, replacing "Ataque al
+  2.º piso", whose nozzle opened off the edge of a phone. Its hoses keep
+  their 30 m but are laid short and snaked on the ground (`runM`, drawing
+  only), so the truck, the wye and both nozzles fit the start view at 390
+  and 1024 px. Línea 2 goes up to the 2nd floor: the two nozzles never
+  share a spot, and the two lines differ, which the welcome tour uses
+  (§8.4). Coiled hoses caption in lanes below the ground, shortening the
+  caption before two overlap.
 - **Copy, paste, links (owner, 2026-10-18; ROADMAP §10e item 2).** Only
   the scenario travels (the lay, method, floor height, fittings mode),
   never Ajustes › Vista. A link carries the document in the URL's
@@ -578,6 +586,18 @@ for an action, moves on when the person does it:
 4. A coupling: "Arrastra el acople a otro piso." (advances on a move)
 5. A hose: "Toca una manguera para cambiarla; mantén pulsado para más."
 6. Pressure split: "En qué se gasta la presión: fricción, altura, pitón."
+
+### 8.1b Hover and tap feedback (owner, 2026-10-18: deferred)
+
+Built, mouse only and never the only cue: a thin halo on the hovered hose
+(`hovered` state, drawn from the hose's own path) and a CSS outline on handles,
+the engine, gauges and badges. **Deferred until the network model is
+settled** (siamese, two pumps, supply: `ROADMAP.md` §7.7): a single overlay
+drawn from the layout for any `hovered` target, a brief flash of the pressed
+target's hit area on tap and click, and merging the overlap peek into
+`hovered`. They wait because the targets are keyed by index today and would be
+keyed by id in a graph, and because the engine's truck has no geometry in the
+layout yet.
 
 ### 8.5 Order of work
 

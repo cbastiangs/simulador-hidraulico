@@ -378,6 +378,11 @@
   // Hover (mouse only): where lines overlap, the one behind comes forward
   // with a tag; a click then edits it. Kept while the pointer stays on it.
   let peek = $state<{ key: string; x: number; y: number } | null>(null);
+  /** What the mouse is over, for a light halo (never the only cue; selection keeps its own). */
+  let hovered = $state<Selection | null>(null);
+  const hoverOn = (e: PointerEvent, target: Selection) => {
+    if (e.pointerType === "mouse" && !press && dragging === null && !armed) hovered = target;
+  };
   function hoverLines(e: PointerEvent) {
     if (e.pointerType !== "mouse" || !otherLines.length || press || dragging !== null || armed) return;
     const stack = linesAt(e.clientX, e.clientY);
@@ -1149,6 +1154,8 @@
   const LABEL_PX_PER_CHAR = 7;
   const hoseLabelText = (s: Scenario["sections"][number], slackM: number) =>
     `${s.lengthFree ? "🔓" : "🔒"} ${s.lengthM} m · ${sizeLabel(s.diameterIn)}${slackM >= 0.5 ? ` · holgura ${slackM.toFixed(1)} m` : ""}`;
+  // Shorter captions a crowded hose falls back to, longest first; the inspector keeps the rest.
+  const hoseLabelShort = (s: Scenario["sections"][number]) => [`${s.lengthM} m · ${sizeLabel(s.diameterIn)}`, `${s.lengthM} m`];
   const measureLabel = (text: string) => LABEL_PX_PER_CHAR * text.length + 8;
 
   type HoseLabel = { index: number; text: string; x: number; y: number; angle: number };
@@ -1189,27 +1196,37 @@
       };
       if (angle !== 0 && spanOf(angle) > maxW) angle = 0;
       const rad = (angle * Math.PI) / 180;
-      const bw = Math.abs(w * Math.cos(rad)) + Math.abs(16 * Math.sin(rad));
-      const bh = Math.abs(w * Math.sin(rad)) + Math.abs(16 * Math.cos(rad));
+      const boxOf = (width: number) => ({
+        bw: Math.abs(width * Math.cos(rad)) + Math.abs(16 * Math.sin(rad)),
+        bh: Math.abs(width * Math.sin(rad)) + Math.abs(16 * Math.cos(rad)),
+      });
+      let { bw, bh } = boxOf(w);
       const baseX = h.labelX * zoom - camX;
       const baseY = (low ? layout.groundY + 32 * k : h.labelY + 32 * k) * zoom - camY;
-      const clampX = (sx: number) => (inView ? Math.max(8 + bw / 2, Math.min(viewWidth - 8 - bw / 2, sx)) : sx);
-      const clear = (sx: number, sy: number) => {
+      const clampX = (sx: number, half: number) => (inView ? Math.max(8 + half, Math.min(viewWidth - 8 - half, sx)) : sx);
+      const clear = (sx: number, sy: number, bw: number, bh: number) => {
         if (inView && (sy < 8 || sy > viewHeight - 8)) return false;
         return !boxes.some((b) => sx - bw / 2 < b.x + b.w && sx + bw / 2 > b.x && sy - bh / 2 < b.y + b.h && sy + bh / 2 > b.y);
       };
-      const offsets = low ? [0] : [0, 18, -18, 36, -36];
-      let sx = clampX(baseX);
+      // Coiled hoses sit side by side on the ground: lanes step down below it.
+      const offsets = low ? [0, 18, 36] : [0, 18, -18, 36, -36];
+      // Each place is tried with the whole caption before a shorter one.
+      const texts = [text, ...hoseLabelShort(s).filter((t) => t !== text)];
+      let sx = clampX(baseX, bw / 2);
       let sy = baseY;
       let found = false;
-      for (const off of offsets) {
-        const cy = baseY + off;
-        const cx = clampX(baseX);
-        if (clear(cx, cy)) {
-          sx = cx;
-          sy = cy;
-          found = true;
-          break;
+      search: for (const candidate of texts) {
+        const box = boxOf(measureLabel(candidate));
+        for (const off of offsets) {
+          const cx = clampX(baseX, box.bw / 2);
+          if (clear(cx, baseY + off, box.bw, box.bh)) {
+            ({ bw, bh } = box);
+            text = candidate;
+            sx = cx;
+            sy = baseY + off;
+            found = true;
+            break search;
+          }
         }
       }
       // Nothing clear: keep it in view, but never off the canvas.
@@ -1602,7 +1619,8 @@
               use:waterPhase
             />
           {/if}
-          {#if isSection(hd.index)}<path class="hose-selected" d={hd.d} stroke-width={hd.width + 6 * k} />{/if}
+          {#if isSection(hd.index)}<path class="hose-selected" d={hd.d} stroke-width={hd.width + 6 * k} />
+          {:else if hovered?.kind === "section" && hovered.index === hd.index}<path class="hose-hover" d={hd.d} stroke-width={hd.width + 3 * k} />{/if}
           <path
             class="hit"
             d={hd.d}
@@ -1616,6 +1634,8 @@
             onkeydown={(e) => e.key === "Enter" && onSelect({ kind: "section", index: hd.index })}
             oncontextmenu={(e) => openMenu(e, { kind: "section", index: hd.index })}
             onpointerdown={(e) => holdStart(e, { kind: "section", index: hd.index })}
+            onpointerenter={(e) => hoverOn(e, { kind: "section", index: hd.index })}
+            onpointerleave={() => (hovered = null)}
           />
           <text class="tag" transform={`translate(${lbl.x} ${lbl.y}) rotate(${lbl.angle})`}>{lbl.text}</text>
         {/each}
@@ -2095,8 +2115,17 @@
   }
   @media (prefers-reduced-motion: reduce) { .particles { animation: none; } .stage.glide { transition: none; } }
   .hose-selected { fill: none; stroke: var(--accent); stroke-opacity: 0.35; stroke-linecap: round; pointer-events: none; }
+  .hose-hover { fill: none; stroke: var(--accent); stroke-opacity: 0.22; pointer-events: none; }
   .hit { fill: none; stroke: transparent; cursor: pointer; outline: none; }
   .hit:focus-visible { stroke: var(--accent); stroke-opacity: 0.2; }
+  /* Desktop hover (mouse only, never the only cue): the target lights up where it will take a click. A hose
+     is a halo drawn by script (.hose-hover). */
+  @media (hover: hover) {
+    .handle:hover:not(.active):not(.constrained) { stroke: var(--accent); stroke-opacity: 0.8; }
+    .pump:hover .truck { stroke: var(--accent); stroke-width: calc(3px * var(--k)); stroke-opacity: 0.6; }
+    .gauge-hit:hover { stroke: var(--accent); stroke-width: 2; }
+    .stack-badge:hover rect { stroke: var(--accent); stroke-width: 3; }
+  }
   .handle { fill: transparent; stroke: var(--ink); stroke-opacity: 0.3; stroke-dasharray: 3 3; cursor: grab; touch-action: none; outline: none; }
   .handle.selected { stroke: var(--accent); stroke-opacity: 0.7; }
   .handle.active, .handle:focus-visible { stroke: var(--accent); stroke-opacity: 1; cursor: grabbing; }

@@ -26,10 +26,12 @@
 
   // Built to docs/design/main-screen.html (UX.md §6).
   // Presets are parsed like any outside document: the same gate as a share link.
+  // The first lay a visitor sees and the welcome tour runs on (UX.md §8.4).
+  const DEFAULT_PRESET = "bifurcada";
   const files = import.meta.glob("/data/presets/*.json", { eager: true, import: "default" });
   const presets = Object.entries(files)
     .map(([path, doc]) => ({ id: path.split("/").pop()!.replace(".json", ""), scenario: parseScenario(doc) }))
-    .sort((a, b) => (a.id === "ataque-segundo-piso" ? -1 : b.id === "ataque-segundo-piso" ? 1 : a.id.localeCompare(b.id)));
+    .sort((a, b) => (a.id === DEFAULT_PRESET ? -1 : b.id === DEFAULT_PRESET ? 1 : a.id.localeCompare(b.id)));
 
   /** The preset loaded last; null when the scenario came from a link or a paste. */
   let presetId = $state<string | null>(presets[0].id);

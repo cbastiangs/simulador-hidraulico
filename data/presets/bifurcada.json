@@ -13,7 +13,8 @@
       "diameterIn": 2.5,
       "frictionCoefficient": 2,
       "lengthM": 30,
-      "endElevationM": 0
+      "endElevationM": 0,
+      "runM": 10
     }
   ],
   "nozzle": {
@@ -37,7 +38,8 @@
             "diameterIn": 1.5,
             "frictionCoefficient": 24,
             "lengthM": 30,
-            "endElevationM": 0
+            "endElevationM": 0,
+            "runM": 8
           }
         ],
         "nozzle": {
@@ -60,7 +62,8 @@
             "diameterIn": 1.5,
             "frictionCoefficient": 24,
             "lengthM": 30,
-            "endElevationM": 0
+            "endElevationM": 6,
+            "runM": 14
           }
         ],
         "nozzle": {
