@@ -11,6 +11,7 @@
     dark = false,
     label = true,
     mark,
+    markTitle = "Nominal",
   }: {
     psi: number;
     x?: number;
@@ -18,8 +19,10 @@
     r?: number;
     dark?: boolean;
     label?: boolean;
-    /** A pressure to mark on the dial: the nozzle's rating (UX.md §10.3 T5). */
+    /** A pressure to mark on the dial: the nozzle's rating (UX.md §10.3 T5), the pump's ideal pressure. */
     mark?: number;
+    /** What the mark is, for its tooltip. */
+    markTitle?: string;
   } = $props();
 
   const MAX = 300;
@@ -34,7 +37,7 @@
     <line class="tick" x1="0" y1={-(r - 3)} x2="0" y2={-(r - 7)} transform={`rotate(${t})`} />
   {/each}
   {#if mark !== undefined}
-    <path class="mark" d={`M 0 ${-(r + 1)} L -3 ${-(r + 6)} L 3 ${-(r + 6)} Z`} transform={`rotate(${-135 + (Math.min(Math.max(mark, 0), MAX) / MAX) * 270})`}><title>Nominal {mark} psi</title></path>
+    <path class="mark" d={`M 0 ${-(r + 1)} L -3 ${-(r + 6)} L 3 ${-(r + 6)} Z`} transform={`rotate(${-135 + (Math.min(Math.max(mark, 0), MAX) / MAX) * 270})`}><title>{markTitle} {mark.toFixed(0)} psi</title></path>
   {/if}
   <line class="needle" x1="0" y1="0" x2="0" y2={-(r - 6)} transform={`rotate(${angle})`} />
   <circle class="hub" r={r / 8} />

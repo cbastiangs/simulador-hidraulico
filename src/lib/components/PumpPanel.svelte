@@ -6,7 +6,7 @@
   import NumberField from "./NumberField.svelte";
 
   // The panel's pump header (UX.md §4): discharge gauge, pressure typed or
-  // stepped, "Ajustar" (apply the required pressure), "Ralentí" and the flow,
+  // stepped, "Presión ideal" (the required pressure: shown, and set on a tap), "Ralentí" and the flow,
   // large. Always in view: atop the right panel (desktop), above the canvas
   // (tablet), as a strip (phone). On a phone the strip is a summary and the
   // pump's whole control (`full`) opens in the sheet with its detail. The
@@ -31,7 +31,7 @@
     onOpen?: () => void;
     /** Desktop: the header of the side panel, 360 px wide. */
     head?: boolean;
-    /** Phone, in the sheet when the pump is selected: large gauge, ±1 and ±10, Ajustar, Ralentí. */
+    /** Phone, in the sheet when the pump is selected: large gauge, ±1 and ±10, Presión ideal, Ralentí. */
     full?: boolean;
     branched?: boolean;
     balanced?: boolean;
@@ -55,9 +55,18 @@
   const required = $derived(result.requiredPumpPressurePsi);
   /** An open end has no rating to reach, so no pressure is "required" (MODEL.md §3.4d). */
   const rated = $derived(scenario.nozzle.design !== "open-end");
+  // "Presión ideal" (owner, 2026-10-18): a reading first, a shortcut second.
+  // It shows what the lay asks of the pump, turns green when the pump is
+  // there, and a tap sets it; a tick marks it on the pump's dial.
+  const atIdeal = $derived(Math.abs(scenario.source.pressurePsi - required) < 0.5);
   const requiredTip = $derived(
-    `Presión necesaria en la bomba para que el pitón reciba sus ${scenario.nozzle.ratedPressurePsi} psi: ${required.toFixed(0)} psi. Toca para aplicarla.`,
+    atIdeal
+      ? `La bomba está en la presión ideal: ${required.toFixed(0)} psi, los ${scenario.nozzle.ratedPressurePsi} psi nominales en el pitón.`
+      : `Presión ideal: ${required.toFixed(0)} psi en la bomba dan al pitón sus ${scenario.nozzle.ratedPressurePsi} psi nominales. Toca para ponerla.`,
   );
+  const idealLabel = $derived(`Presión ideal ${required.toFixed(0)} psi${atIdeal ? ", la bomba ya está ahí" : ": tocar para ponerla"}`);
+  /** The dial's tick at the ideal pressure: a single line with a nozzle only. */
+  const mark = $derived(!branched && rated ? required : undefined);
   const applyRequired = () => onchange(edit.setSourcePressure(scenario, required));
   // Idle: today's pump is an ideal pressure source, so idle is 0 psi; with the
   // governor's RPM mode (M3) it becomes the lowest RPM (UX.md §4).
@@ -94,8 +103,8 @@
       unit="psi"
       onchange={(p) => onchange(edit.setSourcePressure(scenario, p))}
     />
-    {#if !branched && rated}<button class="chip small" type="button" title={requiredTip} aria-label={`Ajustar a la presión necesaria, ${required.toFixed(0)} psi`} onclick={applyRequired}>
-      <span class="req-label">Ajustar</span>
+    {#if !branched && rated}<button class="chip small ideal" class:at={atIdeal} type="button" title={requiredTip} aria-label={idealLabel} onclick={applyRequired}>
+      <span class="req-label">{atIdeal ? "✓ Ideal" : "Ideal"}</span>
       <span class="req-value">{required.toFixed(0)}</span>
     </button>{/if}
     <button type="button" class="flow-open" aria-label="Bomba: salida y accesorios" onclick={onOpen}>
@@ -106,7 +115,7 @@
 {:else if head}
   <section class="head" aria-label="Panel de bomba">
     <svg class="dial" width="64" height="64" viewBox="-32 -32 64 64" aria-hidden="true">
-      <Gauge psi={scenario.source.pressurePsi} r={29} dark label={false} />
+      <Gauge psi={scenario.source.pressurePsi} r={29} dark label={false} {mark} markTitle="Presión ideal" />
     </svg>
     <div class="flow" aria-live="polite">
       <span class="kicker">Bomba · descarga</span>
@@ -123,8 +132,8 @@
         unit="psi"
         onchange={(p) => onchange(edit.setSourcePressure(scenario, p))}
       />
-      {#if !branched && rated}<button class="chip small" type="button" title={requiredTip} aria-label={`Ajustar a la presión necesaria, ${required.toFixed(0)} psi`} onclick={applyRequired}>
-        <span class="req-label">Ajustar</span>
+      {#if !branched && rated}<button class="chip small ideal" class:at={atIdeal} type="button" title={requiredTip} aria-label={idealLabel} onclick={applyRequired}>
+        <span class="req-label">{atIdeal ? "✓ Ideal" : "Ideal"}</span>
         <span class="req-value">{required.toFixed(0)}</span>
       </button>{/if}
       {@render idleButton()}
@@ -133,7 +142,7 @@
 {:else if full}
   <section class="full" aria-label="Control de bomba">
     <svg class="dial" width="88" height="88" viewBox="-44 -44 88 88" aria-hidden="true">
-      <Gauge psi={scenario.source.pressurePsi} r={41} dark label={false} />
+      <Gauge psi={scenario.source.pressurePsi} r={41} dark label={false} {mark} markTitle="Presión ideal" />
     </svg>
     <div class="flow" aria-live="polite">
       <span class="kicker">Bomba · descarga</span>
@@ -152,16 +161,16 @@
       />
     </div>
     <div class="span row">
-      {#if !branched && rated}<button class="chip grow" type="button" title={requiredTip} onclick={applyRequired}>Ajustar a {required.toFixed(0)} psi</button>{/if}
+      {#if !branched && rated}<button class="chip grow ideal" class:at={atIdeal} type="button" title={requiredTip} aria-label={idealLabel} onclick={applyRequired}>{atIdeal ? "✓ " : ""}Presión ideal: {required.toFixed(0)} psi</button>{/if}
       {@render idleButton()}
     </div>
-    <p class="span hint">{branched ? "Ajusta la descarga y consulta la presión y el caudal de cada línea. La bomba mantiene la presión indicada; su capacidad aún no se modela." : rated ? `Ajustar: la presión necesaria para que el pitón reciba sus ${scenario.nozzle.ratedPressurePsi} psi.` : "Sin pitón no hay presión nominal que alcanzar: el caudal lo fijan la bomba y la manguera."}</p>
+    <p class="span hint">{branched ? "Ajusta la descarga y consulta la presión y el caudal de cada línea. La bomba mantiene la presión indicada; su capacidad aún no se modela." : rated ? `Presión ideal: la que da al pitón sus ${scenario.nozzle.ratedPressurePsi} psi nominales; tócala para ponerla. La marca en el manómetro la señala.` : "Sin pitón no hay presión nominal que alcanzar: el caudal lo fijan la bomba y la manguera."}</p>
     {#if gap}<p class="span hint gap">{gapTip}</p>{/if}
   </section>
 {:else}
   <section class="pump" aria-label="Panel de bomba">
     <svg class="dial" width="64" height="64" viewBox="-32 -32 64 64" aria-hidden="true">
-      <Gauge psi={scenario.source.pressurePsi} r={29} dark label={false} />
+      <Gauge psi={scenario.source.pressurePsi} r={29} dark label={false} {mark} markTitle="Presión ideal" />
     </svg>
     <div class="title"><strong>Bomba · descarga</strong><span>Presión de descarga</span></div>
     <NumberField
@@ -173,8 +182,8 @@
       bigStep={{ size: 10, label: "10" }}
       onchange={(p) => onchange(edit.setSourcePressure(scenario, p))}
     />
-    {#if !branched && rated}<button class="chip" type="button" title={requiredTip} onclick={applyRequired}>
-      Ajustar a {required.toFixed(0)} psi
+    {#if !branched && rated}<button class="chip ideal" class:at={atIdeal} type="button" title={requiredTip} aria-label={idealLabel} onclick={applyRequired}>
+      {atIdeal ? "✓ " : ""}Presión ideal: {required.toFixed(0)} psi
     </button>{/if}
     {@render idleButton()}
     <div class="flow" aria-live="polite">
@@ -215,7 +224,7 @@
   .full .flow { margin: 0; }
 
   .strip { min-height: 60px; width: 100%; min-width: 0; padding: 6px 8px; display: grid; grid-template-columns: max-content 48px minmax(0, 1fr); align-items: center; gap: 6px; }
-  /* No «Ajustar» on a branched lay: the flow takes its column. */
+  /* No «Presión ideal» on a branched lay: the flow takes its column. */
   .strip.branched { grid-template-columns: max-content minmax(0, 1fr); }
   .flow-open { display: grid; justify-items: end; gap: 2px; min-width: 0; min-height: 44px; padding: 2px; border: 0; border-radius: 8px; background: transparent; color: var(--panel-ink); cursor: pointer; }
   .flow-open .big { font-size: 21px; white-space: nowrap; }
@@ -226,6 +235,8 @@
   .req-label { font-size: 10px; font-weight: 600; color: var(--panel-muted); }
   .req-value { font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; background: var(--panel-line); border-radius: 999px; padding: 1px 6px; min-width: 24px; text-align: center; }
   .warn-text { color: #ffc9c9; }
+  .ideal.at { border-color: var(--ok-ink); color: var(--ok-ink); }
+  .ideal.at .req-label { color: var(--ok-ink); }
 
   @media (max-width: 600px) {
     .pump .dial, .title { display: none; }

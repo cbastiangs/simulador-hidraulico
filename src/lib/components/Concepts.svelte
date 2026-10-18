@@ -52,7 +52,7 @@
     <dd>
       Potencia = caudal × presión ({f(result.flowGpm)} gpm × {f(pump)} psi ÷ 1714): el trabajo que la bomba hace sobre el agua
       por minuto. En una sola línea se reparte igual que la presión, así que la barra de arriba también dice en qué se gasta:
-      {flowing ? `${(power.efficiency * 100).toFixed(0)} % llega al chorro` : "sin caudal no hay trabajo"}. Con una bifurca las
+      {flowing ? `${(power.efficiency * 100).toFixed(0)} % llega al chorro` : "sin caudal no hay trabajo"}. Con un bifurco las
       presiones de las líneas ya no se suman, y la potencia sí: ahí aparece su propia barra.
     </dd>
     {/if}
@@ -68,8 +68,8 @@
     <dd>
       Es el par con que se calibró este ajuste: con {n.ratedPressurePsi} psi en la entrada, esta abertura deja pasar
       {n.ratedFlowGpm} gpm. No es la presión que tendrás: esa ({flowing ? `${f(result.nozzlePressurePsi)} psi` : "—"})
-      sale de la bomba y la línea, y se calcula con Q ∝ √P. «Ajustar»
-      ({f(result.requiredPumpPressurePsi)} psi, la presión requerida) pone la <b>bomba</b> en la presión con que el pitón trabaja en su clasificación.
+      sale de la bomba y la línea, y se calcula con Q ∝ √P. La «Presión ideal»
+      ({f(result.requiredPumpPressurePsi)} psi) es la presión de la <b>bomba</b> con que el pitón trabaja en su clasificación; tócala para ponerla.
     </dd>
     {/if}
   </dl>

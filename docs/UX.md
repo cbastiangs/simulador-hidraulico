@@ -76,7 +76,7 @@
   "cerrado", on every line. The header's gpm is what leaves the pump: on a
   single line the same number, on a branched lay the total of the lines.
 - **Controls below the drawing,** never over it: zoom readout,
-  − / + / Ajustar.
+  − / + / Presión ideal.
 - **Tap vs drag.** A press that moves less than 6 px is a tap: it selects
   (on the nozzle it also works the bale, open/shut; on a coupling it opens
   that joint's fittings; the hose itself opens the hose toolbar). More is a
@@ -352,16 +352,20 @@
   - **Pattern collar:** straight stream ↔ wide fog. Drawn on the stream.
   - **Stream:** grows and collapses with the flow; shape follows the
     pattern.
-- **Pump header:** discharge gauge, pressure (typed, ±), **"Ajustar"**,
-  **"Ralentí"** and the flow, large, always in view (§4). "Ajustar" sets the
-  discharge to the required pressure: what the pump needs for the nozzle to
-  get its rated pressure (nozzle + friction + elevation + fittings, under
-  the chosen method); its tooltip says so ("Req." was cryptic). "Ralentí"
+- **Pump header:** discharge gauge, pressure (typed, ±), **"Presión
+  ideal"**, **"Ralentí"** and the flow, large, always in view (§4). The
+  ideal pressure is what the pump needs for the nozzle to get its rated
+  pressure (nozzle + friction + elevation + fittings, under the chosen
+  method). **A reading first, a shortcut second** (owner, 2026-10-18,
+  replacing "Ajustar", which solved the task for you): the chip reads
+  "Ideal 132", turns green with ✓ when the pump is there, and a tap sets
+  it; a tick on the pump's dial marks it. Single line with a nozzle only:
+  an open end has no rating, and a branched lay has no single ideal yet. "Ralentí"
   (owner, 2026-10-16) is the kill: red, undoable, 0 psi today because the
   pump is an ideal pressure source; with the governor's RPM mode (M3) it
   sets the lowest RPM and the pump curve gives the pressure. On a phone the
-  strip is a summary (pressure ±, Ajustar, flow); selecting the pump opens
-  its whole control in the sheet (large gauge, ±1 and ±10, Ajustar,
+  strip is a summary (pressure ±, Ideal, flow); selecting the pump opens
+  its whole control in the sheet (large gauge, ±1 and ±10, Presión ideal,
   Ralentí, flow) above its detail.
   The outlets are the pump's detail; truck, governor and tank join it with
   M3 (ROADMAP §6).
@@ -394,7 +398,7 @@ and dropped: the pump was edited in two places and line settings in three.
   one-line grid change; the walkthrough and the tests with firefighters
   ask which side they look to.
 - **Header: the pump**, always in view, because discharge pressure is the
-  control a lay is set with. Gauge, pressure, "Ajustar", "Ralentí",
+  control a lay is set with. Gauge, pressure, "Presión ideal", "Ralentí",
   flow and the state. Tablets put it above the canvas, phones as the strip;
   the body goes below the canvas or in the sheet.
 - **Body: what is selected.** Nothing: **Línea** (its name) and the
@@ -429,7 +433,7 @@ and dropped: the pump was edited in two places and line settings in three.
   per browser, changes no number: Comparar con, Manómetros, Grosor real de
   la manguera; display units go here when they come (ROADMAP decision 6).
   What a firefighter does on the fireground stays a control on the item:
-  pump pressure, Ralentí, Ajustar, gates and the bale, the nozzle's ring
+  pump pressure, Ralentí, Presión ideal, gates and the bale, the nozzle's ring
   and pattern, a hose's size, length and lock.
 - The panel is never hidden, so selecting does not resize and refit the
   canvas; it stays in view while the results scroll.
@@ -554,7 +558,7 @@ actions; "inspector" = the side column (desktop) or the sheet at full.
 | Nozzle | open / shut the bale | tap the nozzle | tap the nozzle |
 | | model, gallonage, pattern, typed rating | inspector | sheet at peek |
 | Pump | pressure (typed, ±) | panel header | top strip |
-| | apply required pressure ("Ajustar"), idle ("Ralentí") | panel header | top strip: Ajustar; sheet (pump selected): both |
+| | ideal pressure (reading; tap sets it), idle ("Ralentí") | panel header | top strip: Ideal; sheet (pump selected): both |
 | | discharge outlet size | tap the engine → panel body | tap the engine or the strip's flow → sheet |
 | Scenario | load a preset | header | header menu |
 | | undo, redo | header; Ctrl+Z, Ctrl+Shift+Z | header icons |

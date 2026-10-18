@@ -459,8 +459,9 @@ Agreed, in this order; each is usable on its own. Before M3 unless noted.
    the lay, and Vista (Comparar con, gauges, true thickness) is kept per
    browser. The Línea panel keeps only the name. The floating toolbar no
    longer adds or removes pieces; the context menu still does.
-   **Open:** whether "Ajustar a la presión necesaria" becomes a setting or
-   a teaching mode.
+   "Ajustar" became **"Presión ideal"** (owner, 2026-10-18): a reading
+   that turns green when the pump is there, with a tick on the dial; a
+   tap still sets it (UX.md §2 "Pump header").
 
 1. ✅ **Power split for the whole lay** ("¿En qué se gasta lo que entrega la
    bomba?"): where the pump's work goes, adding across lines (`MODEL.md`

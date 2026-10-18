@@ -199,11 +199,11 @@
           min="0"
           max="1"
           step="0.01"
-          aria-label="Patrón: chorro directo a niebla amplia"
+          aria-label="Patrón: chorro directo a neblina amplia"
           value={n.pattern}
           oninput={(e) => onchange(edit.setNozzlePattern(scenario, e.currentTarget.valueAsNumber))}
         />
-        <div class="ends"><span>Chorro directo</span><span>Niebla amplia</span></div>
+        <div class="ends"><span>Chorro directo</span><span>Neblina amplia</span></div>
       </div>
     </section>
     {/if}
@@ -229,7 +229,7 @@
     {#if short}
       <p class="warn" role="status">
         ⚠ {result.nozzlePressurePsi.toFixed(0)} psi en el pitón, por debajo de sus {n.ratedPressurePsi} psi nominales: da
-        {result.flowGpm.toFixed(0)} gpm, no {n.ratedFlowGpm}. {branched ? "Sube la presión de la bomba o revisa las líneas abiertas." : "Sube la presión o toca «Ajustar»."}
+        {result.flowGpm.toFixed(0)} gpm, no {n.ratedFlowGpm}. {branched ? "Sube la presión de la bomba o revisa las líneas abiertas." : "Sube la presión o toca «Ideal» en la bomba."}
       </p>
     {/if}
 

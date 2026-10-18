@@ -226,7 +226,7 @@ export const ACTIONS: Action[] = [
   },
   {
     id: "pump.apply-required",
-    label: (c) => `Ajustar a la presión necesaria (${c.requiredPsi.toFixed(0)} psi)`,
+    label: (c) => `Poner la presión ideal (${c.requiredPsi.toFixed(0)} psi)`,
     on: ["pump"],
     menu: true,
     field: true,
