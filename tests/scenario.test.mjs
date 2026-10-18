@@ -74,7 +74,13 @@ test("a bad document is rejected with the path of the first bad field", () => {
     [(d) => ((d.nozzle.kind = "selectable"), (d.nozzle.settingsGpm = [30, 60])), "nozzle.settingsGpm"],
     [(d) => (d.nozzle.pattern = 2), "nozzle.pattern"],
     [(d) => (d.sections[0].runM = -1), "sections[0].runM"],
+    // Wyes (MODEL.md §2): one branch per outlet, an empty outlet is an open end, one outlet has a hose.
+    [(d) => (d.wye = { device: "trifurca", branches: [outlet(d, "a"), outlet(d, "b")] }), "wye.branches"],
+    [(d) => (d.wye = { branches: [outlet(d, "a"), { ...outlet(d, "b"), sections: [] }] }), "wye.branches[1].nozzle.design"],
+    [(d) => (d.wye = { branches: [empty(d, "a"), empty(d, "b")] }), "wye.branches"],
   ];
+  const outlet = (d, id) => ({ id, name: id, open: true, sections: d.sections, nozzle: { ...d.nozzle } });
+  const empty = (d, id) => ({ ...outlet(d, id), sections: [], nozzle: { ...d.nozzle, design: "open-end" } });
   for (const [spoil, path] of cases) {
     const doc = preset("linea-basica.json");
     spoil(doc);

@@ -8,11 +8,17 @@
   // full length; shut, it has turned across the hose toward the eye, so from
   // the side it shrinks to its red grip. A tap turns it (animated); the
   // close-up from above does the same.
+  //
+  // An empty outlet (MODEL.md §2) is capped while shut; opened, it spills
+  // through its port, with its flow beside it.
   let {
     outlets,
+    flows = {},
     onGate,
   }: {
-    outlets: { id: string; path: string[]; name: string; open: boolean }[];
+    outlets: { id: string; path: string[]; name: string; open: boolean; active?: boolean; empty?: boolean }[];
+    /** Flow per outlet path ("a/b"), gpm. */
+    flows?: Record<string, number>;
     onGate: (path: string[]) => void;
   } = $props();
 
@@ -21,6 +27,12 @@
   const stem = (i: number) => -4 + i * STEP;
   /** Far outlets, drawn behind the near one (the edited line's). */
   const far = $derived(Math.max(0, outlets.length - 1));
+  /** The far spouts' outlets, nearest first: every outlet but the drawn one. */
+  const behind = $derived(outlets.filter((o) => !o.active).slice(0, far));
+  const spill = (n: number) => {
+    const o = behind[n - 1];
+    return o?.empty ? { open: o.open, gpm: flows[o.path.join("/")] ?? 0 } : null;
+  };
 </script>
 
 <g class="wye-side">
@@ -28,6 +40,13 @@
   {#each Array.from({ length: far }, (_, i) => far - i) as n (n)}
     <rect class="spout far" x="6" y={-4 - 4 * n} width="15" height="8" rx="2" />
     <rect class="ring far" x="19" y={-6 - 4 * n} width="5" height="12" rx="1.5" />
+    {@const sp = spill(n)}
+    {#if sp && sp.gpm > 0}
+      <path class="spill" d={`M 24 ${-6 - 4 * n} Q 44 ${-12 - 4 * n} 58 ${8 - 4 * n} L 50 ${14 - 4 * n} Q 40 ${2 - 4 * n} 24 ${-2 - 4 * n} Z`} />
+      <text class="spill-tag" x="40" y={-14 - 4 * n}>{sp.gpm.toFixed(0)} gpm</text>
+    {:else if sp}
+      <rect class="cap" x="23" y={-6 - 4 * n} width="3" height="12" rx="1" />
+    {/if}
   {/each}
   <!-- Inlet swivel with its rocker lugs. -->
   <rect class="swivel" x="-19" y="-9" width="10" height="18" rx="2.5" />
@@ -72,6 +91,9 @@
   .ring { fill: #6b747d; stroke-width: 1; }
   .ring.far { fill: #565e66; }
   .nut { fill: #6b747d; stroke-width: 0.8; }
+  .cap { fill: #2b3036; pointer-events: none; }
+  .spill { fill: var(--water); opacity: 0.55; pointer-events: none; }
+  .spill-tag { font-size: 8px; font-weight: 700; fill: var(--warn); text-anchor: middle; pointer-events: none; paint-order: stroke; stroke: var(--bg, #fff); stroke-width: 2px; }
   .valve { cursor: pointer; outline: none; }
   .hit { fill: transparent; }
   .handle { transform-box: view-box; transform-origin: 0 0; transition: transform 0.22s ease; pointer-events: none; }

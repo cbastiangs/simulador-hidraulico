@@ -14,6 +14,17 @@ things, and watch pressure and flow respond. It is a tool and a demo, not a
 game: a simplified but physically honest overview of a maneuver, never an
 immersive scene.
 
+**A sandbox, not a controller** (owner, 2026-10-18). You build the lay by
+handling pieces on the drawing, not by driving it from forms and buttons.
+The simulator refuses only what can't physically be put together. Anything
+else that is a bad idea is allowed, and its result shows: an open empty
+outlet flows, a weak pump starves its lines. Panels hold an item's settings
+(length, height, gate, tip), not its structure. The one standing exception
+is **Accesorios automáticos** (decision 6), which stays, on by default:
+fitting reducers by hand at every size change is chores, not
+understanding. Turned off, a size change is a mismatch that you fix with
+an adapter piece.
+
 - **Who:** firefighters and instructors at the station; maintained by the
   owner with AI help.
 - **Where:** any browser, from a projector to an older phone. Static files,
@@ -355,7 +366,7 @@ docs/
 ```
 
 Language: code and docs in English, UI in Spanish, with CGBVP terms (pitón,
-paño, bifurca, desnivel).
+paño, bifurco, desnivel).
 
 ## 10. Milestones
 
@@ -416,6 +427,39 @@ coupling). All three are fixed orifices to the solver; the new laws are in
 
 Agreed, in this order; each is usable on its own. Before M3 unless noted.
 
+0. ✅ **A sandbox feel for wyes** (owner, 2026-10-17, ahead of item 2): place a
+   **bifurco or trifurco at any coupling** ("Bifurco aquí", "Trifurco aquí"),
+   the hoses after it becoming one outlet and the others left **empty**;
+   empty outlets are connected later. An empty outlet's gate opened **flows**
+   through the port, an open end (owner: "It flows"), a mistake made visible.
+   The three-way split is a **device** (bifurco 2 outlets, trifurco 3), not a
+   free number of outlets (owner). Removing a wye with one connected outlet
+   rejoins that line. MODEL.md §2 "Devices and empty outlets".
+
+0b. ✅ **The "Piezas" strip** (owner, 2026-10-18: "Cant find the toolbox";
+   the "Añadir … al final" buttons felt wrong): a strip on the canvas's left
+   edge, a tray on the phone; pick a piece, tap a lit spot (UX.md §2
+   "Pieces", `src/lib/pieces.ts`). Hoses, wyes, nozzles and an eraser.
+   Adding and removing left the panel (owner: buttons there "feel really
+   awkward"). **Deferred:** dragging a piece from the strip (it would reuse
+   the same spots; tap-then-tap is the phone's way anyway) and fittings as
+   pieces. Accesorios automáticos stays, on by default (owner, 2026-10-18);
+   an adapter piece is for when it is off. Spots on every drawn line, not
+   only the edited one: ✅ (owner, 2026-10-18, §1 "A sandbox").
+   **Next, the blocks that are rules rather than physics.** The engine
+   refuses these, so each enters MODEL.md first: a wye straight on the pump
+   outlet, a pump with no hose (an open discharge), and a wye whose outlets
+   are all empty.
+
+0c. ✅ **Ajustes: settings, not buttons** (owner, 2026-10-18). Choices about
+   the whole simulation leave the panels for a ⚙ dialog (UX.md §4):
+   Escenario (Método, floor height, Accesorios automáticos) is saved with
+   the lay, and Vista (Comparar con, gauges, true thickness) is kept per
+   browser. The Línea panel keeps only the name. The floating toolbar no
+   longer adds or removes pieces; the context menu still does.
+   **Open:** whether "Ajustar a la presión necesaria" becomes a setting or
+   a teaching mode.
+
 1. ✅ **Power split for the whole lay** ("¿En qué se gasta lo que entrega la
    bomba?"): where the pump's work goes, adding across lines (`MODEL.md`
    §3.8, `power.split`). The per-line pressure split can't be totalled; this
@@ -470,7 +514,9 @@ compare), routes and obstacles (§10b), the top-down view (§5, parked).
    moves with its coupling, and costs its loss (MODEL.md §3.10). No
    free-floating pieces: an item outside the chain has no hydraulic meaning.
    Adding one is a tap on the joint and a small menu (the hose toolbar's
-   pattern); the toolbox drag-and-drop stays deferred (§10b).
+   pattern), or with the Piezas strip by tap-then-tap (owner, 2026-10-18,
+   §10e item 0b, reversing the 2026-10-15 deferral of a toolbox); dragging
+   pieces from it stays deferred.
 6. **Autofit is a per-scenario mode, on by default** ("Accesorios
    automáticos", stored as `autoFittings`). On: a size mismatch gets a
    visible adapter, derived, not removable while on. Off: adapters are placed

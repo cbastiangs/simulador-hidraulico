@@ -36,3 +36,25 @@ test("a branched path's terms: feed friction at the total flow, the wye once, an
   assert.equal(wye[0].joint, 1);
   near(wye[0].valuePsi, 5);
 });
+
+test("an empty wye outlet opened flows as an open end through its 1½″ bore (MODEL.md §2, §3.4d)", () => {
+  // CGBVP, 150 psi: 30 m of 2½″ (C = 2) to a trifurco (the wye's 5 psi). Outlet a
+  // has a line with its gate shut, b is empty and open, c empty and shut. The
+  // open port is an orifice with Q_ref = 29.84 × 0.90 × 1.5² × √50 = 427.28 gpm at 50 psi:
+  //   145 = 2·(Q/100)²·0.98425 + 50·(Q/427.28)² → Q = 555.0 gpm, 84.4 psi at the port.
+  const port = (id, open) => ({ id, name: id, open, sections: [], nozzle: { ...nozzle, design: "open-end" } });
+  const scenario = {
+    schema: "simulador-hidraulico/scenario", version: 1, name: "t", methodId: "cgbvp-2019",
+    source: { kind: "fixed-pressure", pressurePsi: 150 },
+    sections: [hose("2-1/2", 2.5, 2)], nozzle,
+    wye: { device: "trifurca", branches: [{ ...line("a"), open: false }, port("b", true), port("c", false)] },
+  };
+  const tree = solveScenarioTree(scenario);
+  near(tree.totalFlowGpm, 555.0, 0.05);
+  const [a, b, c] = tree.root.branches;
+  near(b.flowGpm, 555.0, 0.05);
+  near(b.outletPressurePsi, 84.36, 0.01);
+  assert.equal(a.flowGpm, 0);
+  assert.equal(c.flowGpm, 0);
+  near(tree.root.wyeLossPsi, 5);
+});

@@ -158,6 +158,20 @@ absolute relative to the original source. A segment's stored nozzle is
 inactive while its wye is present. Generic wye ports match their attached
 hose couplings: no unrecorded inlet/outlet diameter or automatic reducer
 is inferred from the difference between the common and branch hoses.
+**Devices and empty outlets (owner, 2026-10-17: "a more sandboxy feel").**
+A junction is a device with a fixed number of outlets: a **bifurco** (wye,
+2) or a **trifurco** (3), `wye.device` (absent = bifurco). Both charge the
+method's wye allowance once, on the common-port flow. No published
+trifurco figure was found (CGBVP 2019, the Colorado chart, 2026-10-17
+search), so it takes the wye's (CGBVP 5 psi): `convention` by analogy,
+`verify`. An outlet may have **nothing attached** (a branch with no
+sections, at the junction's height): gate shut, it is a capped port; gate
+open, water leaves through the port by the open-end law (§3.4d) with d =
+the device's outlet bore, **1½″** for both (a 2½″ × 2 × 1½″ wye, a
+2½″ × 3 × 1½″ trifurco; `modelling choice`, `verify` against the station's
+devices). An empty port stores an open-end nozzle and takes no wye; every
+wye keeps at least one outlet with a hose, so a pump-to-nozzle line always
+exists to draw.
 Root-to-leaf planning with simultaneous rated branch flows is deferred;
 a segment's required pressure is local and is not an instruction to set the
 pump for the entire tree.
@@ -553,6 +567,7 @@ than a fog nozzle at 100 psi (185 gpm: 69 vs 93 lbf).
   |---|---|---|---|
   | Reducer, adapter, valve | 5 psi (p. 45) | generic "appliance" rule (training mapping) | same as `us-training` |
   | Wye | 5 psi | generic rule, on common-port flow | same as `us-training`, or the device's curve |
+  | Trifurco | 5 psi (the wye's, by analogy; `verify`) | as the wye | as the wye |
   | Siamese | ~10 psi | generic rule, on common-port flow | same as `us-training`, or the device's curve |
   | Master stream device | monitor 10–25 psi | 25 psi | 25 psi, or the device's curve |
   | Aerial waterway | — | 25 psi | 25 psi |
@@ -772,6 +787,13 @@ methods that run today (`physical` as "Modelo base", `cgbvp-2019`).
 "Método" is stored in the scenario (`methodId`); "Comparar con" is a view
 choice remembered per browser, off when it names the same method. A
 "Fuentes" card lists what each term rests on under the chosen method.
+
+**Naming (owner, 2026-10-17):** `cgbvp-2019` is shown as **"Manual de
+Hidráulica CGBVP 2019"**, never bare "CGBVP 2019", so the method reads as the
+manual it is (*Curso de Hidráulica aplicada a la lucha contra incendios*, the
+title `SOURCES.cgbvpManual2019` carries). The same string labels the manual in
+the breakdown and inspector citations; the Fuentes card keeps the official
+title.
 Clone, `us-training` and the user's own methods are not built.
 
 Every method can go in either slot: `physical`, `cgbvp-2019`,
@@ -862,6 +884,7 @@ geometry or crashes (see AGENTS.md).
 |---|---|---|---|
 | Freeman constant 29.7 | `nozzle.smooth-bore` | built 2026-10-17 | verified: Colorado DFPC chart p. 2 prints `GPM = 29.7·d²·√NP` [E15]; IFSTA handbook not directly inspected |
 | Discharge coefficient of an open hose butt | `nozzle.open-end` | built 2026-10-17 | c = 0.90 borrowed from NFPA 291's smooth round hydrant outlet ([E16]); a flow test of an open 1½″ and 2½″ butt, or a published butt coefficient |
+| Trifurco allowance and outlet bores of the station's wye and trifurco | `appliance.fixed` (trifurca), `nozzle.open-end` (empty port) | built 2026-10-17 | the wye's 5 psi applied by analogy; 1½″ outlets assumed for both; the station's devices (or the CGBVP equipment list) and a manufacturer sheet |
 | Flow independent of pattern on combination nozzles | `nozzle.selectable` (pattern) | M2 | TFT / Akron / Elkhart [E5] |
 | Where each manufacturer measures the rated pressure (inlet while flowing?) | `nozzle.fixed-orifice` | M2 | TFT / Akron / Elkhart test notes [E5]; NFPA 1964 |
 | Selectable nozzle off its rating: does each ring position follow Q ∝ √NP? | `nozzle.selectable` | M2 | Flow-versus-pressure curves from the manufacturer, or a flow test |

@@ -73,7 +73,7 @@
     {:else}
       Pérdida: sin dato para este método, cuenta 0.
     {/if}
-    {#if isAuto(scenario) && j.mismatch}Desactiva «Accesorios automáticos» para colocarlo a mano.{/if}
+    {#if isAuto(scenario) && j.mismatch}Desactiva «Accesorios automáticos» en Ajustes para colocarlo a mano.{/if}
   </p>
 </div>
 

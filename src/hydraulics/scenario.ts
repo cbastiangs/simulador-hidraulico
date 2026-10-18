@@ -1,4 +1,4 @@
-import { NOZZLE_SPECS } from "./catalog.ts";
+import { NOZZLE_SPECS, WYE_DEVICES, type WyeDevice } from "./catalog.ts";
 import { ratingOf, reactionOf, type NozzleDesign, type Reaction } from "./nozzle.ts";
 import { HOSE_SIZES, METHODS, type FittingKind, type MethodId } from "./references.ts";
 import { solveSeriesLine, type Fitting, type SeriesLine, type SeriesResult } from "./series.ts";
@@ -90,9 +90,14 @@ export type ScenarioNozzle = {
   tipIn?: number;
 };
 
-export type ScenarioWye = { branches: ScenarioBranch[] };
+/** Absent `device` is a bifurco; `branches` holds one per outlet (WYE_DEVICES). */
+export type ScenarioWye = { device?: WyeDevice; branches: ScenarioBranch[] };
 
-/** A hose path after one independently open/shut wye outlet. Heights stay relative to the source. */
+/**
+ * A hose path after one independently open/shut wye outlet. Heights stay
+ * relative to the source. No sections: the outlet is **empty**, with an
+ * open-end nozzle at the junction's height and no wye (MODEL.md §2).
+ */
 export type ScenarioBranch = {
   id: string;
   name: string;
@@ -279,10 +284,12 @@ export function parseScenario(value: unknown): Scenario {
   function parseWye(value: unknown, path: string, depth: number): ScenarioWye {
     if (depth > 8) throw new ScenarioError(path, "must have at most 8 nested wyes");
     const wye = record(value, path);
-    if (!Array.isArray(wye.branches) || wye.branches.length < 2 || wye.branches.length > 32) {
-      throw new ScenarioError(`${path}.branches`, "must contain 2 to 32 branches");
+    const device = wye.device === undefined ? undefined : oneOf(wye.device, `${path}.device`, Object.keys(WYE_DEVICES) as WyeDevice[]);
+    const outlets = WYE_DEVICES[device ?? "wye"].outlets;
+    if (!Array.isArray(wye.branches) || wye.branches.length !== outlets) {
+      throw new ScenarioError(`${path}.branches`, `must contain ${outlets} branches, one per outlet`);
     }
-    return { branches: wye.branches.map((raw: unknown, i): ScenarioBranch => {
+    const branches = wye.branches.map((raw: unknown, i): ScenarioBranch => {
       const branchPath = `${path}.branches[${i}]`;
       const branch = record(raw, branchPath);
       if (typeof branch.id !== "string" || branch.id.length === 0 || branch.id.length > 100 || ids.has(branch.id)) {
@@ -290,9 +297,14 @@ export function parseScenario(value: unknown): Scenario {
       }
       ids.add(branch.id);
       if (++branchCount > 64) throw new ScenarioError(branchPath, "must have at most 64 branches in the tree");
+      // An empty outlet: its nozzle is parsed against a stand-in hose, then must be an open end.
+      const empty = Array.isArray(branch.sections) && branch.sections.length === 0;
+      if (empty && branch.wye !== undefined) throw new ScenarioError(`${branchPath}.wye`, "must be absent on an outlet with no hose");
       let parsed: Scenario;
       try {
-        parsed = parseSingleScenario({ ...root, name: branch.name, sections: branch.sections, nozzle: branch.nozzle });
+        parsed = parseSingleScenario({ ...root, name: branch.name, sections: empty ? root.sections.slice(0, 1) : branch.sections, nozzle: branch.nozzle });
+        if (empty && parsed.nozzle.design !== "open-end") throw new ScenarioError("nozzle.design", 'must be "open-end" on an outlet with no hose');
+        if (empty) parsed = { ...parsed, sections: [] };
       } catch (error) {
         if (error instanceof ScenarioError) throw new ScenarioError(`${branchPath}.${error.path}`, error.message.slice(error.path.length + 2));
         throw error;
@@ -307,7 +319,10 @@ export function parseScenario(value: unknown): Scenario {
         nozzle: parsed.nozzle,
         ...(branch.wye === undefined ? {} : { wye: parseWye(branch.wye, `${branchPath}.wye`, depth + 1) }),
       };
-    }) };
+    });
+    // The editor draws one pump-to-nozzle line at a time: there must be one.
+    if (!branches.some((b) => b.sections.length)) throw new ScenarioError(`${path}.branches`, "must have at least one outlet with a hose");
+    return { ...(device === undefined ? {} : { device }), branches };
   }
   return { ...root, ...(doc.wye === undefined ? {} : { wye: parseWye(doc.wye, "wye", 1) }) };
 }
@@ -373,8 +388,12 @@ export function fittingsOf(scenario: Scenario): Fitting[] {
   ]);
 }
 
-/** The bore water leaves through when nothing is on the end: the last hose's coupling (MODEL.md §3.4d). */
-export const endBoreIn = (sections: readonly ScenarioSection[]) => couplingOf(sections[sections.length - 1]);
+/**
+ * The bore water leaves through when nothing is on the end: the last hose's
+ * coupling (MODEL.md §3.4d), or on an empty wye outlet the outlet's own (§2).
+ */
+export const endBoreIn = (sections: readonly ScenarioSection[]) =>
+  sections.length ? couplingOf(sections[sections.length - 1]) : WYE_DEVICES.wye.outletIn; // every device's outlet is 1½″
 
 /** A nozzle with the fixed-orifice rating its design implies (nozzle.ts, ratingOf). */
 export function resolvedNozzle(sections: readonly ScenarioSection[], nozzle: ScenarioNozzle): ScenarioNozzle {
@@ -386,7 +405,7 @@ export function resolveNozzles<T extends { sections: ScenarioSection[]; nozzle: 
   return {
     ...segment,
     nozzle: resolvedNozzle(segment.sections, segment.nozzle),
-    ...(segment.wye ? { wye: { branches: segment.wye.branches.map((b) => resolveNozzles(b)) } } : {}),
+    ...(segment.wye ? { wye: { ...segment.wye, branches: segment.wye.branches.map((b) => resolveNozzles(b)) } } : {}),
   };
 }
 

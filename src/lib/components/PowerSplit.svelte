@@ -71,7 +71,7 @@
         <li>Chorros por línea:</li>
         {#each split.streams as s (s.path.join("/"))}
           {@const l = lineOf(s.path)}
-          <li><span class="line-dot" style:background={l?.color ?? "var(--muted)"}></span>{l?.name ?? s.path.join(" › ")}{l?.openEnd ? " (punta abierta)" : ""} <b>{pct(s.hp)}</b></li>
+          <li><span class="line-dot" style:background={l?.color ?? "var(--muted)"}></span>{l?.name ?? "Salida vacía"}{l?.openEnd ? " (punta abierta)" : ""} <b>{pct(s.hp)}</b></li>
         {/each}
       </ul>
     {/if}

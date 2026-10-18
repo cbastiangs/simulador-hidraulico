@@ -10,16 +10,16 @@
   import PumpPanel from "$lib/components/PumpPanel.svelte";
   import Sources from "$lib/components/Sources.svelte";
   import Sheet, { CLOSED_PX, sheetHeights, type SheetState } from "$lib/components/Sheet.svelte";
-  import Actions from "$lib/components/Actions.svelte";
   import type { Action, Target } from "$lib/actions.ts";
   import * as edit from "$lib/edit.ts";
   import { METHOD_IDS, METHOD_LABELS } from "$lib/methods.ts";
   import type { MethodId } from "$hydraulics/references.ts";
-  import NumberField from "$lib/components/NumberField.svelte";
+  import Settings from "$lib/components/Settings.svelte";
   import type { Selection } from "$lib/selection.ts";
   import TreeResults from "$lib/components/TreeResults.svelte";
   import * as branch from "$lib/branch-edit.ts";
   import { leafColor } from "$lib/line-colors.ts";
+  import * as pieces from "$lib/pieces.ts";
 
   // Built to docs/design/main-screen.html (UX.md §6).
   // Presets are parsed like any outside document: the same gate as a share link.
@@ -77,9 +77,29 @@
     if (action.blocked?.(c)) return;
     const out = action.run(c);
     if (out.scenario) applyLine(out.scenario, "", "index" in target ? target.index : undefined);
+    if (out.tree) {
+      apply(out.tree.tree);
+      selectedPath = out.tree.path;
+      keepSelection();
+    }
     if (out.view === "fit") fitSignal += 1;
     if (out.select === null) deselect();
     else if (out.select) select(out.select);
+  }
+
+  /** A piece dropped on the canvas (lib/pieces.ts, UX.md §2 "Pieces"), on any drawn line: one undo step, then what it names. */
+  function place(piece: pieces.PieceId, spot: pieces.Spot, path?: string[]) {
+    // A spot on another line edits that line: it becomes the drawn one, as a tap on it would.
+    if (path) selectedPath = path;
+    const out = pieces.place(piece, spot, lineScenario);
+    if (out.scenario) applyLine(out.scenario, "", out.hint);
+    if (out.tree) {
+      apply(out.tree.tree);
+      selectedPath = out.tree.path;
+      keepSelection();
+    }
+    if (out.select === null) selection = null;
+    else if (out.select) select(out.select, false);
   }
 
   // Undo and redo (UX.md §2). Every edit goes through `apply`; a burst of edits
@@ -195,7 +215,6 @@
         return { path: p, name: v.junctions[shared].outlets.find((o) => o.id === p[shared])!.name, scenario: v.scenario, result: pathResult(network.root, p), from: v.junctions[shared].joint, shut };
       });
   });
-  const wyeWhy = $derived(branch.addLimit(scenario, view?.path ?? [], "wye"));
   /** The pressure split's rows on a branched lay (BudgetBar): every line, outlet order, the edited one marked. */
   const budgetLines = $derived.by(() => {
     if (!network || !view) return [];
@@ -226,6 +245,23 @@
       localStorage.setItem("view.compare", id ?? "none");
     } catch {}
   }
+  // Ajustes › Vista (UX.md §10.1): changes no number; remembered per browser.
+  let showGauges = $state(true);
+  let trueScale = $state(false);
+  $effect(() => {
+    try {
+      showGauges = localStorage.getItem("view.gauges") !== "off";
+      trueScale = localStorage.getItem("view.hose-scale") === "true";
+    } catch {}
+  });
+  function setView(key: "gauges" | "scale", on: boolean) {
+    if (key === "gauges") showGauges = on;
+    else trueScale = on;
+    try {
+      localStorage.setItem(key === "gauges" ? "view.gauges" : "view.hose-scale", key === "gauges" ? (on ? "on" : "off") : String(on));
+    } catch {}
+  }
+  let settingsOpen = $state(false);
   const comparing = $derived(compareId !== null && compareId !== scenario.methodId ? compareId : null);
   const referenceNetwork = $derived(comparing && network ? solveScenarioTree(scenario, comparing) : null);
   const reference = $derived(comparing ? referenceNetwork && view ? pathResult(referenceNetwork.root, view.path) : solveScenario(scenario, comparing) : null);
@@ -285,27 +321,6 @@
       <span>Nombre</span>
       <input type="text" value={scenario.name} maxlength="80" oninput={(e) => apply(edit.setName(scenario, e.currentTarget.value), "name")} />
     </label>
-    <div class="field">
-      <span>Método</span>
-      <div class="seg" role="radiogroup" aria-label="Método">
-        {#each METHOD_IDS as id (id)}
-          <button type="button" role="radio" aria-checked={scenario.methodId === id} class:on={scenario.methodId === id} onclick={() => apply(edit.setMethod(scenario, id))}>{METHOD_LABELS[id]}</button>
-        {/each}
-      </div>
-    </div>
-    <div class="field">
-      <span>Comparar con</span>
-      <div class="seg" role="radiogroup" aria-label="Comparar con">
-        <button type="button" role="radio" aria-checked={comparing === null} class:on={comparing === null} onclick={() => chooseCompare(null)}>Nada</button>
-        {#each METHOD_IDS.filter((id) => id !== scenario.methodId) as id (id)}
-          <button type="button" role="radio" aria-checked={comparing === id} class:on={comparing === id} onclick={() => chooseCompare(id)}>{METHOD_LABELS[id]}</button>
-        {/each}
-      </div>
-    </div>
-    <NumberField label="Altura de piso" value={edit.floorOf(scenario)} unit="m" step={0.1} onchange={(m) => apply(edit.setFloorHeight(scenario, m), "floor")} />
-    <Actions target={{ kind: "line" }} scenario={lineScenario} requiredPsi={result.requiredPumpPressurePsi} place="panel" onAction={runAction} />
-    <!-- A wye at the end of the drawn line: two new lines with their own nozzles (UX.md §2). -->
-    <button type="button" class="add-wye" disabled={wyeWhy !== null} title={wyeWhy ?? "Dos líneas nuevas, cada una con su pitón"} onclick={() => applyTree(branch.addWye(scenario, view?.path ?? []))}>Añadir bifurca al final</button>
   </section>
 {/snippet}
 
@@ -368,6 +383,7 @@
     <select value={presetId} onchange={(e) => choosePreset(e.currentTarget.value)} aria-label="Escenario inicial">
       {#each presets as p (p.id)}<option value={p.id}>{p.scenario.name}</option>{/each}
     </select>
+    <button type="button" class="gear" aria-label="Ajustes" title="Ajustes: método, altura de piso, accesorios, vista" onclick={() => (settingsOpen = true)}>⚙</button>
     <details class="file" bind:this={fileMenu}>
       <summary aria-label="Más: línea nueva, reiniciar" title="Línea nueva, reiniciar">⋯</summary>
       <div class="file-menu">
@@ -407,11 +423,15 @@
       editedPath={view?.path ?? []}
       editedName={view ? lineName.split(" › ").at(-1) : ""}
       linePaths={network ? branch.leafPaths(scenario) : []}
+      outletFlows={Object.fromEntries(Object.entries(outlets).map(([key, o]) => [key, o.flowGpm]))}
       onGate={(path) => applyTree(branch.toggleGate(scenario, path))}
       onPick={(path, sel, open) => {
         selectedPath = path;
         select(sel, open);
       }}
+      onPlace={place}
+      {showGauges}
+      {trueScale}
       onOtherNozzle={(path) => applyTree(branch.editSegment(scenario, path, (s) => ({ ...s, nozzle: { ...s.nozzle, open: !s.nozzle.open } })))}
     />
   </div>
@@ -424,6 +444,18 @@
     <div class="results">{@render results()}</div>
   {/if}
 </div>
+
+<Settings
+  open={settingsOpen}
+  onClose={() => (settingsOpen = false)}
+  {scenario}
+  onScenario={(next, key) => apply(next, key)}
+  compareId={comparing}
+  onCompare={chooseCompare}
+  {showGauges}
+  {trueScale}
+  onView={setView}
+/>
 
 {#if phone}
   <Sheet {summary} {sheet} onSheet={(s) => (sheet = s)}>
@@ -466,6 +498,7 @@
   .history button { height: 44px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); font-weight: 600; cursor: pointer; }
   .history button:disabled { opacity: 0.4; cursor: default; }
   .top select { height: 44px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); padding: 0 10px; max-width: 100%; }
+  .gear { width: 44px; height: 44px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); font-size: 20px; cursor: pointer; color: var(--ink); }
   .file { position: relative; }
   .file summary { list-style: none; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); font-size: 20px; font-weight: 700; cursor: pointer; }
   .file summary::-webkit-details-marker { display: none; }
@@ -476,13 +509,8 @@
   .line-tools { display: grid; gap: 8px; background: var(--surface); border-radius: var(--radius); padding: 12px 14px; }
   .field { display: grid; gap: 6px; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
   .field input { height: 44px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); padding: 0 10px; font-size: 15px; color: var(--ink); text-transform: none; letter-spacing: 0; }
-  .seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 4px; }
-  .seg button { min-height: 40px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); font-weight: 600; font-size: 13px; cursor: pointer; text-transform: none; letter-spacing: 0; color: var(--ink); }
-  .seg .on { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
   .line-tools h2 { margin: 0; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
   .canvas { grid-area: canvas; min-width: 0; }
-  .add-wye { justify-self: start; min-height: 44px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; font-size: 14px; }
-  .add-wye:disabled { opacity: 0.45; cursor: default; }
   .side { grid-area: side; display: grid; gap: var(--gap); align-content: start; }
   .results { grid-area: results; display: grid; gap: var(--gap); min-width: 0; }
   .card { background: var(--surface); border-radius: var(--radius); padding: 12px 14px; }
@@ -507,6 +535,7 @@
   .app.phone .history { order: 2; margin-left: 0; }
   .app.phone .history button { min-width: 44px; padding: 0; font-size: 20px; }
   .app.phone .top select { flex: 1; min-width: 0; }
-  .app.phone .file { order: 3; }
+  .app.phone .gear { order: 3; flex: none; }
+  .app.phone .file { order: 4; }
   .app.phone .canvas { min-height: 0; }
 </style>

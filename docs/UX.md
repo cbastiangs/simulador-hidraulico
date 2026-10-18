@@ -22,7 +22,7 @@
    Gauges and streams ease to new values (about 250 ms); nothing jumps.
 6. **Honest picture.** Exaggerations are fixed and labelled (§2). Anything
    illustrative rather than computed says so.
-7. **Spanish UI**, CGBVP terms (pitón, tramo, paño, bifurca, desnivel).
+7. **Spanish UI**, CGBVP terms (pitón, tramo, paño, bifurco, desnivel).
 
 ## 2. The canvas
 
@@ -89,7 +89,7 @@
   toolbar on the canvas like the hose's (desktop; the phone uses the sheet):
   the bale (Cerrado / Abierto), the gallonage ring's settings, the pattern
   at three stops (Directo / Medio / Niebla; the panel's slider sets anything
-  between), "Quitar pitón" / "Poner pitón" and "+ Tramo al final". An open
+  between), "Quitar pitón" / "Poner pitón". An open
   end shows its flow and "Poner pitón"; a smooth bore has no ring or pattern.
 - **Fittings (owner 2026-10-15).** Tapping a coupling (or the small ring at
   the pump outlet) opens a toolbar on the canvas, mirrored in the inspector,
@@ -109,8 +109,8 @@
   caudal exacto" and gives the pressures that leave it. The nozzle joint is edited in the nozzle's
   inspector panel. Fittings are drawn
   at the joint in their own colour and move with it. An adapter is only
-  offered where coupling sizes differ. No loose items and no toolbox drag for
-  now. **Accesorios automáticos** (a switch in the Línea section, §4; on by default):
+  offered where coupling sizes differ. No loose items: a piece is always
+  placed on the chain (the Piezas strip, below). **Accesorios automáticos** (a switch in Ajustes › Escenario, §4; on by default):
   on, every mismatch gets an adapter, drawn dashed and not removable while the
   switch is on; off, adapters are placed by hand (turning it off keeps the
   ones it had derived), and a mismatch without one shows a red "!" at the
@@ -126,18 +126,55 @@
   deselecting also closes the sheet. With nothing selected the panel's
   body shows Línea and "Partes", the line's parts (pump, each hose and
   coupling, nozzle) as buttons, for discovery and the keyboard.
+- **Pieces (owner, 2026-10-18).** A **"Piezas" strip** on the canvas's left
+  edge (wider than a phone; a column, 78 px) holds what can be added: a
+  hose of 1½″ or 2½″, Bifurco, Trifurco, a combination ("Niebla") or
+  smooth-bore ("Liso") nozzle, and **Quitar**, the eraser. On a phone a
+  "+ Piezas" button by the zoom controls opens it as a row of seven above
+  the toolbar. **Tap a piece, then tap a spot**: picking one lights where
+  it can go on **every drawn line** (`src/lib/pieces.ts`; owner,
+  2026-10-18: a sandbox, not a line to switch to first) — a hose at every
+  coupling, the pump outlet, the line's end, before a wye and on an empty
+  outlet (which connects a line there); a wye at a coupling or the end; a
+  nozzle on the nozzle; for Quitar, every hose, wye, hand-placed fitting
+  and the nozzle. A spot that can't take it now is drawn dimmed and a tap
+  says why (the parser's limits, "Una línea necesita al menos un tramo").
+  A spot on another line places the piece there and makes that line the
+  edited one. Each line owns the spots past the wye where it leaves the
+  edited line. An empty outlet's spot comes with the line that draws its
+  wye. On a branched lay a spot's ring is its line's colour. Where lines
+  lie together, the later line's spot steps down, with a leader back to
+  the point.
+  A banner names the picked piece with "Cancelar"; a tap beside the spots,
+  Esc, or selecting something puts it back. A piece goes back after one
+  placement and what it made is selected; **Quitar stays picked** until
+  "Listo", for clearing several things. Each placement is one undo step
+  and says what it did. If no spot is in view when a piece is picked, the
+  view shows the whole lay. Erasing a line's only hose after a wye
+  disconnects that line; erasing a wye with one connected line rejoins it.
+  **Adding and removing happen here, not in the panel** (owner,
+  2026-10-18: "having any button control on the panel doing that feels
+  really awkward"): the panel edits what a thing is, the canvas what is
+  there. The floating toolbar doesn't repeat them either (owner,
+  2026-10-18). The right-click / long-press menu keeps them for the
+  selected thing, so the keyboard and screen readers can still build.
+  **Dragging a piece from the strip is deferred** (ROADMAP §10e):
+  tap-then-tap is the phone's way anyway, and a drag would reuse the same
+  spots.
 - **Building the line (owner, 2026-10-15).** Hoses are added, split, joined
   and removed on the canvas; nothing needs the inspector:
   - **Context menu:** right click, or a press held still for 0.5 s on touch,
     on a hose (insert before / after, split in two, join with the next, lock
     or unlock its length, remove), a coupling (insert a hose here, join the
-    two hoses), the nozzle (open/shut, add a hose at the end), the engine or
-    pump outlet (insert at the outlet, apply the required pressure), or empty
-    canvas (add at the end, fit the view). The press that opens it already
+    two hoses, a wye or trifurco here), the nozzle (open/shut, take it off),
+    the engine or pump outlet (insert at the outlet, apply the required
+    pressure), or empty canvas (fit the view). The press that opens it already
     selects, so no entry only selects. The press is not also a tap.
   - **Every menu entry is in the selection panel too** (§10.5), since nobody
-    discovers a long press; the common ones are also on the floating
-    toolbar. A hint under the canvas names the menu.
+    discovers a long press, **except adding and removing pieces**, which the
+    Piezas strip has (above); the common ones that remain (split, join)
+    are also on the floating toolbar. A hint under the canvas names the
+    menu.
   - **Edits keep the drawing still:** an inserted hose copies its neighbour,
     level and taut, so nothing else moves; a split meets halfway up the rise;
     a join takes the upstream hose's size and the combined length; a removed
@@ -207,13 +244,26 @@
     its line's name and flow. It follows the Operate / Close-up
     preference: with plain controls each outlet has Abierta / Cerrada
     buttons instead. Below, each outlet with its flow and nozzle
-    pressure, "Editar esta línea", "Añadir línea" and "Quitar
-    bifurca". The edited line's hoses and nozzle use the ordinary
+    pressure and "Editar esta línea"; a note points to Piezas for
+    connecting, disconnecting and removing. The edited line's hoses and nozzle use the ordinary
     canvas and inspector; an edit maps back to the segment it belongs to
     (`branch-edit.ts` `applyPathEdit`), hoses never merge across a wye and
-    each line keeps a hose. "Añadir bifurca al final" in the Línea section
-    adds a wye at the end of the edited line; a single line shows nothing
-    else about branching. A feed hose's particles move at the feed's flow.
+    each line keeps a hose. **Wyes are placed, then built out** (owner,
+    2026-10-17, ROADMAP §10e item 0): the Bifurco or Trifurco piece, or
+    "Bifurco aquí" and "Trifurco aquí" (menu), on any
+    coupling or the line's end put the device there; the hoses after it go
+    on through its first outlet and the others start **empty**, gate shut.
+    The wye's panel switches Bifurco ↔ Trifurco (a new outlet starts
+    empty; going back needs an empty outlet). A hose piece on an empty
+    outlet connects a line there (a 30 m hose of that size and the nozzle,
+    shut, and that line is drawn); Quitar on an outlet line's only hose
+    disconnects it (the gate shuts; not the last connected outlet). An empty outlet is a dashed card,
+    "Salida vacía · boca de 1½″"; on the canvas a capped far spout. **Opened,
+    it flows** (MODEL.md §2): the spout spills with its gpm in the warning
+    colour, the panel says "⚠ Abierta sin manguera: N gpm al suelo", the
+    results list "⚠ al suelo". Quitar on the wye rejoins the line when one
+    outlet is connected, else takes every line with it. Empty outlets are
+    not lines: no colour, no lane, no row in the pressure split. A feed hose's particles move at the feed's flow.
     **The pressure split names the line it shows** ("· ● Línea 2", in the
     full bar and the floating one) and, on a branched lay, **starts with a
     row per line** — its dot, name, flow and a thin split bar — the edited
@@ -326,13 +376,22 @@ and dropped: the pump was edited in two places and line settings in three.
   control a lay is set with. Gauge, pressure, "Ajustar", "Ralentí",
   flow and the state. Tablets put it above the canvas, phones as the strip;
   the body goes below the canvas or in the sheet.
-- **Body: what is selected.** Nothing: **Línea** (name, method, compare,
-  floor height, add a hose at the end, automatic fittings) and the parts
-  list. The truck or the pump outlet: the pump's detail (Descargas: outlet
+- **Body: what is selected.** Nothing: **Línea** (its name) and the
+  parts list. The truck or the pump outlet: the pump's detail (Descargas: outlet
   size, fittings; Camión, Control and Abastecimiento with M3). A hose, a
   coupling, the nozzle: its editor, with × back to Línea.
-- **Under the canvas:** view only (zoom, Vista). **Header of the page:**
-  undo, scenario, ⋯.
+- **Under the canvas:** view only (zoom, Ver todo, Cámara, Enfocar).
+  **Header of the page:** undo, scenario, **Ajustes (⚙)**, ⋯.
+- **Settings, not buttons (owner, 2026-10-18).** A choice about the whole
+  simulation rather than a piece goes in **Ajustes**, a dialog from the
+  header's ⚙ (full width on a phone), never as a button in a panel.
+  **Escenario**, saved with the lay, each change an undo step: Método de
+  cálculo, Altura de piso, Accesorios automáticos. **Vista**, remembered
+  per browser, changes no number: Comparar con, Manómetros, Grosor real de
+  la manguera; display units go here when they come (ROADMAP decision 6).
+  What a firefighter does on the fireground stays a control on the item:
+  pump pressure, Ralentí, Ajustar, gates and the bale, the nozzle's ring
+  and pattern, a hose's size, length and lock.
 - The panel is never hidden, so selecting does not resize and refit the
   canvas; it stays in view while the results scroll.
 - Layout follows media queries, not `innerWidth`: a phone can report its
@@ -446,14 +505,13 @@ actions; "inspector" = the side column (desktop) or the sheet at full.
 | Area | Action | Desktop | Phone |
 |---|---|---|---|
 | Navigate | pan, zoom, fit | §8.1 | §8.1 |
-| Line | add a hose at the end | toolbar of the nozzle, menu on empty canvas, button | sheet |
-| | insert a hose here | hose / coupling toolbar, menu | sheet at peek, menu |
-| | split, join, remove | hose / coupling toolbar, menu | sheet at peek, menu |
+| Line | add or remove a hose, wye, nozzle | Piezas strip; menu | Piezas tray; menu |
+| | split, join | hose / coupling toolbar, menu | sheet at peek, menu |
 | | hose size, length (±15 m, typed) | hose toolbar; inspector | sheet at peek |
 | | length lock | hose toolbar, menu | sheet at peek |
 | | move a coupling (run, height) | drag; arrow keys; typed in inspector | drag; typed in sheet |
 | Fittings | adapter at a joint | coupling toolbar | sheet at peek |
-| | Accesorios automáticos | panel, Línea | sheet, Línea |
+| | Accesorios automáticos | Ajustes | Ajustes |
 | Nozzle | open / shut the bale | tap the nozzle | tap the nozzle |
 | | model, gallonage, pattern, typed rating | inspector | sheet at peek |
 | Pump | pressure (typed, ±) | panel header | top strip |
@@ -547,19 +605,19 @@ allowed, with the reason.
 | Object | Create / add | Edit | Move | Remove | Inspect | Other |
 |---|---|---|---|---|---|---|
 | **Scenario** | preset ✅; blank line ✅ ("Línea nueva", header ⋯) | rename ✅ (Línea) | — | reset to preset ✅ (header ⋯, undoable) | — | share link ⏳ (deferred); cloud save ⏳ (paid) |
-| **Method** | clone a built-in ⏳ | edit a clone ⏳; built-ins ✕ (read-only) | — | delete a clone ⏳ | sources ✅ ("Fuentes" card) | pick "Método" ✅; "Comparar con" ✅ (Línea; per browser, off when equal to Método) |
+| **Method** | clone a built-in ⏳ | edit a clone ⏳; built-ins ✕ (read-only) | — | delete a clone ⏳ | sources ✅ ("Fuentes" card) | pick "Método" ✅; "Comparar con" ✅ (Ajustes; per browser, off when equal to Método) |
 | **Pump** | ✕ (a line needs a source) | pressure ✅, apply required ✅, outlet size ✅; spec ⏳ M3 | ✕ | ✕ | flow, state ✅ | — |
 | **Truck** | choose a truck file / preset ⏳ M3; clone a built-in ⏳ M3 | discharges open / shut, tank ⏳ M3; partial valves ⏳ (`valve.partial`); **specs editor** (pump, discharge sizes and diameters) ⏳ M3 | ✕ | ✕ | capacity ⏳ M3 | presets carry pump and discharge diameters ⏳ M3 |
-| **Hose** | insert, split ✅ | size, length, lock ✅ | its couplings move it | remove, join ✅ | its friction loss ✅ (panel) | true-scale thickness ✅ (Vista; default exaggerated, badge "grosor ×11") |
+| **Hose** | insert, split ✅ | size, length, lock ✅ | its couplings move it | remove, join ✅ | its friction loss ✅ (panel) | true-scale thickness ✅ (Ajustes › Vista; default exaggerated, badge "grosor ×11") |
 | **Coupling** | with a hose ✅ | fittings ✅ | drag ✅; first-drag camera stability ✅ (§10.8) | join the two hoses ✅ | pressure here, lost before it ✅ (tap its gauge) | — |
 | **Fitting** | adapter ✅; valve: engine only, no toggle (a coupling kind later) | ✕ (a kind has one loss) | moves with its coupling | ✅ | its loss and basis ✅ | auto fittings switch ✅ |
 | **Nozzle** | put back ✅ ("Poner pitón": the one it came from) | bale ✅, model ✅ (chips grouped Combinado / Chorro sólido / Sin pitón), ring ✅, typed rating ✅ (fog only); smooth-bore tips ✅ (owner, 2026-10-17) | drag ✅ | remove ✅ ("Quitar pitón": an open end, MODEL.md §3.4d; owner, 2026-10-17) | rating vs actual ✅ (mark on its gauge, warning in its panel under 95 %; none for an open end); **reaction ✅** (lbf and kgf with the formula, its panel) | — |
 | **Stream** | — | pattern ✅; aim ⏳ M2 | — | — | jet speed ✅; reach ⏳ M2 (illustrative) | — |
 | **Water flow** | — | ✕: flow is solved, the app's core lesson; "I want X gpm" is target planning ⏳ | — | — | flow ✅, hose speed ✅, where the pressure went ✅ | — |
-| **Gauge** | — | — | — | hide ✅ (Vista) | tap: reading, loss before it ✅ | — |
+| **Gauge** | — | — | — | hide ✅ (Ajustes › Vista) | tap: reading, loss before it ✅ | — |
 | **Building** | — | floor height ✅ (Línea, 2–6 m) | — | — | — | obstacles, routes ⏳ (ROADMAP §10b) |
 | **Fire** | ⏳ M5 | fire size ⏳ M5 | — | — | required vs delivered flow ⏳ M5 (NFA first) | — |
-| **Canvas view** | — | pan, zoom, fit ✅; zoom to selection ✅ (Vista) | — | — | — | — |
+| **Canvas view** | — | pan, zoom, fit ✅; zoom to selection ✅ ("Enfocar") | — | — | — | — |
 | **History** | — | undo, redo ✅ | — | — | — | — |
 | **Help** | — | — | — | — | tour ◻ (§8.4) | — |
 
@@ -595,10 +653,10 @@ they know what to do, would they see how, would they understand the result?
    after the polish.
 
 **Where the new controls live (2026-10-16).** Global (header ⋯): "Línea
-nueva", "Reiniciar escenario". Línea section: name, Método, Comparar con,
-floor height, add a hose at the end, automatic fittings. View ("Vista" under
-the canvas): zoom to the selection, gauges on/off, true hose thickness;
-remembered per browser. Inspect: tap a gauge for its reading (pressure here,
+nueva", "Reiniciar escenario". Línea section: name. Ajustes (⚙, since
+2026-10-18; §4 "Settings, not buttons"): Método, floor height, automatic
+fittings (with the lay); Comparar con, gauges on/off, true hose thickness
+(per browser). Under the canvas, "Enfocar" zooms to the selection. Inspect: tap a gauge for its reading (pressure here,
 the drop from the previous gauge, that hose's friction; the nozzle's rating),
 × or a new selection closes it; the gauges sit under the nozzle so the bale
 keeps its tap.
@@ -618,8 +676,10 @@ same way: one undo step, then the selection it names. Rules:
    own control (the bale, a button).
 2. **One wording per action, everywhere.** The toolbar may shorten it
    ("+ Tramo" for "Insertar tramo después"), never rename it.
-3. **The panel has everything.** It draws every action for its target; the
-   menu and the toolbar are shortcuts. An action the panel already offers as
+3. **The panel has everything but placing.** It draws every action for its
+   target except those that add or remove a piece (`placed`), which are the
+   canvas's (§2 "Pieces", owner, 2026-10-18); the menu and the toolbar are
+   shortcuts. An action the panel already offers as
    a field (the bale lever, the length lock, "Aplicar requerida") is not
    repeated there as a button.
 4. **The toolbar is short:** at most 4 actions per target (a dev-time check).
@@ -661,7 +721,7 @@ falling short." The features named live in the proposed patterns (§10.1):
 - **Full truck-specs editor** and **preset trucks** with pump and discharge
   diameters: **Configure** and **Choose** (`ROADMAP` §6, M3).
 - **Left-click action menu: not added (owner, 2026-10-16).** It would
-  duplicate the panel, which already carries every action (§10.5 rule 3);
+  duplicate the panel, which already carries every other action (§10.5 rule 3);
   right-click / long-press is the shortcut. A primary-button menu on an
   element would also collide with "Selecting never edits". Revisit only if a
   target's actions outgrow the panel.

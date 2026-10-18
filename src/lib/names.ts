@@ -14,7 +14,7 @@ export function jointName(scenario: Scenario, index: number): string {
   if (!j) return `Acople ${index}`;
   if (index === 0) return "Salida de la bomba";
   const wye = junctionAt(scenario, index);
-  if (wye) return `Bifurca · ${wye.outlets.length} salidas`;
+  if (wye) return `${wye.device === "trifurca" ? "Trifurco" : "Bifurco"} · ${wye.outlets.length} salidas`;
   if (index === scenario.sections.length) return "Entrada del pitón";
   if (j.mismatch) {
     const kind = j.downIn! < j.upIn! ? "Reducción" : "Ampliación";
@@ -27,6 +27,6 @@ export function jointName(scenario: Scenario, index: number): string {
 /** The same name inside a sentence: "la reducción 2½″ → 1½″", "el acople 2½″". */
 export function jointNameIn(scenario: Scenario, index: number): string {
   const name = jointName(scenario, index);
-  const article = /^(Reducción|Ampliación|Válvula|Salida|Entrada|Bifurca)/.test(name) ? "la" : "el";
+  const article = /^(Reducción|Ampliación|Válvula|Salida|Entrada)/.test(name) ? "la" : "el";
   return `${article} ${name[0].toLowerCase()}${name.slice(1)}`;
 }

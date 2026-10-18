@@ -77,10 +77,10 @@
       <li>
         <div class="row" style:padding-left={`${12 + entry.depth * 14}px`}>
           <span class="name">
-            {#if !entry.segment.wye && entry.depth > 0}<span class="line-dot" style:background={leafColor(scenario, entry.path)}></span>{/if}{entry.depth === 0 ? "Alimentación" : entry.segment.name}
+            {#if branch.isEmptyOutlet(entry.segment)}Salida vacía{:else}{#if !entry.segment.wye && entry.depth > 0}<span class="line-dot" style:background={leafColor(scenario, entry.path)}></span>{/if}{entry.depth === 0 ? "Alimentación" : entry.segment.name}{/if}
             {#if r.isolated}<span class="badge">aislada</span>{/if}
           </span>
-          <span class="state">{gateState(entry.segment, entry.depth)}{#if !entry.segment.wye} · {entry.segment.nozzle.open ? "pitón abierto" : "pitón cerrado"}{:else} · bifurca{/if}</span>
+          <span class="state">{gateState(entry.segment, entry.depth)}{#if branch.isEmptyOutlet(entry.segment)} · nada conectado{#if r.flowGpm > 0} · <b class="spill">⚠ al suelo</b>{/if}{:else if !entry.segment.wye} · {entry.segment.nozzle.open ? "pitón abierto" : "pitón cerrado"}{:else} · {entry.segment.wye.device === "trifurca" ? "trifurco" : "bifurco"}{/if}</span>
           <span class="numbers">
             <span><b>{number(r.flowGpm)}</b> gpm{#if ref} <i>({referenceLabel} {refApprox}{number(ref.flowGpm)})</i>{/if}</span>
             <span class="p">{r.isolated ? "presión —" : `${pressure(r.inletPressurePsi)} → ${pressure(r.outletPressurePsi)}`}</span>
@@ -128,4 +128,5 @@
   .issues { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
   .issues li { padding: 8px 10px; border-radius: 8px; background: color-mix(in srgb, var(--warn) 12%, transparent); color: var(--warn); font-size: 13px; }
   .source-note { margin: 0; font-size: 12px; color: var(--muted); }
+  .spill { color: var(--warn); }
 </style>

@@ -1,7 +1,7 @@
-import { isAuto, type Scenario } from "$hydraulics/scenario.ts";
+import type { Scenario } from "$hydraulics/scenario.ts";
 import * as edit from "$lib/edit.ts";
 import type { Selection } from "$lib/selection.ts";
-import { junctionAt, junctionsOf } from "$lib/branch-edit.ts";
+import { insertWyeAtJoint, junctionAt, junctionsOf, wyeLimit } from "$lib/branch-edit.ts";
 
 /**
  * Every verb the screen offers, defined once (UX.md §10.5). The context
@@ -9,8 +9,11 @@ import { junctionAt, junctionsOf } from "$lib/branch-edit.ts";
  * panel all draw from this list, so a label, an enabled check or what gets
  * selected afterwards cannot differ between them.
  *
- * The panel shows every action for its target: the menu and the toolbar are
- * shortcuts, never the only way. Values edited directly (hose size, length,
+ * Actions that add or remove a piece (`placed`) happen on the canvas: the
+ * Piezas strip has them all, and the right-click / long-press menu keeps
+ * the ones for what is selected, for the keyboard and screen readers; the
+ * toolbar and the panel don't repeat them (owner, 2026-10-18). Settings of
+ * the whole lay live in Ajustes (UX.md §10.1), not here. Values edited directly (hose size, length,
  * pressure, nozzle ring and pattern) are fields, not actions; an action the
  * panel already offers as a field is marked `field` and skipped there.
  */
@@ -27,6 +30,8 @@ export type ActionContext = {
 
 export type Outcome = {
   scenario?: Scenario;
+  /** An edit of the whole lay's tree (a new wye), not of the drawn line, and the line to draw after it. */
+  tree?: { tree: Scenario; path: string[] };
   /** What to select afterwards; null clears the selection; absent keeps it. */
   select?: Selection | null;
   /** A view change: no edit, no undo step. */
@@ -45,6 +50,11 @@ export type Action = {
   menu?: boolean;
   /** The panel offers it as a field (a lever, a switch, a chip): no extra button there. */
   field?: boolean;
+  /**
+   * Adds or removes a piece, which the canvas does (the Piezas strip; the
+   * menu too): never in the toolbar or the panel (owner, 2026-10-18).
+   */
+  placed?: boolean;
   /** Removes something: red, last. Undo covers it like every edit. */
   danger?: boolean;
   /** Why it can't run now, shown beside it; null when it can. */
@@ -60,7 +70,7 @@ const index = (t: Target) => ("index" in t ? t.index : 0);
 const count = (c: ActionContext) => c.scenario.sections.length;
 // A branched lay's drawn line (UX.md §2): hoses never merge across a wye,
 // and each of its lines keeps at least one hose.
-const acrossWye = (c: ActionContext, joint: number) => (junctionAt(c.scenario, joint) ? "Una bifurca separa estos tramos" : null);
+const acrossWye = (c: ActionContext, joint: number) => (junctionAt(c.scenario, joint) ? "Un bifurco separa estos tramos" : null);
 function aloneInItsLine(c: ActionContext, i: number) {
   const wyes = junctionsOf(c.scenario).map((j) => j.joint);
   const start = Math.max(0, ...wyes.filter((j) => j <= i));
@@ -77,6 +87,7 @@ export const ACTIONS: Action[] = [
   // Hose
   {
     id: "hose.insert-before",
+    placed: true,
     label: "Insertar tramo antes",
     on: ["section"],
     menu: true,
@@ -84,10 +95,9 @@ export const ACTIONS: Action[] = [
   },
   {
     id: "hose.insert-after",
+    placed: true,
     label: "Insertar tramo después",
-    short: "+ Tramo",
     on: ["section"],
-    quick: true,
     menu: true,
     run: (c) => insertAt(c, index(c.target) + 1),
   },
@@ -119,14 +129,13 @@ export const ACTIONS: Action[] = [
   },
   {
     id: "hose.remove",
+    placed: true,
     label: "Quitar tramo",
-    short: "🗑 Quitar",
     on: ["section"],
-    quick: true,
     menu: true,
     danger: true,
     blocked: (c) =>
-      count(c) <= 1 ? "Una línea necesita al menos un tramo" : aloneInItsLine(c, index(c.target)) ? "Cada línea de la bifurca necesita al menos un tramo" : null,
+      count(c) <= 1 ? "Una línea necesita al menos un tramo" : aloneInItsLine(c, index(c.target)) ? "Cada línea del bifurco necesita al menos un tramo" : null,
     run: (c) => ({
       scenario: edit.removeSection(c.scenario, index(c.target)),
       select: { kind: "section", index: Math.max(0, index(c.target) - 1) },
@@ -136,10 +145,9 @@ export const ACTIONS: Action[] = [
   // Coupling (joint 0, the pump outlet, belongs to the pump)
   {
     id: "joint.insert",
+    placed: true,
     label: "Insertar tramo aquí",
-    short: "+ Tramo aquí",
     on: ["joint"],
-    quick: true,
     menu: true,
     run: (c) => insertAt(c, index(c.target)),
   },
@@ -155,6 +163,25 @@ export const ACTIONS: Action[] = [
       scenario: edit.mergeAtJoint(c.scenario, index(c.target)),
       select: { kind: "section", index: index(c.target) - 1 },
     }),
+  },
+  // A wye or trifurco at any coupling (ROADMAP §10e item 0): the line goes on through its first outlet.
+  {
+    id: "joint.wye",
+    placed: true,
+    label: "Bifurco aquí",
+    on: ["joint"],
+    menu: true,
+    blocked: (c) => wyeLimit(c.scenario, index(c.target), "wye"),
+    run: (c) => ({ tree: insertWyeAtJoint(c.scenario, index(c.target), "wye") }),
+  },
+  {
+    id: "joint.trifurca",
+    placed: true,
+    label: "Trifurco aquí",
+    on: ["joint"],
+    menu: true,
+    blocked: (c) => wyeLimit(c.scenario, index(c.target), "trifurca"),
+    run: (c) => ({ tree: insertWyeAtJoint(c.scenario, index(c.target), "trifurca") }),
   },
   {
     id: "joint.hose-before",
@@ -182,10 +209,9 @@ export const ACTIONS: Action[] = [
   },
   {
     id: "nozzle.remove",
+    placed: true,
     label: (c) => (c.scenario.nozzle.design === "open-end" ? "Poner pitón" : "Quitar pitón (punta abierta)"),
-    short: (c) => (c.scenario.nozzle.design === "open-end" ? "Poner pitón" : "Quitar pitón"),
     on: ["nozzle"],
-    quick: true,
     menu: true,
     run: (c) => ({ scenario: c.scenario.nozzle.design === "open-end" ? edit.attachNozzle(c.scenario) : edit.removeNozzle(c.scenario) }),
   },
@@ -193,10 +219,9 @@ export const ACTIONS: Action[] = [
   // Pump
   {
     id: "pump.insert-at-outlet",
+    placed: true,
     label: "Insertar tramo en la salida",
-    short: "+ Tramo en la salida",
     on: ["pump"],
-    quick: true,
     menu: true,
     run: (c) => insertAt(c, 0),
   },
@@ -211,21 +236,6 @@ export const ACTIONS: Action[] = [
   },
 
   // The whole line
-  {
-    id: "line.add-end",
-    label: "Añadir tramo al final",
-    short: "+ Tramo al final",
-    on: ["line", "nozzle"],
-    quick: true,
-    menu: true,
-    run: (c) => insertAt(c, count(c)),
-  },
-  {
-    id: "line.auto-fittings",
-    label: (c) => `Accesorios automáticos: ${isAuto(c.scenario) ? "sí" : "no"}`,
-    on: ["line"],
-    run: (c) => ({ scenario: edit.setAutoFittings(c.scenario, !isAuto(c.scenario)) }),
-  },
   {
     id: "view.fit",
     label: "Ver toda la línea",
@@ -242,7 +252,7 @@ export function actionsFor(target: Target, place: Place): Action[] {
   const kind = target.kind === "joint" && target.index === 0 ? "pump" : target.kind;
   return ACTIONS.filter(
     (a) =>
-      a.on.includes(kind) && (place === "panel" ? !a.field : place === "quick" ? a.quick : a.menu),
+      a.on.includes(kind) && (place === "panel" ? !a.field && !a.placed : place === "quick" ? a.quick && !a.placed : a.menu),
   ).sort((a, b) => Number(!!a.danger) - Number(!!b.danger));
 }
 

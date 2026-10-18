@@ -1,5 +1,7 @@
+import { WYE_DEVICES, type WyeDevice } from "$hydraulics/catalog.ts";
 import { HOSE_SIZES } from "$hydraulics/references.ts";
 import { couplingOf, type Scenario, type ScenarioBranch, type ScenarioNozzle } from "$hydraulics/scenario.ts";
+import { attachNozzle } from "$lib/edit.ts";
 
 /** A path is a list of stable branch IDs; the empty path is the shared feed. */
 export type BranchPath = string[];
@@ -80,61 +82,137 @@ export function flattenSegments(scenario: Scenario): SegmentEntry[] {
 
 const copyNozzle = (nozzle: ScenarioNozzle): ScenarioNozzle => ({ ...nozzle, settingsGpm: [...nozzle.settingsGpm] });
 
-function newBranch(scenario: Scenario, parent: ScenarioSegment, reservedIds: string[] = []): ScenarioBranch {
+function nextId(scenario: Scenario, reservedIds: readonly string[]) {
   const used = new Set([...flattenSegments(scenario).flatMap(({ path }) => path), ...reservedIds]);
   let number = 1;
   while (used.has(`line-${number}`)) number++;
+  return number;
+}
+
+function defaultHose(endElevationM: number) {
   const hose = HOSE_SIZES.find((size) => size.id === "1-1/2")!;
+  return { hoseSizeId: hose.id, diameterIn: hose.nominalDiameterIn, frictionCoefficient: hose.frictionCoefficient, lengthM: 30, endElevationM };
+}
+
+function newBranch(scenario: Scenario, parent: ScenarioSegment, reservedIds: string[] = []): ScenarioBranch {
+  const number = nextId(scenario, reservedIds);
   return {
     id: `line-${number}`,
     name: `Línea ${number}`,
     open: true,
-    sections: [{
-      hoseSizeId: hose.id,
-      diameterIn: hose.nominalDiameterIn,
-      frictionCoefficient: hose.frictionCoefficient,
-      lengthM: 30,
-      endElevationM: segmentEndElevation(parent),
-    }],
+    sections: [defaultHose(segmentEndElevation(parent))],
     nozzle: copyNozzle(parent.nozzle),
   };
 }
 
-/** The old terminal nozzle stays in the feed as the value restored by removing the wye. */
-export function addWye(scenario: Scenario, path: readonly string[]): Scenario {
-  const parent = segmentAt(scenario, path);
-  if (!parent || parent.wye) return scenario;
-  const first = newBranch(scenario, parent);
-  const second = newBranch(scenario, parent, [first.id]);
-  return editSegment(scenario, path, (segment) => ({ ...segment, wye: { branches: [first, second] } }));
+/**
+ * An empty outlet (MODEL.md §2): no hose, gate shut, an open end that keeps
+ * the nozzle it will get when a line is connected.
+ */
+function newOutlet(scenario: Scenario, parent: ScenarioSegment, reservedIds: string[]): ScenarioBranch {
+  const number = nextId(scenario, reservedIds);
+  return { id: `line-${number}`, name: `Línea ${number}`, open: false, sections: [], nozzle: { ...copyNozzle(parent.nozzle), design: "open-end", open: true } };
 }
 
-export function addBranch(scenario: Scenario, path: readonly string[]): Scenario {
-  const parent = segmentAt(scenario, path);
-  if (!parent?.wye) return scenario;
-  const branch = newBranch(scenario, parent);
-  return editSegment(scenario, path, (segment) => ({
-    ...segment,
-    wye: { ...segment.wye!, branches: [...segment.wye!.branches, branch] },
+export const isEmptyOutlet = (segment: ScenarioSegment) => segment.sections.length === 0;
+
+/** The device's other outlets, empty, after `first`. */
+function outletsAfter(scenario: Scenario, parent: ScenarioSegment, first: ScenarioBranch, device: WyeDevice): ScenarioBranch[] {
+  const out = [first];
+  while (out.length < WYE_DEVICES[device].outlets) out.push(newOutlet(scenario, parent, out.map((b) => b.id)));
+  return out;
+}
+
+/**
+ * A wye at a segment's coupling `at` (1 … its hose count; UX.md §2): the
+ * hoses after it, with the nozzle or wye they lead to, become the first
+ * outlet and the others start empty. At the segment's end the first outlet
+ * is a new hose carrying the line's nozzle. The segment keeps its old nozzle
+ * as the inactive value `removeWye` restores.
+ */
+export function insertWye(scenario: Scenario, path: readonly string[], at: number, device: WyeDevice = "wye"): Scenario {
+  const segment = segmentAt(scenario, path);
+  if (!segment || at < 1 || at > segment.sections.length || (at === segment.sections.length && segment.wye)) return scenario;
+  const number = nextId(scenario, []);
+  const first: ScenarioBranch = at === segment.sections.length
+    ? newBranch(scenario, segment)
+    : {
+        id: `line-${number}`, name: `Línea ${number}`, open: true,
+        sections: segment.sections.slice(at), nozzle: copyNozzle(segment.nozzle),
+        ...(segment.wye ? { wye: segment.wye } : {}),
+      };
+  return editSegment(scenario, path, (s) => ({
+    ...s,
+    sections: s.sections.slice(0, at),
+    wye: { ...(device === "wye" ? {} : { device }), branches: outletsAfter(scenario, s, first, device) },
   }));
 }
 
-/** Keep at least two branches; removing the whole wye is a separate, undoable action. */
-export function removeBranch(scenario: Scenario, path: readonly string[]): Scenario {
-  if (!path.length) return scenario;
-  const parentPath = path.slice(0, -1);
-  const parent = segmentAt(scenario, parentPath);
-  if (!parent?.wye || parent.wye.branches.length <= 2) return scenario;
-  return editSegment(scenario, parentPath, (segment) => ({
-    ...segment,
-    wye: { ...segment.wye!, branches: segment.wye!.branches.filter((branch) => branch.id !== path.at(-1)) },
-  }));
-}
+/** A wye at the end of the segment: its first outlet continues the line. */
+export const addWye = (scenario: Scenario, path: readonly string[], device: WyeDevice = "wye") =>
+  insertWye(scenario, path, segmentAt(scenario, path)?.sections.length ?? 0, device);
 
+/**
+ * Takes the wye away. With one outlet connected, that line rejoins the
+ * segment (the inverse of `insertWye`); with more, every line goes with it.
+ */
 export function removeWye(scenario: Scenario, path: readonly string[]): Scenario {
   return editSegment(scenario, path, (segment) => {
-    const { wye: _, ...rest } = segment;
-    return rest;
+    const { wye, ...rest } = segment;
+    const connected = wye?.branches.filter((b) => !isEmptyOutlet(b)) ?? [];
+    if (connected.length !== 1) return rest;
+    const only = connected[0];
+    return { ...rest, sections: [...segment.sections, ...only.sections], nozzle: only.nozzle, ...(only.wye ? { wye: only.wye } : {}) };
+  });
+}
+
+/** Connects a line to an empty outlet: a hose and the nozzle it kept. Its gate stays as it was. */
+export function connectOutlet(scenario: Scenario, path: readonly string[]): Scenario {
+  const start = segmentStartElevation(scenario, path);
+  return editSegment(scenario, path, (segment) => {
+    if (!isEmptyOutlet(segment)) return segment;
+    const fitted = attachNozzle({ ...scenario, wye: undefined, sections: [defaultHose(start)], nozzle: segment.nozzle });
+    return { ...segment, sections: fitted.sections, nozzle: fitted.nozzle };
+  });
+}
+
+/** Why an outlet's line can't be disconnected, or null. */
+export function disconnectLimit(scenario: Scenario, path: readonly string[]): string | null {
+  const parent = segmentAt(scenario, path.slice(0, -1));
+  const connected = parent?.wye?.branches.filter((b) => !isEmptyOutlet(b)) ?? [];
+  return connected.length <= 1 ? "Es la única salida con manguera: quita el bifurco en su lugar" : null;
+}
+
+/** Takes an outlet's line off (hoses, nozzle, any wye after it); the gate shuts first. */
+export function disconnectOutlet(scenario: Scenario, path: readonly string[]): Scenario {
+  if (!path.length || disconnectLimit(scenario, path)) return scenario;
+  return editSegment(scenario, path, (segment) => {
+    const { wye: _, ...rest } = segment as ScenarioBranch;
+    return { ...rest, open: false, sections: [], nozzle: { ...segment.nozzle, design: "open-end", open: true } };
+  });
+}
+
+/** Why the wye at `path` can't become `device`, or null. */
+export function deviceLimit(scenario: Scenario, path: readonly string[], device: WyeDevice): string | null {
+  const wye = segmentAt(scenario, path)?.wye;
+  if (!wye) return "Esta sección no tiene un bifurco.";
+  const spare = wye.branches.length - WYE_DEVICES[device].outlets;
+  if (spare > 0 && wye.branches.filter(isEmptyOutlet).length < spare) return "Desconecta una salida primero";
+  if (spare < 0 && flattenSegments(scenario).length - 1 - spare > BRANCH_LIMITS.branches) return `Máximo ${BRANCH_LIMITS.branches} líneas en total.`;
+  return null;
+}
+
+/** Bifurco ↔ trifurco: a new outlet starts empty; going down drops the last empty one. */
+export function setDevice(scenario: Scenario, path: readonly string[], device: WyeDevice): Scenario {
+  if (deviceLimit(scenario, path, device)) return scenario;
+  return editSegment(scenario, path, (segment) => {
+    let branches = [...segment.wye!.branches];
+    while (branches.length > WYE_DEVICES[device].outlets) {
+      const i = branches.findLastIndex(isEmptyOutlet);
+      branches = branches.filter((_, j) => j !== i);
+    }
+    while (branches.length < WYE_DEVICES[device].outlets) branches.push(newOutlet(scenario, segment, branches.map((b) => b.id)));
+    return { ...segment, wye: { ...(device === "wye" ? {} : { device }), branches } };
   });
 }
 
@@ -155,8 +233,6 @@ export const BRANCH_LIMITS = {
   branches: 64,
   /** At most 100 sections from the source across the whole tree. */
   sections: 100,
-  /** At most 32 branches on one wye (a "bifurca"). */
-  childrenPerWye: 32,
 } as const;
 
 function maxWyeDepth(segment: ScenarioSegment): number {
@@ -164,47 +240,36 @@ function maxWyeDepth(segment: ScenarioSegment): number {
   return 1 + Math.max(...segment.wye.branches.map(maxWyeDepth));
 }
 
-const totalSections = (scenario: Scenario) => flattenSegments(scenario).reduce((sum, { segment }) => sum + segment.sections.length, 0);
-
-function childCannotBranch(segment: ScenarioSegment, depth: number): boolean {
-  if (!segment.wye) return false;
-  if (depth > BRANCH_LIMITS.wyeDepth - 1) return true;
-  return segment.wye.branches.some((child) => childCannotBranch(child, depth + 1));
-}
-
-function anyLeafClosed(segment: ScenarioSegment): boolean {
-  if (!segment.wye) return !segment.nozzle.open;
-  return segment.wye.branches.some(anyLeafClosed);
-}
+export const totalSections = (scenario: Scenario) => flattenSegments(scenario).reduce((sum, { segment }) => sum + segment.sections.length, 0);
 
 /**
- * Whether a branch-creating action is safe at `path`, and why not when it is
- * not. Mirrors the parser's own checks: depth, branch count, section count and
- * a wye's child count. A wye whose branches are all shut is allowed (the
- * parser does not require a connected path).
+ * Why a wye can't go at the drawn line's coupling `joint`, or null. Mirrors
+ * the parser's own checks (depth, branch and section counts); a UI that
+ * offers an edit the parser rejects is a bug, not a hydraulic state.
  */
-export function addLimit(scenario: Scenario, path: readonly string[], kind: "wye" | "branch"): string | null {
-  const segment = segmentAt(scenario, path);
-  if (!segment) return null;
-  if (kind === "wye") {
-    if (segment.wye) return "Esta sección ya tiene una bifurca.";
-    if (1 + maxWyeDepth(segment) > BRANCH_LIMITS.wyeDepth) return `Máximo ${BRANCH_LIMITS.wyeDepth} bifurcas encadenadas.`;
-    if (totalSections(scenario) >= BRANCH_LIMITS.sections) return `Máximo ${BRANCH_LIMITS.sections} tramos en total.`;
-    if (childCannotBranch(segment, 0)) return `Máximo ${BRANCH_LIMITS.wyeDepth} bifurcas encadenadas.`;
-    return null;
-  }
-  if (!segment.wye) return "Esta sección no tiene una bifurca.";
-  if (segment.wye.branches.length >= BRANCH_LIMITS.childrenPerWye) {
-    return `Una bifurca admite como máximo ${BRANCH_LIMITS.childrenPerWye} líneas.`;
-  }
-  if (totalSections(scenario) >= BRANCH_LIMITS.sections) return `Máximo ${BRANCH_LIMITS.sections} tramos en total.`;
-  if (flattenSegments(scenario).length >= BRANCH_LIMITS.branches) {
-    return `Máximo ${BRANCH_LIMITS.branches} líneas en total.`;
-  }
-  if (anyLeafClosed(segment)) return "Abre el pitón de la bifurca antes de añadir una línea.";
+export function wyeLimit(line: Scenario, joint: number, device: WyeDevice = "wye"): string | null {
+  if (joint === 0) return "Pon al menos un tramo antes del bifurco";
+  if (junctionAt(line, joint)) return "Ya hay un bifurco aquí";
+  const { tree, path, at } = locate(line, joint);
+  const segment = segmentAt(tree, path)!;
+  const below = at < segment.sections.length ? maxWyeDepth(segment) : 0;
+  if (path.length + 1 + below > BRANCH_LIMITS.wyeDepth) return `Máximo ${BRANCH_LIMITS.wyeDepth} bifurcos encadenados.`;
+  if (flattenSegments(tree).length - 1 + WYE_DEVICES[device].outlets > BRANCH_LIMITS.branches) return `Máximo ${BRANCH_LIMITS.branches} líneas en total.`;
+  if (at === segment.sections.length && totalSections(tree) >= BRANCH_LIMITS.sections) return `Máximo ${BRANCH_LIMITS.sections} tramos en total.`;
   return null;
 }
 
+/**
+ * The whole lay with a wye at the drawn line's coupling `joint`, and the
+ * drawn path through it: the line goes on through the wye's first outlet.
+ */
+export function insertWyeAtJoint(line: Scenario, joint: number, device: WyeDevice = "wye"): { tree: Scenario; path: BranchPath } {
+  const { tree, path, at } = locate(line, joint);
+  const next = insertWye(tree, path, at, device);
+  const first = segmentAt(next, path)?.wye?.branches[0].id;
+  const drawn = drawnFrom.get(line)?.view.path ?? [];
+  return { tree: next, path: next === tree || !first ? drawn : [...path, first, ...drawn.slice(path.length)] };
+}
 
 // ── The drawn path (UX.md §2 "Branched lays") ───────────────────────────────
 // A branched lay is drawn and edited one pump-to-nozzle path at a time, in
@@ -217,7 +282,9 @@ export type Junction = {
   joint: number;
   /** The segment that owns the wye. */
   owner: BranchPath;
-  outlets: { id: string; path: BranchPath; name: string; open: boolean; active: boolean }[];
+  device: WyeDevice;
+  /** `empty`: nothing connected (MODEL.md §2); never the drawn one. */
+  outlets: { id: string; path: BranchPath; name: string; open: boolean; active: boolean; empty: boolean }[];
 };
 
 export type PathView = {
@@ -230,6 +297,23 @@ export type PathView = {
 };
 
 const junctionJoints = new WeakMap<Scenario, Junction[]>();
+/** The lay each drawn line came from, for edits that change the tree itself (a new wye). */
+const drawnFrom = new WeakMap<Scenario, { tree: Scenario; view: PathView }>();
+
+/** The segment holding the drawn line's coupling `joint` (1 … its hoses), and its place in it. */
+function locate(line: Scenario, joint: number): { tree: Scenario; path: BranchPath; at: number } {
+  const from = drawnFrom.get(line);
+  if (!from) return { tree: line, path: [], at: joint };
+  let start = 0;
+  for (const [k, c] of from.view.counts.entries()) {
+    if (joint <= start + c) return { tree: from.tree, path: from.view.path.slice(0, k), at: joint - start };
+    start += c;
+  }
+  return { tree: from.tree, path: from.view.path, at: joint - start };
+}
+/** The whole lay a drawn line belongs to (itself for a single line), and the path it draws. */
+export const treeOf = (line: Scenario): Scenario => drawnFrom.get(line)?.tree ?? line;
+export const drawnPathOf = (line: Scenario): BranchPath => drawnFrom.get(line)?.view.path ?? [];
 /** The wyes on a drawn path's scenario; empty for a single line or an edited copy. */
 export const junctionsOf = (scenario: Scenario): Junction[] => junctionJoints.get(scenario) ?? [];
 export const junctionAt = (scenario: Scenario, joint: number) => junctionsOf(scenario).find((j) => j.joint === joint);
@@ -240,7 +324,8 @@ export function leafPath(scenario: Scenario, path: readonly string[]): BranchPat
   let segment: ScenarioSegment = scenario;
   for (let depth = 0; segment.wye; depth++) {
     const branches: ScenarioBranch[] = segment.wye.branches;
-    const next: ScenarioBranch = branches.find((b) => b.id === path[depth]) ?? branches.find((b) => b.open) ?? branches[0];
+    const lines = branches.filter((b) => !isEmptyOutlet(b));
+    const next: ScenarioBranch = lines.find((b) => b.id === path[depth]) ?? lines.find((b) => b.open) ?? lines[0];
     out.push(next.id);
     segment = next;
   }
@@ -260,13 +345,16 @@ export function pathView(scenario: Scenario, wanted: readonly string[]): PathVie
     junctions.push({
       joint,
       owner,
-      outlets: chain[i].wye!.branches.map((b) => ({ id: b.id, path: [...owner, b.id], name: b.name, open: b.open, active: b.id === path[i] })),
+      device: chain[i].wye!.device ?? "wye",
+      outlets: chain[i].wye!.branches.map((b) => ({ id: b.id, path: [...owner, b.id], name: b.name, open: b.open, active: b.id === path[i], empty: isEmptyOutlet(b) })),
     });
   }
   const { wye: _, ...base } = scenario;
   const view: Scenario = { ...base, sections: chain.flatMap((s) => s.sections), nozzle: chain.at(-1)!.nozzle };
   junctionJoints.set(view, junctions);
-  return { path, scenario: view, junctions, counts };
+  const out = { path, scenario: view, junctions, counts };
+  drawnFrom.set(view, { tree: scenario, view: out });
+  return out;
 }
 
 /**
@@ -322,10 +410,11 @@ export function branchLabel(segment: ScenarioSegment): string {
   return `${segment.name} · ${Math.round(length)} m de ${sizes.join(" + ")}`;
 }
 
-/** Every pump-to-nozzle path of the lay, in outlet order. */
+/** Every pump-to-nozzle path of the lay, in outlet order; empty outlets aren't lines. */
 export function leafPaths(scenario: Scenario): BranchPath[] {
   const out: BranchPath[] = [];
   const visit = (segment: ScenarioSegment, path: BranchPath) => {
+    if (isEmptyOutlet(segment)) return;
     if (!segment.wye) out.push(path);
     else for (const b of segment.wye.branches) visit(b, [...path, b.id]);
   };

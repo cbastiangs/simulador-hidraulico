@@ -81,7 +81,8 @@ export function solveScenarioTree(input: Scenario, methodId: MethodId = input.me
     const kinds: (FittingKind | "wye")[] = [...fittings.map((f) => f.kind), ...(segment.wye ? ["wye" as const] : [])];
     const fixed = kinds.reduce((sum, kind) => sum + (kind === "wye" ? method.wyeLossPsi ?? 0 : method.fittingLossPsi?.[kind] ?? 0), 0);
     const step = kinds.reduce((sum, kind) => sum + ((kind === "wye" ? method.wyeLossPsi : method.fittingLossPsi?.[kind]) == null ? method.fittingStep?.lossPsi ?? 0 : 0), 0);
-    const end = segment.sections.at(-1)!.endElevationM;
+    // An empty wye outlet has no hose: it sits at the junction's height.
+    const end = segment.sections.at(-1)?.endElevationM ?? start;
     return {
       segment, id, start, end,
       highest: Math.max(start, ...segment.sections.map((s) => s.endElevationM)),

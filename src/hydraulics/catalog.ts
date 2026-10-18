@@ -163,3 +163,15 @@ export const NOZZLE_SPECS: readonly NozzleSpec[] = [
     provenance: { ratedFlowGpm: OPEN_END, ratedPressurePsi: OPEN_END, inletIn: OPEN_END },
   },
 ];
+
+/** A junction device (MODEL.md §2 "Devices and empty outlets"). */
+export type WyeDevice = "wye" | "trifurca";
+
+/**
+ * Outlets per device, and the bore an empty outlet flows through (§3.4d):
+ * 1½″ for both, a modelling choice to verify against the station's devices.
+ */
+export const WYE_DEVICES: Record<WyeDevice, { outlets: number; outletIn: number }> = {
+  wye: { outlets: 2, outletIn: 1.5 },
+  trifurca: { outlets: 3, outletIn: 1.5 },
+};

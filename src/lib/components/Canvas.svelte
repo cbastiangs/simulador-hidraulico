@@ -27,6 +27,8 @@
   import { lineColor } from "$lib/line-colors.ts";
   import * as edit from "$lib/edit.ts";
   import WyeDrawing from "./WyeDrawing.svelte";
+  import PieceStrip from "./PieceStrip.svelte";
+  import { PIECES, isAdding, spotsFor, type PieceId, type Spot } from "$lib/pieces.ts";
   import { hoseVelocityMps } from "$hydraulics/velocity.ts";
 
   // The canvas (UX.md §2, polish §10.8): one uniform scale, the lay auto-fitted
@@ -70,6 +72,10 @@
     editedPath = [],
     editedName = "",
     linePaths = [],
+    outletFlows = {},
+    onPlace,
+    showGauges = true,
+    trueScale = false,
   }: {
     scenario: Scenario;
     result: SeriesResult;
@@ -120,6 +126,14 @@
     editedPath?: string[];
     editedName?: string;
     linePaths?: string[][];
+    /** Each wye outlet's flow, by path joined with "/": an open empty outlet's spill. */
+    outletFlows?: Record<string, number>;
+    /** Drop the picked piece on a spot (lib/pieces.ts); the page applies it as one undo step. */
+    /** `path` names another line of a branched lay, which becomes the edited one; the spot is in its numbering. */
+    onPlace?: (piece: PieceId, spot: Spot, path?: string[]) => void;
+    /** Ajustes › Vista (UX.md §10.1): changes no number; the page remembers them per browser. */
+    showGauges?: boolean;
+    trueScale?: boolean;
   } = $props();
 
   const TAP_PX = 6;
@@ -220,24 +234,6 @@
     }
   });
 
-  // View (UX.md §10.1): changes no number; remembered per browser.
-  let showGauges = $state(true);
-  let trueScale = $state(false);
-  $effect(() => {
-    try {
-      showGauges = localStorage.getItem("view.gauges") !== "off";
-      trueScale = localStorage.getItem("view.hose-scale") === "true";
-    } catch {}
-  });
-  function setView(key: "gauges" | "scale", on: boolean) {
-    if (key === "gauges") showGauges = on;
-    else trueScale = on;
-    try {
-      localStorage.setItem(key === "gauges" ? "view.gauges" : "view.hose-scale", key === "gauges" ? (on ? "on" : "off") : String(on));
-    } catch {}
-    if (viewMenu) viewMenu.open = false;
-  }
-  let viewMenu: HTMLDetailsElement | undefined = $state();
   /** Drawn thickness over real thickness: the default exaggerates so a 1½″ hose is visible at a fitted zoom. */
   const EXAGGERATION = Math.round(4 / (0.0254 * PX_PER_M));
   const hoseWidth = (thicknessPx: number, diameterIn: number) =>
@@ -383,7 +379,7 @@
   // with a tag; a click then edits it. Kept while the pointer stays on it.
   let peek = $state<{ key: string; x: number; y: number } | null>(null);
   function hoverLines(e: PointerEvent) {
-    if (e.pointerType !== "mouse" || !otherLines.length || press || dragging !== null) return;
+    if (e.pointerType !== "mouse" || !otherLines.length || press || dragging !== null || armed) return;
     const stack = linesAt(e.clientX, e.clientY);
     const rect = scroller!.getBoundingClientRect();
     const at = { x: e.clientX - rect.left + camX, y: e.clientY - rect.top + camY };
@@ -407,7 +403,7 @@
     toastTimer = setTimeout(() => (toast = ""), 2500);
   }
   function cycleClick(e: MouseEvent) {
-    if (!otherLines.length) return;
+    if (!otherLines.length || armed) return;
     const stack = linesAt(e.clientX, e.clientY);
     if (stack.length < 2) return void (lastTap = null);
     const spot = stack.map((l) => `${l.key}#${l.index}`).sort().join(",");
@@ -610,6 +606,9 @@
       if (now - lastEmptyTap < 300) {
         showWhole();
         lastEmptyTap = 0;
+      } else if (armed) {
+        // A tap beside the spots puts the piece back.
+        armed = null;
       } else {
         lastEmptyTap = now;
         onTapEmpty?.();
@@ -921,9 +920,8 @@
     });
   });
 
-  /** "Acercar a la selección" (View): about 1.5 times closer than the fit, at least 100 %, centred on it. */
+  /** "Enfocar", acercar a la selección: about 1.5 times closer than the fit, at least 100 %, centred on it. */
   async function zoomToSelection() {
-    if (viewMenu) viewMenu.open = false;
     if (!selection) return;
     setManualZoom(Math.max(1, fitZoom * 1.5, zoom));
     await tick();
@@ -1257,7 +1255,7 @@
   const PATTERN_STOPS = [
     { label: "Directo", value: 0 },
     { label: "Medio", value: 0.5 },
-    { label: "Niebla", value: 1 },
+    { label: "Neblina", value: 1 },
   ];
   let readingW = $state(0);
   let readingH = $state(0);
@@ -1271,11 +1269,110 @@
     const left = Math.max(margin, Math.min(viewWidth - bw - margin, sx - bw / 2));
     return { left: left + camX, top: top + camY, maxWidth: maxW };
   }
+
+  // ── Pieces (UX.md §2 "Pieces"): pick one in the strip, tap a lit spot ──────
+  // Tap-then-tap only; dragging a piece is deferred (ROADMAP §10e). A piece
+  // goes back after one placement; the eraser stays picked until put back.
+  let armed = $state<PieceId | null>(null);
+  /** The phone's tray of pieces, opened from the toolbar. */
+  let tray = $state(false);
+  const armedPiece = $derived(PIECES.find((p) => p.id === armed));
+  async function pick(piece: PieceId | null) {
+    if (piece) onDeselect();
+    armed = piece;
+    tray = false;
+    // No spot in view (zoomed in on empty sky, say): show the whole lay; otherwise the camera stays.
+    await tick();
+    const seen = (p: { x: number; y: number }) => {
+      const [x, y] = [p.x * zoom - camX, p.y * zoom - camY];
+      return x >= 0 && x <= viewWidth && y >= 0 && y <= viewHeight - coverPx;
+    };
+    if (spots.length && !spots.some((c) => seen(c.at))) showWhole();
+  }
+  // Selecting something by hand puts the piece back.
+  $effect(() => {
+    if (selection) untrack(() => (armed = null));
+  });
+  /** Rotates and scales a point in a joint's local (screen) units into world px. */
+  function local(jd: JointDrawing, x: number, y: number) {
+    const rad = (jd.angle * Math.PI) / 180;
+    return { x: jd.x + (x * Math.cos(rad) - y * Math.sin(rad)) * k, y: jd.y + (x * Math.sin(rad) + y * Math.cos(rad)) * k };
+  }
+  /** Where a spot is drawn, in world px; `from` draws a leader to it (an empty outlet's spout). */
+  function spotPoint(spot: Spot, piece: PieceId): { x: number; y: number; from?: { x: number; y: number } } {
+    if (spot.kind === "section") {
+      const h = layout.hoses[spot.index];
+      return { x: h.labelX, y: h.labelY };
+    }
+    const jd = drawing.joints[spot.kind === "joint" ? spot.index : spot.joint];
+    if (spot.kind === "outlet") {
+      // Above and ahead of its far spout, clear of the wye's own spot.
+      const spout = local(jd, 24, -4 * spot.slot);
+      return { ...local(jd, 44, -4 * spot.slot - 34 - 34 * (spot.slot - 1)), from: spout };
+    }
+    // At a wye a hose goes in before it: the spot sits on its inlet side.
+    if (isAdding(piece) && piece.startsWith("hose") && junctionAtJoint(spot.index)) return local(jd, -40, 0);
+    // A nozzle piece, or the eraser on the nozzle: on the nozzle's body.
+    if (spot.index === last && !piece.startsWith("hose")) return { x: jd.x + 18 * nozzleK, y: jd.y };
+    return { x: jd.x, y: jd.y };
+  }
+  /**
+   * Where a spot is drawn on another line (owner, 2026-10-18: a sandbox, not
+   * a line to switch to first). Those lines are drawn without fittings, so a
+   * spot sits on the line itself; an empty outlet is reached from the line
+   * that draws its wye.
+   */
+  function otherSpotPoint(o: (typeof otherLines)[number], spot: Spot, piece: PieceId) {
+    if (spot.kind === "section") {
+      const h = o.layout.hoses[spot.index];
+      return { x: h.labelX, y: h.labelY };
+    }
+    const i = spot.kind === "joint" ? spot.index : spot.joint;
+    const n = o.layout.nodes[i];
+    if (piece.startsWith("hose") && junctionsOf(o.scenario).some((j) => j.joint === i)) {
+      const p = o.layout.nodes[i - 1];
+      const len = Math.hypot(n.x - p.x, n.y - p.y) || 1;
+      return { x: n.x - ((n.x - p.x) / len) * 40 * k, y: n.y - ((n.y - p.y) / len) * 40 * k };
+    }
+    if (i === o.layout.nodes.length - 1 && !piece.startsWith("hose")) return { x: n.x + 18 * nozzleK, y: n.y };
+    return { x: n.x, y: n.y };
+  }
+  /** An other line's own part: past the wye where it leaves the edited line, which owns the rest. */
+  const ownPart = (spot: Spot, from: number) => (spot.kind === "joint" ? spot.index > from : spot.kind === "section" ? spot.index >= from : false);
+  const spots = $derived.by(() => {
+    if (!armed) return [];
+    const piece = armed;
+    const all = [
+      ...spotsFor(piece, scenario).map((c) => ({ ...c, line: editedKey, path: null as string[] | null, at: spotPoint(c.spot, piece) })),
+      ...otherLines.flatMap((o) =>
+        spotsFor(piece, o.scenario)
+          .filter((c) => ownPart(c.spot, o.from))
+          .map((c) => ({ ...c, label: `${o.name}: ${c.label}`, line: o.key, path: o.path, at: otherSpotPoint(o, c.spot, piece) })),
+      ),
+    ];
+    // Lines lying together put their spots on one point: later ones step down, a leader back to the point.
+    const out: ((typeof all)[number] & { key: string; at: { x: number; y: number; from?: { x: number; y: number } } })[] = [];
+    for (const c of all) {
+      const under = out.filter((d) => Math.hypot((d.at.from ?? d.at).x - c.at.x, (d.at.from ?? d.at).y - c.at.y) * zoom < 24).length;
+      const at = under ? { x: c.at.x, y: c.at.y + 32 * under * k, from: { x: c.at.x, y: c.at.y } } : c.at;
+      out.push({ ...c, key: `${c.line}|${JSON.stringify(c.spot)}`, at });
+    }
+    return out;
+  });
+  function hitSpot(c: (typeof spots)[number]) {
+    if (!armed) return;
+    if (c.blocked) return say(c.blocked);
+    const piece = armed;
+    if (isAdding(piece)) armed = null;
+    onPlace?.(piece, c.spot, c.path ?? undefined);
+    say(c.label);
+  }
 </script>
 
 <svelte:window
   onkeydown={(e) => {
     const t = e.target as Element;
+    if (e.key === "Escape" && armed) armed = null;
     if (e.key.toLowerCase() === "y" && !e.ctrlKey && !e.metaKey && !t.closest("input, textarea, select, [contenteditable]")) locked = !locked;
   }}
   bind:innerHeight={windowHeight}
@@ -1288,6 +1385,8 @@
 />
 
 <div class="canvas" class:phone style:--k={k}>
+  <div class="body">
+  {#if !phone}<PieceStrip {armed} onPick={pick} />{/if}
   <div
     class="scroller"
     class:grabbing
@@ -1572,7 +1671,7 @@
           {@const jd = drawing.joints[wye.joint]}
           {#if jd}
             <g transform={`translate(${jd.x} ${jd.y}) scale(${k}) rotate(${jd.angle})`}>
-              <WyeDrawing outlets={wye.outlets} onGate={(path: string[]) => tap(() => onGate?.(path))()} />
+              <WyeDrawing outlets={wye.outlets} flows={outletFlows} onGate={(path: string[]) => tap(() => onGate?.(path))()} />
             </g>
           {/if}
         {/each}
@@ -1654,6 +1753,27 @@
           {/each}
         {/if}
 
+        <!-- Where the picked piece can go (lib/pieces.ts), over everything. -->
+        {#each spots as c (c.key)}
+          {#if c.at.from}<line class="spot-leader" x1={c.at.from.x} y1={c.at.from.y} x2={c.at.x} y2={c.at.y} stroke-width={1.5 * k} />{/if}
+          <g
+            class="spot"
+            class:erase={armed === "eraser"}
+            class:blocked={c.blocked !== null}
+            transform={`translate(${c.at.x} ${c.at.y}) scale(${k})`}
+            role="button"
+            tabindex="0"
+            aria-label={c.blocked ? `${c.label}: ${c.blocked}` : c.label}
+            onclick={(e) => (e.stopPropagation(), hitSpot(c))}
+            onkeydown={(e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), hitSpot(c))}
+          >
+            <title>{c.blocked ?? c.label}</title>
+            <circle class="spot-hit" r="22" />
+            {#if otherLines.length}<circle class="spot-line" r="17" style:stroke={colorOf(c.line)} />{/if}
+            <circle class="spot-ring" r="13" />
+            <path class="spot-mark" d={armed === "eraser" ? "M -5 -5 L 5 5 M 5 -5 L -5 5" : "M -6 0 L 6 0 M 0 -6 L 0 6"} />
+          </g>
+        {/each}
       </svg>
       {#if peek}
         <div class="peek-tag" style:left={`${peek.x + 14}px`} style:top={`${peek.y - 34}px`}><span class="line-dot" style:background={colorOf(peek.key)}></span>{nameOf(peek.key)} · clic para editarla</div>
@@ -1768,7 +1888,18 @@
       {/if}
     </div>
   </div>
-  {#if toast}<div class="toast" role="status">{toast}</div>{/if}
+  </div>
+  {#if phone && tray}<PieceStrip {armed} onPick={pick} row />{/if}
+  <!-- The picked piece, then the last message, stacked at the top of the drawing. -->
+  <div class="notes">
+    {#if armedPiece}
+      <div class="armed" class:erase={armed === "eraser"} role="status">
+        <span>{armed === "eraser" ? "Quitar: toca lo que quieras quitar" : `${armedPiece.name}: toca un punto marcado`}</span>
+        <button type="button" onclick={() => (armed = null)}>{armed === "eraser" ? "Listo" : "Cancelar"}</button>
+      </div>
+    {/if}
+    {#if toast}<div class="toast" role="status">{toast}</div>{/if}
+  </div>
   <!-- Controls live below the drawing, never over it. -->
   <div class="toolbar">
   {#if missing.length > 0}
@@ -1776,6 +1907,7 @@
       ⚠ Falta adaptador en {missing.map((j) => (j.index === 0 ? "la salida" : j.index === last ? "el pitón" : `el acople ${j.index}`)).join(", ")}
     </button>
   {/if}
+  {#if phone}<button type="button" class="pieces-toggle" class:on={tray || !!armed} aria-expanded={tray} onclick={() => (tray ? (tray = false) : armed ? (armed = null) : (tray = true))}>{tray ? "× Piezas" : armed ? "× Pieza" : "+ Piezas"}</button>{/if}
   {#if !phone}<span class="hint">Clic derecho o mantener pulsado: más opciones</span>{/if}
   <span class="badge">{Math.round(zoom * 100)} %{manualZoom === null ? (showAll ? " · todo" : " · auto") : ""}{trueScale ? "" : ` · grosor ×${EXAGGERATION}`}</span>
   <div class="zoom">
@@ -1783,14 +1915,7 @@
     <button type="button" aria-label="Acercar" onclick={() => setManualZoom(zoom * 1.25)}>+</button>
     <button type="button" onclick={showWhole}>Ver todo</button>
     <button type="button" class="camera-lock" class:on={locked} aria-pressed={locked} title="Fijar la cámara en la selección (Y)" onclick={() => (locked = !locked)}>Cámara</button>
-    <details class="view" bind:this={viewMenu}>
-      <summary aria-label="Vista" title="Vista">Vista</summary>
-      <div class="view-menu">
-        <button type="button" disabled={!selection} onclick={zoomToSelection}>Acercar a la selección</button>
-        <button type="button" role="menuitemcheckbox" aria-checked={showGauges} onclick={() => setView("gauges", !showGauges)}>{showGauges ? "☑" : "☐"} Manómetros</button>
-        <button type="button" role="menuitemcheckbox" aria-checked={trueScale} onclick={() => setView("scale", !trueScale)}>{trueScale ? "☑" : "☐"} Grosor real de la manguera</button>
-      </div>
-    </details>
+    <button type="button" disabled={!selection} title="Acercar a la selección" onclick={zoomToSelection}>Enfocar</button>
   </div>
   </div>
 </div>
@@ -1815,6 +1940,26 @@
   .scroller.grabbing { cursor: grabbing; }
   .ground-back { position: absolute; left: 0; right: 0; top: var(--ground-screen, 0px); height: 1.5px; background: var(--ink); opacity: 0.35; pointer-events: none; }
   .canvas.phone { height: 100%; display: flex; flex-direction: column; }
+  .body { display: flex; min-width: 0; }
+  .body .scroller { flex: 1; min-width: 0; }
+  .canvas.phone .body { flex: 1; min-height: 0; }
+  .spot { cursor: pointer; outline: none; }
+  .spot-hit { fill: transparent; }
+  .spot-line { fill: none; stroke-width: 3; }
+  .spot-ring { fill: var(--accent); stroke: var(--surface); stroke-width: 2.5; }
+  .spot-mark { stroke: #fff; stroke-width: 2.6; stroke-linecap: round; fill: none; pointer-events: none; }
+  .spot.erase .spot-ring { fill: var(--warn); }
+  .spot.blocked .spot-ring { fill: var(--muted); opacity: 0.45; }
+  .spot:not(.blocked) .spot-ring { animation: spot 1.4s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+  .spot:hover:not(.blocked) .spot-ring, .spot:focus-visible .spot-ring { stroke: var(--ink); }
+  .spot-leader { stroke: var(--accent); stroke-dasharray: 3 3; pointer-events: none; }
+  @keyframes spot { 50% { transform: scale(1.15); } }
+  @media (prefers-reduced-motion: reduce) { .spot .spot-ring { animation: none; } }
+  .armed { pointer-events: auto; display: flex; align-items: center; gap: 10px; padding: 4px 4px 4px 12px; border-radius: 10px; background: var(--accent); color: #fff; font-size: 13px; font-weight: 600; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2); }
+  .armed.erase { background: var(--warn); }
+  .armed button { min-height: 36px; padding: 0 12px; border: 0; border-radius: 8px; background: rgba(255, 255, 255, 0.2); color: #fff; font-weight: 700; cursor: pointer; white-space: nowrap; }
+  .pieces-toggle { min-height: 44px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--accent); background: var(--surface); color: var(--accent); font-weight: 700; font-size: 14px; cursor: pointer; }
+  .pieces-toggle.on { background: var(--accent-soft); }
   .canvas.phone .scroller { flex: 1; min-height: 0; transition: none; }
   .canvas.phone .toolbar { padding: 6px 8px; }
   .stage { position: relative; will-change: transform; }
@@ -1840,13 +1985,6 @@
   .gauge-hit:focus-visible { stroke: var(--accent); stroke-width: 2; }
   .reading { position: absolute; z-index: 3; min-width: 200px; display: grid; gap: 2px; padding: 8px 34px 8px 10px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15); font-size: 13px; color: var(--muted); }
   .reading b { color: var(--ink); font-size: 15px; }
-  .view { position: relative; }
-  .view summary { list-style: none; display: grid; place-items: center; min-width: 44px; height: 44px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); cursor: pointer; font-size: 14px; }
-  .view summary::-webkit-details-marker { display: none; }
-  .view-menu { position: absolute; right: 0; bottom: 50px; z-index: 30; min-width: 220px; display: grid; padding: 6px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2); }
-  .view-menu button { min-height: 44px; padding: 0 12px; text-align: left; border: 0; border-radius: 6px; background: transparent; color: var(--ink); font-size: 14px; cursor: pointer; }
-  .view-menu button:hover:not(:disabled) { background: var(--accent-soft); }
-  .view-menu button:disabled { opacity: 0.4; cursor: default; }
   .fittings title { pointer-events: auto; }
   .adapter { fill: var(--fitting); stroke: var(--fitting); stroke-width: 1; }
   .adapter.auto { fill: color-mix(in srgb, var(--fitting) 55%, transparent); stroke-dasharray: 2 2; }
@@ -1865,7 +2003,8 @@
   .stack-badge text { fill: var(--bg); font-size: 12px; font-weight: 700; text-anchor: middle; }
   .stack-badge:focus-visible rect { stroke: var(--accent); stroke-width: 3; }
   .peek-tag { position: absolute; z-index: 6; padding: 4px 8px; border-radius: 6px; background: var(--ink); color: var(--bg); font-size: 12px; font-weight: 600; white-space: nowrap; pointer-events: none; }
-  .toast { position: absolute; z-index: 7; left: 50%; top: 10px; transform: translateX(-50%); padding: 6px 12px; border-radius: 8px; background: var(--ink); color: var(--bg); font-size: 13px; pointer-events: none; }
+  .notes { position: absolute; z-index: 8; top: 10px; left: 12px; right: 12px; display: flex; flex-direction: column; align-items: center; gap: 6px; pointer-events: none; }
+  .toast { padding: 6px 12px; border-radius: 8px; background: var(--ink); color: var(--bg); font-size: 13px; pointer-events: none; }
   .missing text { fill: #fff; font-size: 14px; font-weight: 800; text-anchor: middle; }
   .hose { stroke: var(--hose); stroke-linecap: butt; fill: none; }
   .particles { fill: none; stroke: #fff; stroke-opacity: 0.85; stroke-linecap: round; stroke-dasharray: 0 var(--gap); animation: water var(--period) linear infinite; pointer-events: none; }
@@ -1904,5 +2043,6 @@
   .lock.on { background: var(--surface); border-color: var(--accent); }
   .zoom { display: flex; gap: 4px; }
   .zoom button { min-width: 44px; height: 44px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); cursor: pointer; }
+  .zoom button:disabled { opacity: 0.4; cursor: default; }
   .camera-lock.on { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
 </style>
