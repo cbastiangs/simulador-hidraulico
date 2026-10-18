@@ -58,7 +58,7 @@
     return { x: PIVOT.x + ARM * Math.sin(r), lift: Math.cos(r) };
   });
 
-  const patternName = (p: number) => (p < 0.08 ? "Chorro directo" : p < 0.55 ? "Niebla estrecha" : "Niebla amplia");
+  const patternName = (p: number) => (p < 0.08 ? "Chorro directo" : p < 0.55 ? "Neblina estrecha" : "Neblina amplia");
 
   let svg: SVGSVGElement | undefined = $state();
   function toSvg(e: PointerEvent) {
@@ -198,7 +198,7 @@
       class="turn"
       role="slider"
       tabindex="0"
-      aria-label="Collar de patrón: chorro directo a niebla amplia"
+      aria-label="Collar de patrón: chorro directo a neblina amplia"
       aria-valuemin={0}
       aria-valuemax={100}
       aria-valuenow={Math.round(nozzle.pattern * 100)}
@@ -261,7 +261,7 @@
       <div class="step">
         <button type="button" aria-label="Hacia chorro directo" disabled={nozzle.pattern <= 0} onclick={() => stepPattern(-0.1)}>‹</button>
         <b>{patternName(nozzle.pattern)}<span class="track"><span style:left={`${nozzle.pattern * 100}%`}></span></span></b>
-        <button type="button" aria-label="Hacia niebla amplia" disabled={nozzle.pattern >= 1} onclick={() => stepPattern(0.1)}>›</button>
+        <button type="button" aria-label="Hacia neblina amplia" disabled={nozzle.pattern >= 1} onclick={() => stepPattern(0.1)}>›</button>
       </div>
     </div>
   </div>

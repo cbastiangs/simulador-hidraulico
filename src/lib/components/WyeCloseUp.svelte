@@ -24,7 +24,7 @@
   };
 </script>
 
-<svg viewBox={`0 0 ${W} ${H}`} role="group" aria-label="Bifurca vista desde arriba">
+<svg viewBox={`0 0 ${W} ${H}`} role="group" aria-label="Bifurco: vista desde arriba">
   <!-- Inlet swivel with its rocker lugs, then the casting's hub. -->
   <line class="hose" x1="0" y1={CY} x2="70" y2={CY} />
   <rect class="swivel" x="66" y={CY - 15} width="26" height="30" rx="4" />
