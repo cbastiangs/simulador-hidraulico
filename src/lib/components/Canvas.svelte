@@ -15,7 +15,7 @@
     type Bounds,
     type PathAttachment,
   } from "$lib/geometry/world.ts";
-  import { jointName, jointNameIn } from "$lib/names.ts";
+  import { hoseSizeName, jointName, jointNameIn } from "$lib/names.ts";
   import { junctionsOf, type Junction } from "$lib/branch-edit.ts";
   import type { Selection } from "$lib/selection.ts";
     import ContextMenu from "./ContextMenu.svelte";
@@ -841,10 +841,6 @@
     return n === 0 ? "planta baja · 0 m" : n < 0 ? `${m} m` : `piso ${n} · ${m} m`;
   };
   const sizeLabel = (d: number) => `${d.toString().replace(".5", "½").replace(".75", "¾")}″`;
-  const fraction = (s: string) => s.replace("1-1/2", "1½").replace("1-3/4", "1¾").replace("2-1/2", "2½").replace('"', "″");
-  /** 3" hoses come with two coupling sizes: "3″ (2½″)" names the coupling. */
-  const chipLabel = (h: (typeof HOSE_SIZES)[number]) =>
-    h.couplings ? `${fraction(h.diameter)} (${fraction(h.couplings)})` : fraction(h.diameter);
   // Water particles (MODEL.md §3.7): one per GALLONS_PER_PARTICLE, moving at
   // the real mean velocity v = Q/A. Their spacing, gallons / A, doesn't depend
   // on Q: a narrow hose shows faster, sparser particles for the same flow.
@@ -1889,7 +1885,7 @@
           <button type="button" class="bar-close" aria-label="Quitar selección (Esc)" title="Quitar selección (Esc)" onclick={onDeselect}>×</button>
           <div class="chips" role="radiogroup" aria-label="Diámetro del tramo">
             {#each HOSE_SIZES as size (size.id)}
-              <button type="button" role="radio" aria-checked={s.hoseSizeId === size.id} class:on={s.hoseSizeId === size.id} onclick={() => onHoseSize(i, size.id)}>{chipLabel(size)}</button>
+              <button type="button" role="radio" aria-checked={s.hoseSizeId === size.id} class:on={s.hoseSizeId === size.id} onclick={() => onHoseSize(i, size.id)}>{hoseSizeName(size)}</button>
             {/each}
           </div>
           <div class="chips">

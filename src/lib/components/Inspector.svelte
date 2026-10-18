@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { jointName } from "$lib/names.ts";
+  import { hoseSizeName, jointName } from "$lib/names.ts";
   import { NOZZLE_SPECS } from "$hydraulics/catalog.ts";
   import { HOSE_SIZES } from "$hydraulics/references.ts";
   import { endBoreIn, reactionAt, type Scenario } from "$hydraulics/scenario.ts";
@@ -59,7 +59,6 @@
     const n = Math.round((m / floorM) * 1000) / 1000;
     return Number.isInteger(n) ? (n === 0 ? "planta baja" : `piso ${n}`) : `entre pisos (${n.toFixed(1)})`;
   };
-  const sizeName = (h: (typeof HOSE_SIZES)[number]) => (h.couplings ? `${h.diameter} (acoples ${h.couplings})` : h.diameter);
   const specShort = (spec: (typeof NOZZLE_SPECS)[number]) =>
     spec.design === "open-end"
       ? scenario.nozzle.design === "open-end" ? "Punta abierta" : "Quitar pitón"
@@ -292,7 +291,7 @@
       <span class="label">Diámetro</span>
       <select value={s.hoseSizeId ?? ""} onchange={(e) => onchange(edit.setSectionHose(scenario, i, e.currentTarget.value))}>
         {#if s.hoseSizeId === null}<option value="">{s.diameterIn}″ (manual)</option>{/if}
-        {#each HOSE_SIZES as size (size.id)}<option value={size.id}>{sizeName(size)}</option>{/each}
+        {#each HOSE_SIZES as size (size.id)}<option value={size.id}>{hoseSizeName(size, true)}</option>{/each}
       </select>
     </label>
     <div class="lock-row">

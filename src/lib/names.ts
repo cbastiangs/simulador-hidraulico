@@ -1,8 +1,17 @@
+import type { HOSE_SIZES } from "$hydraulics/references.ts";
 import { joints, type Scenario } from "$hydraulics/scenario.ts";
 import { junctionAt } from "$lib/branch-edit.ts";
 
 /** 2.5 → 2½″ */
 export const sizeLabel = (d: number) => `${d.toString().replace(".5", "½").replace(".75", "¾")}″`;
+
+const fraction = (s: string) => s.replace("1-1/2", "1½").replace("1-3/4", "1¾").replace("2-1/2", "2½").replace('"', "″");
+/**
+ * A catalog hose as the screen names it: "2½″"; a 3″ hose names its
+ * couplings too, "3″ (2½″)", or "3″ (acoples 2½″)" where there is room.
+ */
+export const hoseSizeName = (h: (typeof HOSE_SIZES)[number], long = false) =>
+  h.couplings ? `${fraction(h.diameter)} (${long ? "acoples " : ""}${fraction(h.couplings)})` : fraction(h.diameter);
 
 /**
  * A coupling is named by what sits there (owner, 2026-10-16: "Acople 2" said
