@@ -362,6 +362,12 @@
 | 600–1023 px | bar above the canvas | full width | below canvas | below the panel |
 | < 600 px | one-row strip (pressure ±, Req., flow); tapping the flow selects the pump | full width, the rest of the screen; the page does not scroll (§8) | bottom sheet that slides up on selection (§8.2) | in the sheet, collapsible |
 
+**Loading (owner, 2026-10-18).** The page is not server-rendered: built
+without a screen, it laid out at the wrong size (no canvas width, neither
+phone nor wide) and snapped into place seconds later on a phone, once the
+scripts ran. `app.html` shows a splash (title, a bar, "Cargando…") until
+the app mounts; the first layout drawn is the measured one.
+
 **One panel (owner, 2026-10-16).** The matrix in §10 is the screen's
 schema: every row has **one home** in the panel, and every other place a
 control appears (floating toolbar, context menu) is a shortcut to that home

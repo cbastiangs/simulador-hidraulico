@@ -11,8 +11,8 @@ here untouched; the screen and station-data integration are still open (see
   imports. The seed of the future `fire-calc` package. `series.ts` is the
   solver the app uses; `line.ts` is the closed-form oracle it is tested
   against.
-- `src/routes/`, `src/lib/` — the app: SvelteKit, prerendered to static files
-  (`adapter-static`). Imports the engine through the `$hydraulics` alias.
+- `src/routes/`, `src/lib/` — the app: SvelteKit, built to static files
+  (`adapter-static`) as a client-rendered shell with a splash (`ssr = false`). Imports the engine through the `$hydraulics` alias.
 - `tests/` — `node --test`, checked against published tables (Colorado DFPC
   chart, CGBVP 2019 manual, metric cross-check). `boundaries.test.mjs`
   enforces the engine's import rule below.
