@@ -263,7 +263,8 @@
     position: fixed;
     top: 0;
     right: 0;
-    z-index: 1000;
+    /* Above Driver.js's overlay, which sets z-index 10000 inline. */
+    z-index: 10001;
     box-sizing: border-box;
     width: min(320px, calc(100vw - 32px));
     padding: 16px;
