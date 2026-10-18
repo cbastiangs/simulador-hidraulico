@@ -962,10 +962,23 @@ and buttons stay 44 px, so flow changes no longer move the canvas.
 **Checks.** `pnpm test` 39 pass, `pnpm typecheck` 0 errors/warnings, `pnpm
 build` pass.
 
-**Separate review items.** Budget contrast (UX-06), the dock over the
-1024 panel (UX-05) and equipment-like controls (UX-08) remain open. §10.7 is
+**Separate review items.** Equipment-like controls (UX-08) and the toolbar
+over the lay at 1024 (UX-05's first half) remain open. §10.7 is
 the historical pre-polish review; the verified results above supersede its
 observations where they differ.
+
+**Fixed before the welcome tour (2026-10-18).**
+- **UX-06:** a pressure-bar slice shows its name and value, else the value,
+  else nothing (its title keeps it), by its measured width, so no label is
+  cut. Slice text is 4.5:1 or better in both themes (dark text on orange and
+  on the dark theme's light blue; the light theme's water slice is one step
+  darker, `--water-bar`). The bar's width transition stops under reduced
+  motion.
+- **Dock over the 1024 panel (UX-05, second half):** the panel's height
+  leaves room for the header and the dock; the wide header stays one row
+  (a long scenario name truncates), which was pushing the panel down.
+- The diameter picker names hoses as the toolbar does (`2½″`,
+  `3″ (acoples 2½″)`), from one helper in `names.ts`.
 
 **Fixed after the review (2026-10-16).**
 - **UX-03:** the nozzle panel puts its operating controls first (Manija,

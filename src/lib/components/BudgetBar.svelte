@@ -48,6 +48,15 @@
   const total = $derived(parts.nozzle + parts.friction + parts.fittings + Math.max(0, parts.elevation));
   const pct = (v: number) => `${total > 0 ? (Math.max(0, v) / total) * 100 : 0}%`;
   const f = (n: number) => n.toFixed(1);
+
+  // A slice shows its name and value, else the value, else nothing (its title
+  // keeps it), whichever fits: a clipped "Fricción 3" misreads (UX.md §10.7, UX-06).
+  let barWidth = $state(0);
+  const LABEL_PX_PER_CHAR = 7.2;
+  function fit(width: string, ...labels: string[]) {
+    const px = (parseFloat(width) / 100) * barWidth;
+    return labels.find((l) => l.length * LABEL_PX_PER_CHAR + 16 <= px) ?? "";
+  }
 </script>
 
 <section class="budget" class:compact>
@@ -81,11 +90,11 @@
     <p class="small">Cada línea gasta toda la presión de la bomba en su propio camino: las barras no se suman. Toca una para ver su detalle.</p>
   {/if}
   {#if result.state === "flowing"}
-    <div class="bar">
-      <div class="nozzle" style:width={pct(parts.nozzle)}>{endName} {f(parts.nozzle)}</div>
-      <div class="friction" style:width={pct(parts.friction)}>Fricción {f(parts.friction)}</div>
-      {#if parts.fittings > 0}<div class="fittings" style:width={pct(parts.fittings)}>{f(parts.fittings)}</div>{/if}
-      {#if parts.elevation > 0}<div class="elevation" style:width={pct(parts.elevation)}>{f(parts.elevation)}</div>{/if}
+    <div class="bar" bind:clientWidth={barWidth}>
+      <div class="nozzle" style:width={pct(parts.nozzle)} title={`${endName} ${f(parts.nozzle)} psi`}>{fit(pct(parts.nozzle), `${endName} ${f(parts.nozzle)}`, f(parts.nozzle))}</div>
+      <div class="friction" style:width={pct(parts.friction)} title={`Fricción ${f(parts.friction)} psi`}>{fit(pct(parts.friction), `Fricción ${f(parts.friction)}`, f(parts.friction))}</div>
+      {#if parts.fittings > 0}<div class="fittings" style:width={pct(parts.fittings)} title={`Accesorios ${f(parts.fittings)} psi`}>{fit(pct(parts.fittings), f(parts.fittings))}</div>{/if}
+      {#if parts.elevation > 0}<div class="elevation" style:width={pct(parts.elevation)} title={`Desnivel ${f(parts.elevation)} psi`}>{fit(pct(parts.elevation), f(parts.elevation))}</div>{/if}
     </div>
     {#if result.unsatisfied && !compact}
       {@const g = result.unsatisfied}
@@ -146,6 +155,10 @@
   .gap { margin: 0; font-size: 13px; font-weight: 600; color: var(--warn); }
   .bar { display: flex; height: 28px; border-radius: 6px; overflow: hidden; font-size: 12px; font-weight: 700; color: #fff; background: var(--band); }
   .bar div { display: flex; align-items: center; padding: 0 8px; white-space: nowrap; overflow: hidden; transition: width 250ms; }
+  /* Labels at 4.5:1 or better on their slice, in both themes. */
+  .bar .nozzle { background: var(--water-bar); color: var(--on-water); }
+  .bar .friction { color: var(--on-friction); }
+  @media (prefers-reduced-motion: reduce) { .bar div, .bar.mini span { transition: none; } }
   .legend { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 13px; color: var(--muted); }
   .legend li { display: flex; gap: 8px; align-items: baseline; }
   .legend b { color: var(--ink); }
