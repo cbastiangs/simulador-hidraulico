@@ -43,11 +43,11 @@ test("preset reduccion-un-piso: physical vs the CGBVP reference", () => {
   assert.ok(pressures[0] > pressures[1] && pressures[1] > pressures[2]);
 });
 
-test("preset ataque-segundo-piso: the main-screen design's lay", () => {
+test("preset ataque-tercer-piso: the main-screen design's lay", () => {
   // Combination nozzle on 95 gpm at 100 psi; 30 m = 0.98425 × 100 ft.
   // 2-1/2": 2 × 0.95² × 0.98425 = 1.777; 1-1/2": 24 × 0.95² × 0.98425 = 21.319;
   // 6 m × 0.434/0.3048 = 8.543. Required: 100 + 1.777 + 21.319 + 8.543 = 131.64 psi.
-  const scenario = parseScenario(preset("ataque-segundo-piso.json"));
+  const scenario = parseScenario(preset("ataque-tercer-piso.json"));
   near(solveScenario(scenario).requiredPumpPressurePsi, 131.64, 0.01);
 });
 

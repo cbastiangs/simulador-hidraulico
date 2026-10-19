@@ -120,7 +120,8 @@ export type WorldHose = {
   slackM: number;
   index: number;
 };
-export type WorldFloor = { y: number; elevationM: number; number: number };
+/** A drawn floor line; `above` counts floors above the street, which the labels call "piso 1" (ROADMAP §5). */
+export type WorldFloor = { y: number; elevationM: number; above: number };
 
 export type WorldLayout = {
   widthPx: number;
@@ -519,7 +520,7 @@ export function layoutWorld(
   // Floor lines sit on whole floors even when the bounds don't (fillViewport).
   const floors: WorldFloor[] = [];
   for (let h = Math.ceil(bounds.minY / floorM - 1e-9) * floorM; h <= Math.min(bounds.maxY, floorTopM) + 1e-9; h += floorM) {
-    floors.push({ y: yAt(h), elevationM: Math.round(h * 100) / 100, number: Math.round(h / floorM) });
+    floors.push({ y: yAt(h), elevationM: Math.round(h * 100) / 100, above: Math.round(h / floorM) });
   }
 
   return {

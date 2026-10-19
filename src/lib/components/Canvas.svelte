@@ -837,11 +837,11 @@
     }
   }
 
-  /** "piso 3 · 9 m": the floor first, since its label hides at a fitted zoom (UX.md §10.3 T3). */
+  /** "piso 4 · 9 m": the floor first, since its label hides at a fitted zoom (UX.md §10.3 T3). */
   const floorName = (m: number) => {
     const n = Math.round((m / floorM) * 1000) / 1000;
-    if (!Number.isInteger(n)) return m <= 0 ? `${m} m` : n < 1 ? `sobre planta baja · ${m} m` : `sobre piso ${Math.floor(n)} · ${m} m`;
-    return n === 0 ? "planta baja · 0 m" : n < 0 ? `${m} m` : `piso ${n} · ${m} m`;
+    if (!Number.isInteger(n)) return m <= 0 ? `${m} m` : n < 1 ? `sobre piso 1 · ${m} m` : `sobre piso ${Math.floor(n) + 1} · ${m} m`;
+    return n < 0 ? `${m} m` : `piso ${n + 1} · ${m} m`;
   };
   const sizeLabel = (d: number) => `${d.toString().replace(".5", "½").replace(".75", "¾")}″`;
   // Water particles (MODEL.md §3.7): one per GALLONS_PER_PARTICLE, moving at
@@ -1495,13 +1495,13 @@
       >
         <!-- Floors: bands, lines, labels -->
         {#each layout.floors as f (f.elevationM)}
-          {#if f.number > 0 && f.number % 2 === 1}
+          {#if f.above > 0 && f.above % 2 === 1}
             <rect class="band" x="0" y={f.y - floorM * PX_PER_M} width={layout.widthPx} height={floorM * PX_PER_M} />
           {/if}
         {/each}
         <rect class="ground" x="0" y={layout.groundY} width={layout.widthPx} height={layout.heightPx - layout.groundY} />
         {#each layout.floors as f (f.elevationM)}
-          {#if f.number > 0}
+          {#if f.above > 0}
             <line class="floor" x1="0" x2={layout.widthPx} y1={f.y} y2={f.y} stroke-width={k} />
           {/if}
         {/each}
@@ -1512,7 +1512,7 @@
           x={(camX + viewWidth) / zoom - 12 * k}
           y={layout.groundY + 64 * k}
           text-anchor="end"
-        >Planta baja · 0 m</text>
+        >Piso 1 · 0 m</text>
 
         <!-- Engine: tap to select the pump -->
         <g
@@ -1755,7 +1755,7 @@
 
                 <!-- The height axis (owner, 2026-10-16): pinned to the view's left edge, over the drawing (a halo keeps it legible on the truck), under the gauges, which float above it. -->
         {#each layout.floors as f (f.elevationM)}
-          {#if f.number > 0 && f.number % labelEvery === 0}<text class="floor-label axis" x={camX / zoom + 8 * k} y={f.y + 14 * k}>Piso {f.number} · {f.elevationM} m</text>{/if}
+          {#if f.above > 0 && f.above % labelEvery === 0}<text class="floor-label axis" x={camX / zoom + 8 * k} y={f.y + 14 * k}>Piso {f.above + 1} · {f.elevationM} m</text>{/if}
         {/each}
         <!-- Gauge tap targets stay under the nozzle, so its bale takes the tap; the dials are drawn after it (below). -->
         {#if showGauges}

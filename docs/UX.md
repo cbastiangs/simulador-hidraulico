@@ -46,9 +46,9 @@
   building: floor bands continue up, and a coupling or the nozzle can be
   dragged to any visible floor. The height does not change with the lay, so
   nothing jumps when editing. Floor labels
-  name every 1st, 2nd, 5th, 10th… floor, whichever keeps two labels at
-  least 22 px apart (owner, 2026-10-16; replaces hiding them all under
-  20 px, which left a phone with none); "Planta baja" is always named.
+  name every 1st, 2nd, 5th, 10th… floor above the street, whichever keeps
+  two labels at least 22 px apart (owner, 2026-10-16; replaces hiding them
+  all under 20 px, which left a phone with none); "Piso 1" is always named.
   **The labels are a height axis** (owner, 2026-10-16: gauges and labels
   fought for the same spot): pinned to the view's left edge so they stay
   while panning, never hidden for a gauge, drawn over the drawing with a
@@ -791,7 +791,7 @@ they know what to do, would they see how, would they understand the result?
 |---|---|---|
 | T1 1½″ vs 2½″ | Tapping a hose opens the sheet at peek, which can hide that hose; comparing means remembering the first number | ✅ The canvas scrolls the selection above the sheet (its stage grows by the covered height); A/B compare is M2 |
 | T2 gallonage ring | **Tapping the nozzle to select it also works the bale**, so looking at the ring shuts the line (0 gpm) | ✅ Tapping the nozzle only selects; the bale lever is its own target, drawn above the handle |
-| T3 3rd floor | At a fitted zoom floors are 12 px apart and their labels hide; the drag label says "9 m", not the floor | ✅ The drag label names the floor ("piso 3 · 9 m", "sobre piso 1 · 3.5 m"); the typed "± piso" stays |
+| T3 3rd floor | At a fitted zoom floors are 12 px apart and their labels hide; the drag label says "9 m", not the floor | ✅ The drag label names the floor ("piso 4 · 9 m", "sobre piso 2 · 3.5 m"); the typed "± piso" stays |
 | T4 build a maniobra | No blank line, so you start from a preset and edit; the nozzle model sits under "Ajustes avanzados" | "Línea en blanco" in the Escenario menu; model chips at the top of the nozzle's sheet |
 | T5 nozzle under its rating | The rating vs the actual pressure is only in the Conceptos card (sheet, full) | A rated-pressure mark on the nozzle's gauge, and a one-line note when it falls short |
 | T6 change one thing | Works; each change shows in the strip and the closed sheet's split bar | — |

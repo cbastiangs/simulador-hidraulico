@@ -57,7 +57,8 @@
   const last = $derived(scenario.sections.length - 1);
   const floorOf = (m: number) => {
     const n = Math.round((m / floorM) * 1000) / 1000;
-    return Number.isInteger(n) ? (n === 0 ? "planta baja" : `piso ${n}`) : `entre pisos (${n.toFixed(1)})`;
+    if (n < 0) return Number.isInteger(n) ? `piso ${n}` : `entre pisos (${n.toFixed(1)})`;
+    return Number.isInteger(n) ? `piso ${n + 1}` : `entre pisos (${(n + 1).toFixed(1)})`;
   };
   const specShort = (spec: (typeof NOZZLE_SPECS)[number]) =>
     spec.design === "open-end"

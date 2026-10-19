@@ -115,6 +115,12 @@ building's floor-to-floor height: the canvas's floor lines, snapping and
 "piso n" labels. Drawing only; the hydraulics use heights in metres.
 ## 5. Views and drawing rules
 
+**Floor numbering (owner, 2026-10-19):** the street floor is **piso 1** and
+the floor *h* metres up is piso *h* / `floorHeightM` + 1 — the Chilean usage,
+not the European "planta baja" with "piso n" above it. The canvas's height
+axis, the drag labels and the inspector's Altura note all follow it; the
+hydraulics keep elevations in metres (the "Floor height" field, §4).
+
 - **Side view = the editor, every line (owner, 2026-10-17).** Distance
   along the hose horizontal, height vertical; dragging the nozzle up writes
   its height. A branched lay draws all its lines: one edited line on top,
