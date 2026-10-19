@@ -514,7 +514,18 @@ compare), routes and obstacles (§10b), the top-down view (§5, parked).
    selectable").
    **Every number the app shows can name its source** (`references.ts`
    SOURCES; a "Fuentes" panel in the app).
-4. **Hosting and licence:** deferred.
+4. **Hosting and licence:** deferred. Until a PLAN §1 trigger fires the repo
+   stays private and all rights reserved: a `LICENSE` notice names the holder
+   and a contact, granting nothing (2026-10-19). `robots.txt` and a `noai`
+   meta disallow AI-training crawlers; both are advisory, and stop neither
+   scraping nor reverse engineering. A public noncommercial grant was
+   rejected while acquisition or public-sector adoption stays possible: once
+   published it cannot be revoked, and it can fail a public body's
+   procurement rules. Free use is granted case by case, privately, instead.
+   The notice claims only the original code, tests and docs; it disclaims
+   ownership of the hydraulic laws and of the CGBVP manual, IFSTA and DFPC
+   data, which stay with their sources — credit for the compilation, not
+   the material.
 
 ### Fittings and methods (owner, 2026-10-15)
 

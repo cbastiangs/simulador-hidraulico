@@ -88,11 +88,16 @@
         <span><strong>Grosor real de la manguera</strong><small>Sin exagerar: a zoom alejado casi no se ve.</small></span>
       </label>
     </section>
+
+    <section aria-labelledby="settings-about">
+      <h3 id="settings-about">Acerca de</h3>
+      <p class="about">© 2026 Sebastián Gonzales. Todos los derechos reservados sobre el código y la documentación originales. El modelo hidráulico se compila de fuentes públicas (manual CGBVP 2019, IFSTA, Colorado DFPC), que pertenecen a sus autores. Consultas sobre licencias: <a href="mailto:sebasgonsot@gmail.com">sebasgonsot@gmail.com</a>.</p>
+    </section>
   </div>
 </dialog>
 
 <style>
-  dialog { width: min(440px, calc(100% - 24px)); max-height: calc(100dvh - 24px); padding: 0; border: 0; border-radius: 14px; background: var(--surface); color: var(--ink); box-shadow: 0 16px 48px rgba(0, 0, 0, 0.3); }
+  dialog { width: min(440px, calc(100% - 24px)); max-height: calc(100dvh - 24px); overflow: auto; padding: 0; border: 0; border-radius: 14px; background: var(--surface); color: var(--ink); box-shadow: 0 16px 48px rgba(0, 0, 0, 0.3); }
   dialog::backdrop { background: rgba(0, 0, 0, 0.35); }
   .box { display: grid; gap: 18px; padding: 14px 16px 18px; }
   header { display: flex; align-items: center; justify-content: space-between; }
@@ -109,4 +114,6 @@
   .switch input { width: 22px; height: 22px; margin: 2px 0 0; accent-color: var(--accent); }
   .switch span { display: grid; gap: 2px; font-size: 14px; }
   .switch small { color: var(--muted); font-size: 12px; }
+  .about { margin: 0; font-size: 13px; line-height: 1.5; color: var(--muted); }
+  .about a { color: var(--accent); }
 </style>
