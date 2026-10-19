@@ -672,11 +672,40 @@ than a fog nozzle at 100 psi (185 gpm: 69 vs 93 lbf).
 
 ### 3.12 Extinguishment: `extinguish.fire-flow` ✅, `extinguish.absorption` ⏳ M5
 
-- Water from 20 °C to steam absorbs 4.18 × 80 + 2257 = **2591 kJ/kg ≈
-  2.6 MJ/kg** (`physics`; IAPWS [E6] for the latent heat).
-- 1 gpm = 0.0631 kg/s, so **full vaporisation absorbs ≈ 163 kW per gpm**.
-- Real fires vaporise only part of the water: absorbed = Q × 163 kW × η.
-  **η needs a source** (Särdqvist 2002; Grimwood) before shipping.
+- **Sourced reference thermodynamics (2026-10-19; not implemented).**
+  Liquid water at 20 °C to vapor at 100 °C, both at **101.325 kPa absolute**:
+  Δh = 2675.583 − 84.00730 = **2591.5757 kJ/kg**. Inlet density
+  998.2072 kg/m³ gives 0.06297709 kg/s per US gpm and **163.21 kW/US gpm**
+  (`physics`; numerical properties from [NIST WebBook](https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&ID=C7732185&Type=IsoBar&Digits=7&P=0.101325&THigh=100&TLow=20&TInc=80&RefState=DEF&TUnit=C&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=uPa*s&STUnit=N%2Fm),
+  formulation reference IAPWS [E6]). The earlier 4.18 × 80 + 2257 ≈
+  2591 kJ/kg and 163 kW/gpm are reasonable rounded descriptions.
+- This is **full-vaporization reference capacity**, an upper bound within
+  those specified endpoints, not measured effectiveness or an absolute
+  maximum for hotter steam. At this pressure saturation is 99.97430 °C.
+- Proposed adjusted comparison: capacity = applied solved Q ×
+  163.21 kW/gpm × `etaHeat`. **Heat-absorption effectiveness is not evaporated
+  fraction**: unevaporated water can accept sensible heat. No transferable
+  primary numerical η was verified. Särdqvist's English PDF text extraction
+  yielded no verified efficiency passage; the specific older citation remains
+  unchecked. Grimwood's primary PDF fetch failed. FSRI's no-fire water mapping
+  supplies distribution evidence, not thermal η. Recommendation: any future
+  adjusted calculation requires explicitly assumed or matched sourced η,
+  **with no default**; no coefficient is adopted here.
+- Available named **measured peak** HRRs from NIST's *Design Fires –
+  Residential and Office Items*: [Test017](https://www.nist.gov/el/fcd/design-fires-residential-and-office-items/test017)
+  conference chair B **0.447 MW**; [Test016](https://www.nist.gov/el/fcd/design-fires-residential-and-office-items/test016)
+  stackable chair A **0.621 MW**; [Test027](https://www.nist.gov/el/fcd/design-fires-residential-and-office-items/test027)
+  large armchair H **1.733 MW**; [Test029](https://www.nist.gov/el/fcd/design-fires-residential-and-office-items/test029)
+  modified loveseat + two pillows **1.984 MW**; [Test034](https://www.nist.gov/el/fcd/design-fires-residential-and-office-items/test034)
+  used sofa C + two pillows **4.021 MW**; [Test038](https://www.nist.gov/el/fcd/design-fires-residential-and-office-items/test038)
+  Mattress C + bedding + two pillows **4.563 MW**. These are open, fully
+  ventilated specimen/assembly experiments, not generic fires, sustained
+  loads or measured required flows; no product presets are selected.
+  Uncertainty, conditions, source-version discrepancies, access gaps and a
+  recommended pure API are in the
+  [research report](../reports/Extinguishment%20heat%20balance%20foundations.md).
+  A power difference or ratio supplies no extinction criterion, predicted
+  HRR reduction, fire dynamics or time-to-extinction claim.
 - The message the model must support: **flow sets the cooling capacity;
   pressure moves the flow and shapes the stream.**
 - Its own folder (`src/extinguishment/`), never imported by the hydraulics.
@@ -900,6 +929,7 @@ geometry or crashes (see AGENTS.md).
 | Monitor loss: use Elkhart's *total static pressure drop*, not friction loss alone (Python 299-11, friction only: 11/18/24 psi at 750/1000/1250 gpm) | `appliance.fixed` / monitor | M2–M4 | Elkhart catalog f9 05-43 and Python pressure-drop chart (read 2026-10-15) |
 | Eductor: Elkhart 240 water bypass 2/6/11 psig at 60/95/125 gpm; foam mode needs 200 psi in, ≤ 130 psi out (≥ 70 psi drop, inferred), not CGBVP's flat 40 | `appliance.fixed` / eductor | M4 | Elkhart manual 98069000 Rev A, pp. 2–3 (read 2026-10-15) |
 | Hydrant curve form | `supply.hydrant` | later | NFPA 291 [E8] |
-| Application efficiency η | `extinguish.absorption` | M5 | Särdqvist 2002; Grimwood |
-| Fire-preset heat release rates (MW) | `extinguish.absorption` | M5 | a published HRR source (to choose) |
+| Reference water enthalpy and capacity | `extinguish.absorption` | M5 (not implemented) | Sourced 2026-10-19: NIST water states, 20 °C liquid → 100 °C vapor at 101.325 kPa absolute; Δh 2591.5757 kJ/kg, 163.21 kW/US gpm (§3.12; [report](../reports/Extinguishment%20heat%20balance%20foundations.md)). Reference capacity, not measured effectiveness |
+| Heat-absorption effectiveness η (not evaporated fraction) | `extinguish.absorption` | M5 | Still unresolved: Särdqvist PDF retrieved but efficiency passage not extracted/verified; specific 1996 citation and edition/date unchecked; Grimwood primary PDF fetch failed. FSRI no-fire mapping is not thermal η. No numerical default adopted; future adjusted calculation should require explicit assumption or matched primary measurement ([report](../reports/Extinguishment%20heat%20balance%20foundations.md)) |
+| Specific measured peak HRR references (not generic fire presets) | `extinguish.absorption` | M5 (not implemented) | NIST Design Fires specimen/assembly Tests017/016/027/029/034/038: 0.447/0.621/1.733/1.984/4.021/4.563 MW (§3.12 links; [report](../reports/Extinguishment%20heat%20balance%20foundations.md) retains uncertainty/conditions). No sustained-load or product-preset selection; no extinguishing-flow/η evidence |
 | NFA fire-flow formula | `extinguish.fire-flow` | M5 (first) | verified 2026-10-16: NFA *Strategy and Tactics for Initial Company Operations* Student Manual 3rd ed (2016), SM2-28–30 (PDF pp. 102–103), Q = area_ft² / 3, 40 × 30 ft = 400 gpm; JIBC FIRE-1114 ch. 5 cross-check (same area at 25 % = 100 gpm) |

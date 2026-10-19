@@ -113,14 +113,36 @@ comparison, not a prediction of extinguishment.
 Not implemented. What the model needs before it can ship (MODEL.md §3.12,
 §9):
 
-1. **Application efficiency η.** Only part of the water is vaporised by a
-   real fire; absorbed = Q × 163 kW/gpm × η. η needs a traceable source
-   (Särdqvist 2002; Grimwood) — the number is not adopted yet.
-2. **Fire-preset heat release rates (MW).** A published, sourced HRR for each
-   fire size the screen offers. No source is chosen yet; without it the
-   "cooling capacity vs fire heat" bar would be a confident number on a weak
-   basis.
+1. **Application effectiveness η remains unresolved (2026-10-19).** Heat
+   accepted by water is not the same quantity as evaporated fraction:
+   unevaporated runoff can absorb sensible heat. Define `etaHeat` against a
+   specified full-vaporization enthalpy reference, target and interval.
+   NIST water states support **163.21 kW/US gpm** for liquid at 20 °C to
+   vapor at 100 °C, both at 101.325 kPa absolute; this is reference capacity,
+   not measured fireground effectiveness ([NIST query](https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&ID=C7732185&Type=IsoBar&Digits=7&P=0.101325&THigh=100&TLow=20&TInc=80&RefState=DEF&TUnit=C&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=uPa*s&STUnit=N%2Fm)).
+   No transferable primary numerical η was verified. Särdqvist's official
+   English PDF was retrieved but yielded no useful extracted text or verified
+   efficiency page; the specific 1996 citation and edition/date remain to
+   check. Grimwood's linked primary PDF fetch failed; its factors and pages
+   remain unverified. FSRI Part I measures no-fire water distribution, not
+   thermal η. The report below records direct links and access limitations.
+   Recommendation for a future pure API: require explicitly assumed or
+   definition-matched sourced η for adjusted capacity, **with no default**.
+2. **Specific measured HRR cases are available, not generic fire presets.**
+   NIST's *Design Fires – Residential and Office Items* supplies named
+   open, fully ventilated specimen/assembly **peaks**: Test017 0.447 MW,
+   Test016 0.621 MW, Test027 1.733 MW, Test029 1.984 MW, Test034 4.021 MW,
+   and Test038 4.563 MW ([NIST project](https://www.nist.gov/el/fcd/design-fires-residential-and-office-items)).
+   The report retains individual sources, uncertainty, construction and test
+   conditions. These are not sustained loads, generic chair/sofa/room fires,
+   or measured extinguishing flows. No product preset selection is made.
 3. **How the two sit together.** Per ROADMAP §11 decision 8, the convention
    (`extinguish.fire-flow`) says what you need and the physics
    (`extinguish.absorption`) says why; the physics ships later, beside the
    convention, once 1 and 2 are sourced.
+
+Research synthesis and proposed math-only API:
+[`Extinguishment heat balance foundations`](../reports/Extinguishment%20heat%20balance%20foundations.md)
+(2026-10-19). Equality of adjusted capacity and a reference HRR is only a
+power comparison, not an extinction criterion, predicted HRR reduction or
+time-to-extinction model. `extinguish.absorption` remains unimplemented.
