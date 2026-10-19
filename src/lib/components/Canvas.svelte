@@ -239,6 +239,9 @@
   const hoseWidth = (thicknessPx: number, diameterIn: number) =>
     trueScale ? Math.max(diameterIn * 0.0254 * PX_PER_M, k) : Math.max(thicknessPx, 3 * k);
 
+  /** A thin black outline around every hose (screen px) so stacked lays read apart. */
+  const HOSE_BORDER = 1.
+
   // A gauge tapped for its reading (Inspect, UX.md §10.1): read-only.
   let inspected = $state<number | null>(null);
   $effect(() => {
@@ -1549,6 +1552,7 @@
               {@const q = sectionFlow(o.result, h.index)}
               {@const p = q > 0.5 ? particles(sec.diameterIn, q) : null}
               {#if peeked}<path class="peek-outline" {d} stroke-width={hoseWidth(h.thicknessPx, sec.diameterIn) + 6 * k} />{/if}
+              <path class="hose-outline" {d} stroke-width={hoseWidth(h.thicknessPx, sec.diameterIn) + 2 * HOSE_BORDER * k} />
               <path class="hose" class:idle={!p} {d} stroke-width={hoseWidth(h.thicknessPx, sec.diameterIn)} />
               {#if p}<path class="particles" {d} stroke-width={Math.max(2, hoseWidth(h.thicknessPx, sec.diameterIn) * 0.3)} style:--offset="0px" style:--gap={`${p.gapPx}px`} style:--period={`${p.seconds}s`} use:waterPhase />{/if}
               <path
@@ -1606,6 +1610,7 @@
         {#each drawing.hoses as hd (hd.index)}
           {@const s = scenario.sections[hd.index]}
           {@const lbl = hoseLabels[hd.index]}
+          <path class="hose-outline" d={hd.d} stroke-width={hd.width + 2 * HOSE_BORDER * k} />
           <path class="hose" d={hd.d} stroke-width={hd.width} />
           {#if hd.gapPx > 0}
             <path
@@ -2110,6 +2115,7 @@
   .toast { padding: 6px 12px; border-radius: 8px; background: var(--ink); color: var(--bg); font-size: 13px; pointer-events: none; }
   .missing text { fill: #fff; font-size: 14px; font-weight: 800; text-anchor: middle; }
   .hose { stroke: var(--hose); stroke-linecap: butt; fill: none; }
+  .hose-outline { stroke: #000; stroke-linecap: butt; fill: none; pointer-events: none; }
   .particles { fill: none; stroke: #fff; stroke-opacity: 0.85; stroke-linecap: round; stroke-dasharray: 0 var(--gap); animation: water var(--period) linear infinite; pointer-events: none; }
   @keyframes water {
     from { stroke-dashoffset: var(--offset, 0px); }
