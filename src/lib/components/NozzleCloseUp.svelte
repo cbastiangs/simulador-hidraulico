@@ -2,6 +2,7 @@
   import { Tween } from "svelte/motion";
   import type { ScenarioNozzle } from "$hydraulics/scenario.ts";
   import { anatomyOf } from "$lib/nozzle-anatomy.ts";
+  import { silhouetteOf } from "$lib/nozzle-silhouettes.ts";
 
   // The nozzle's Close-up (UX.md §10.1 Operate, Close-up): drawn large and
   // worked like the real one. The model's anatomy (nozzle-anatomy.ts) decides
@@ -29,6 +30,8 @@
   const reduced = typeof matchMedia !== "undefined" && matchMedia("(prefers-reduced-motion: reduce)").matches;
   const ms = (d: number) => (reduced ? 0 : d);
   const anatomy = $derived(anatomyOf(nozzle));
+  // The model's own static silhouette; null keeps the generic handline shape.
+  const silhouette = $derived(silhouetteOf(nozzle));
 
   // Seen from above, hose on the left, tip on the right.
   // Bale: a U pivoting on both sides of the valve body; pushed forward (toward
@@ -177,19 +180,27 @@
     {/if}
     {#if nozzle.open && flowGpm > 0}<text class="flow" x="392" y="168">{flowGpm.toFixed(0)} gpm</text>{/if}
 
-    <!-- Hose, inlet swivel with its rocker lugs, valve body, barrel. -->
+    <!-- Hose, then the model's own static silhouette — inlet swivel with its
+         lugs, valve body, barrel, grip — or the generic handline when the
+         model is not one of the researched ones. -->
     <rect class="hose" x="0" y="77" width="38" height="22" />
     <text class="tag" x="4" y="132">Manguera</text>
-    <rect class="lug" x="43" y="64" width="14" height="8" rx="2" />
-    <rect class="lug" x="43" y="104" width="14" height="8" rx="2" />
-    <rect class="swivel" x="36" y="70" width="28" height="36" rx="4" />
-    {#each [44, 50, 56] as x (x)}<line class="knurl" x1={x} y1="72" x2={x} y2="104" />{/each}
-    <!-- The pistol grip, under the valve body (drawn first, so the body hides its top). -->
-    {#if anatomy.grip}
-      <path class="grip2" d="M 80 100 C 72 124 78 138 92 142 L 104 142 C 116 136 118 114 110 100 Z" />
+    {#if silhouette}
+      {#each silhouette as p, i (i)}
+        <path class={p.role === "grip" ? "grip2" : p.role} d={p.d} />
+      {/each}
+    {:else}
+      <rect class="lug" x="43" y="64" width="14" height="8" rx="2" />
+      <rect class="lug" x="43" y="104" width="14" height="8" rx="2" />
+      <rect class="swivel" x="36" y="70" width="28" height="36" rx="4" />
+      {#each [44, 50, 56] as x (x)}<line class="knurl" x1={x} y1="72" x2={x} y2="104" />{/each}
+      <!-- The pistol grip, under the valve body (drawn first, so the body hides its top). -->
+      {#if anatomy.grip}
+        <path class="grip2" d="M 80 100 C 72 124 78 138 92 142 L 104 142 C 116 136 118 114 110 100 Z" />
+      {/if}
+      <rect class="body" x="64" y="73" width="66" height="30" rx="7" />
+      <rect class="barrel" x={barrelFrom} y="79" width={282 - barrelFrom} height="18" />
     {/if}
-    <rect class="body" x="64" y="73" width="66" height="30" rx="7" />
-    <rect class="barrel" x={barrelFrom} y="79" width={282 - barrelFrom} height="18" />
 
     <!-- Gallonage ring: its numbers roll past the mark as it turns. -->
     {#if anatomy.flow === "ring"}
@@ -351,7 +362,7 @@
 <style>
   .closeup { display: grid; gap: 8px; }
   svg { width: 100%; height: auto; background: var(--band); border-radius: 12px; touch-action: none; user-select: none; }
-  .spray, .core, .flow, .tag, .hose, .lug, .swivel, .knurl, .body, .barrel, .grip2, .ring-body, .ring-num, .mark, .collar, .rib, .tooth, .tooth-rubber, .shadow, .pin, .slide-rail, .index, .pressure-half { pointer-events: none; }
+  .spray, .core, .flow, .tag, .hose, .lug, .swivel, .knurl, .body, .barrel, .grip2, .trim, .ring-body, .ring-num, .mark, .collar, .rib, .tooth, .tooth-rubber, .shadow, .pin, .slide-rail, .index, .pressure-half { pointer-events: none; }
   .spray { fill: var(--water-soft); opacity: 0.8; }
   .core { fill: var(--water); opacity: 0.6; }
   .flow { font-size: 12px; font-weight: 700; text-anchor: end; fill: var(--water); font-variant-numeric: tabular-nums; }
@@ -362,6 +373,7 @@
   .body { fill: #c0392b; }
   .barrel { fill: #8f989f; }
   .grip2 { fill: #2b2f33; }
+  .trim { fill: #2b2f33; }
   .ring-body { fill: #c9ced3; stroke: var(--steel); stroke-width: 1.5; }
   .ring-num { font-size: 13px; font-weight: 700; text-anchor: middle; fill: #4a535c; font-variant-numeric: tabular-nums; }
   .ring-num.now { fill: #111; }
