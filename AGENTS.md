@@ -81,14 +81,18 @@ the guardrail in `compatibility-vs-physics.md`.
 | `pnpm test` | the hydraulic laws against published tables |
 | `pnpm typecheck` | engine and app type-check (`svelte-check`) |
 | `pnpm build` | the app prerenders to static files in `build/` |
+| `pnpm dev` + `pnpm shot URL FILE` | UI work looked at in a browser: a screenshot at 390 and 1024 px |
 
 **Test budget:** tests exist to catch wrong numbers that look right. One
 test per law per source, against published tables or hand arithmetic. No
 tests for UI, geometry or crashes (those are visible); no test repeating
 what another proves.
 
-No database, no Docker. Before handing work back, run all three. `pnpm dev`
-serves the app locally.
+No database, no Docker. Before handing work back, run all three. UI work
+also gets its screenshots (e.g.
+`pnpm shot --viewport-size=390,844 http://localhost:5173/ /tmp/opencode/390.png`).
+`pnpm dev` serves the app locally; the model contact sheet is `pnpm dev`'s
+`/boquillas` (UX.md §3.1).
 
 ## Commits
 
