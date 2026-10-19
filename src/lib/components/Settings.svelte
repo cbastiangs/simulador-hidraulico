@@ -91,7 +91,7 @@
 
     <section aria-labelledby="settings-about">
       <h3 id="settings-about">Acerca de</h3>
-      <p class="about">© 2026 Sebastián Gonzales. Todos los derechos reservados sobre el código y la documentación originales. El modelo hidráulico se compila de fuentes públicas (manual CGBVP 2019, IFSTA, Colorado DFPC), que pertenecen a sus autores. Consultas sobre licencias: <a href="mailto:sebasgonsot@gmail.com">sebasgonsot@gmail.com</a>.</p>
+      <p class="about">© 2026 Sebastián Gonzales. Todos los derechos reservados sobre el código y la documentación originales. El modelo hidráulico se compila de fuentes citadas en cada valor (manual CGBVP 2019, Colorado DFPC y otras), que pertenecen a sus autores. Consultas sobre licencias: <a href="mailto:sebasgonsot@gmail.com">sebasgonsot@gmail.com</a>.</p>
     </section>
   </div>
 </dialog>

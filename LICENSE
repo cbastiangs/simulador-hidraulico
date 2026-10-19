@@ -16,11 +16,10 @@ source code, its tests, and its documentation.
 
 It does not cover, and no ownership is claimed over, the hydraulic laws,
 formulas, constants and other facts those documents state, nor the
-published sources the model is compiled from — the CGBVP 2019 manual,
-IFSTA material, the Colorado DFPC chart and the like. Those belong to
-their respective authors and publishers. They are used here as public
-reference sources, and every value names its source in
-`src/hydraulics/references.ts` and `docs/MODEL.md`.
+sources the model is compiled from. Those belong to their respective
+authors and publishers, and each one is named where it is used — in
+`src/hydraulics/references.ts` and `docs/MODEL.md`, with its title,
+publisher and, where it is openly online, its URL.
 
-What is claimed for the model is the credit for compiling it from freely
-available public sources, not ownership of that material.
+What is claimed for the model is the credit for compiling it from
+published sources, not ownership of that material.

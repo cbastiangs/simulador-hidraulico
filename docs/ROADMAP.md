@@ -523,9 +523,12 @@ compare), routes and obstacles (§10b), the top-down view (§5, parked).
    published it cannot be revoked, and it can fail a public body's
    procurement rules. Free use is granted case by case, privately, instead.
    The notice claims only the original code, tests and docs; it disclaims
-   ownership of the hydraulic laws and of the CGBVP manual, IFSTA and DFPC
-   data, which stay with their sources — credit for the compilation, not
-   the material.
+   ownership of the hydraulic laws and of the sources the model compiles,
+   which stay with their authors — credit for the compilation, not the
+   material. Sources must be described accurately: the Colorado DFPC chart,
+   TFT and Temecula material are openly online, but the CGBVP 2019 manual
+   is a training document, not openly published, and IFSTA was never
+   inspected and is not used.
 
 ### Fittings and methods (owner, 2026-10-15)
 
