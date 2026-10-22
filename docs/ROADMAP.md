@@ -294,8 +294,12 @@ Dropped (owner, 2026-10-14): no published source gives a kink's loss.
 Its own folder (`src/extinguishment/`), never imported by the hydraulics.
 
 - Water heated 20→100 °C and boiled absorbs ~2.6 MJ/kg, so ~160 kW per gpm
-  at full vaporisation. The application efficiency needs a traceable source
-  before shipping (Särdqvist 2002; Grimwood).
+  at full vaporisation. No measured fireground application efficiency has
+  been verified; the common 0.2 is Särdqvist 1996 pp. 55–56, an assumption
+  on a 10.8 MJ/kg (3.6 × 3) flame-extinction capacity, not the 2002 book and
+  not a 20% evaporation/contact fraction. Any η must be an explicit scenario
+  assumption or a narrowly matched measurement, **never a default**
+  ([audit](../reports/Water%20application%20efficiency%20audit.md)).
 - The message: flow sets the cooling capacity; pressure moves the flow and
   shapes the stream.
 
@@ -310,7 +314,7 @@ Options for the law, not exclusive (a method bundle can pick one):
 
 | | Law | Needs before shipping | Fits |
 |---|---|---|---|
-| A. Heat balance | cooling = Q × 163 kW/gpm × η vs a fire's heat release (MW) | η (Särdqvist 2002; Grimwood); sourced HRR for each fire preset | `physical` |
+| A. Heat balance | cooling = Q × 163 kW/gpm × η vs a fire's heat release (MW) | explicit η with no default (no measured fireground value; Särdqvist 1996 pp. 55–56 assumption, Barnett/Grimwood design factors); sourced HRR for each fire preset | `physical` |
 | B. Fire-flow convention | required gpm from fire size: NFA (area ft² / 3 × fraction involved); Iowa (volume ft³ / 100) not planned | NFA verified against its publication (2026-10-16: NFA *Initial Company Operations* SM, SM2-28–30); no η | `us-training` / a training label; a "caudal requerido" mark on the flow gauge |
 
 Out of scope either way: time to knockdown, fire dynamics, quantified reach
@@ -385,7 +389,7 @@ paño, bifurco, desnivel).
 | **M2 Nozzles** | Nozzle kinds and reaction; A/B compare | Smooth bore vs fog |
 | **M3 Trucks** | Truck files, capacity envelope, several outlets with valves, governor, tank; pump × system chart | Pump capacity |
 | **M4 Branching** | Wyes, appliances, couplings; presets from station maniobras | Diameter and couplings in real lays |
-| **M5 Extinguishment** | §7.6: NFA fire flow first (after §10c, ahead of M2), heat balance once η is sourced | GPM extinguishes |
+| **M5 Extinguishment** | §7.6: NFA fire flow first (after §10c, ahead of M2), heat balance with an explicit η basis and no default | GPM extinguishes |
 | **M6 Aerial** | §8 | Tipping margin vs load chart |
 | Later | Two pumps (7.7), hydrant and drafting, station data from fd-app, lessons as annotated presets | |
 
@@ -589,8 +593,10 @@ compare), routes and obstacles (§10b), the top-down view (§5, parked).
    - **Later: heat balance (A)** beside it, as `physical` sits beside
      `cgbvp-2019`: the convention says what you need, the physics says why
      (each gpm absorbs a fixed heat; pressure absorbs none). Waits for a
-     sourced η and fire heat release rates; shown alone it would be a
-     confident number on a weak basis.
+     scenario-specific η with a declared basis (or a narrowly matched
+     measurement) and fire heat release rates; **no default η is adopted**;
+     shown alone it would be a confident number on a weak basis
+     ([audit](../reports/Water%20application%20efficiency%20audit.md)).
 
 Still wanted: M11-1 and M11-5 pump plates, the nozzles carried, hose sizes
 and couplings, PLT-11's load chart.

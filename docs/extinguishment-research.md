@@ -3,12 +3,57 @@
 > 2026-10-16. Sources, scope and arithmetic behind the extinguishment engine
 > (`src/extinguishment/`) and the law `extinguish.fire-flow` (MODEL.md §3.12,
 > ROADMAP §7.6 / §11 decision 8). The heat balance
-> (`extinguish.absorption`) is still waiting on sources and is not implemented;
-> its open questions are at the end.
+> (`extinguish.absorption`) is audited but not implemented; its open questions
+> are at the end.
 
 This is a research record, not a model of fire. It fixes what the NFA
 fire-flow formula is, what it is not, and the exact arithmetic the engine
 reproduces, so code and tests rest on a traceable source rather than memory.
+
+## 0. Status (2026-10-22)
+
+**Implemented, math only** (`src/extinguishment/`, no screen or scenario
+wiring):
+
+- `extinguish.fire-flow`: NFA required flow, `Q = A_ft² / 3 × f`, one fully
+  involved floor (§1–§3).
+- `compareNfaFireFlow`: delivered-versus-required margin, deficit and
+  coverage ratio. It reports a comparison, never an extinguishing verdict
+  (§4).
+- Tests: `tests/extinguishment.test.mjs`; the module boundary is enforced in
+  `tests/boundaries.test.mjs`.
+
+**Audited, not implemented** (`extinguish.absorption`):
+
+- Reference thermodynamics: 20 °C liquid to 100 °C vapor at 101.325 kPa
+  absolute absorbs 2591.5757 kJ/kg → **163.21 kW per US gpm** at full
+  vaporization. This is a declared-endpoint reference capacity, not measured
+  fireground effectiveness ([NIST WebBook](https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&ID=C7732185&Type=IsoBar&Digits=7&P=0.101325&THigh=100&TLow=20&TInc=80&RefState=DEF&TUnit=C&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=uPa*s&STUnit=N%2Fm)).
+- Six named NIST *Design Fires* measured **peak** HRRs (0.447–4.563 MW),
+  tied to exact specimens and open, fully ventilated tests, not generic fire
+  sizes. Documentation: `MODEL.md` §3.12 and the
+  [foundations report](../reports/Extinguishment%20heat%20balance%20foundations.md).
+- The `etaHeat` accounting distinction: heat-absorption effectiveness is
+  **not** evaporated fraction, because runoff can absorb sensible heat.
+- **Primary-source audit completed 2026-10-22.** The commonly cited 0.2 is
+  Särdqvist 1996 pp. 55–56, a planning assumption applied to a **10.8 MJ/kg**
+  flame-extinction capacity (3.6 × 3), not the 2002 book and not a 20%
+  evaporation/contact fraction. The 2002 book gives no numeric water
+  efficiency and says `c_w` has no data. 0.32/0.50/0.75 are design
+  assumptions/calibrations (Barnett 1992, TP 2004/1, Grimwood); 0.385 L/s/MW
+  is a flow factor; the 20% contact figure is an unverified Särdqvist &
+  Holmstedt 2001 claim. The only controlled dataset is NISTIR 4625 (four
+  small-room tests), from which Särdqvist derived 0.11/0.24/0.29 against an
+  extinction capacity already assuming ~30–35% of fire heat removed; ~0.3 is
+  his stated upper limit, not a general efficiency. No transferable measured
+  fireground fraction was found. Sources, pages and access limits:
+  [audit](../reports/Water%20application%20efficiency%20audit.md).
+
+**Open:** no default `etaHeat` is adopted. Any adjusted capacity must require
+an explicitly assumed or definition-matched sourced η, with no hidden value;
+equality of cooling power and fire power is not an extinction criterion. Any
+later preset needs a matched water-side heat balance or must remain a labelled
+scenario assumption.
 
 ## 1. Sources
 
@@ -113,21 +158,31 @@ comparison, not a prediction of extinguishment.
 Not implemented. What the model needs before it can ship (MODEL.md §3.12,
 §9):
 
-1. **Application effectiveness η remains unresolved (2026-10-19).** Heat
-   accepted by water is not the same quantity as evaporated fraction:
+1. **Application effectiveness η: audited, still unresolved (2026-10-22).**
+   Heat accepted by water is not the same quantity as evaporated fraction:
    unevaporated runoff can absorb sensible heat. Define `etaHeat` against a
    specified full-vaporization enthalpy reference, target and interval.
    NIST water states support **163.21 kW/US gpm** for liquid at 20 °C to
    vapor at 100 °C, both at 101.325 kPa absolute; this is reference capacity,
    not measured fireground effectiveness ([NIST query](https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&ID=C7732185&Type=IsoBar&Digits=7&P=0.101325&THigh=100&TLow=20&TInc=80&RefState=DEF&TUnit=C&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=uPa*s&STUnit=N%2Fm)).
-   No transferable primary numerical η was verified. Särdqvist's official
-   English PDF was retrieved but yielded no useful extracted text or verified
-   efficiency page; the specific 1996 citation and edition/date remain to
-   check. Grimwood's linked primary PDF fetch failed; its factors and pages
-   remain unverified. FSRI Part I measures no-fire water distribution, not
-   thermal η. The report below records direct links and access limitations.
-   Recommendation for a future pure API: require explicitly assumed or
-   definition-matched sourced η for adjusted capacity, **with no default**.
+   **No transferable measured fireground η was found.** The cited 0.2 is
+   Särdqvist 1996 pp. 55–56, an assumption applied to a 10.8 MJ/kg
+   flame-extinction capacity (3.6 × 3), not a 2002-book value and not a 20%
+   evaporation/contact fraction. The 2002 book gives no numeric water
+   efficiency and says `c_w` has no data. 0.32/0.50/0.75 are design
+   assumptions/calibrations (Barnett 1992, TP 2004/1, Grimwood); 0.385 L/s/MW
+   is a flow factor; the 20% contact figure is an unverified Särdqvist &
+   Holmstedt 2001 claim. The only controlled dataset, NISTIR 4625's four
+   small-room tests, yields Särdqvist-derived 0.11/0.24/0.29 against an
+   extinction capacity already assuming ~30–35% of fire heat removed; ~0.3 is
+   his stated upper limit, not a general efficiency. Measured and modelled
+   evidence covers stairwell gas cooling (~0.03 or less evaporated), water-mist
+   heat absorption (40–70%, mean 53%), or SHAR including runoff sensible heat
+   (>0.7 in 1991, >0.3 in 1995); none is a fireground suppression efficiency.
+   The [audit](../reports/Water%20application%20efficiency%20audit.md) records
+   sources, pages and access limits. Recommendation for a future pure API:
+   require explicitly assumed or definition-matched sourced η for adjusted
+   capacity, **with no default**.
 2. **Specific measured HRR cases are available, not generic fire presets.**
    NIST's *Design Fires – Residential and Office Items* supplies named
    open, fully ventilated specimen/assembly **peaks**: Test017 0.447 MW,
@@ -139,7 +194,8 @@ Not implemented. What the model needs before it can ship (MODEL.md §3.12,
 3. **How the two sit together.** Per ROADMAP §11 decision 8, the convention
    (`extinguish.fire-flow`) says what you need and the physics
    (`extinguish.absorption`) says why; the physics ships later, beside the
-   convention, once 1 and 2 are sourced.
+   convention, once an η basis is declared or narrowly matched and 2's
+   references are selected.
 
 Research synthesis and proposed math-only API:
 [`Extinguishment heat balance foundations`](../reports/Extinguishment%20heat%20balance%20foundations.md)

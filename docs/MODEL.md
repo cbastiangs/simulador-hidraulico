@@ -684,13 +684,23 @@ than a fog nozzle at 100 psi (185 gpm: 69 vs 93 lbf).
   maximum for hotter steam. At this pressure saturation is 99.97430 °C.
 - Proposed adjusted comparison: capacity = applied solved Q ×
   163.21 kW/gpm × `etaHeat`. **Heat-absorption effectiveness is not evaporated
-  fraction**: unevaporated water can accept sensible heat. No transferable
-  primary numerical η was verified. Särdqvist's English PDF text extraction
-  yielded no verified efficiency passage; the specific older citation remains
-  unchecked. Grimwood's primary PDF fetch failed. FSRI's no-fire water mapping
-  supplies distribution evidence, not thermal η. Recommendation: any future
-  adjusted calculation requires explicitly assumed or matched sourced η,
-  **with no default**; no coefficient is adopted here.
+  fraction**: unevaporated water can accept sensible heat. **No transferable
+  measured fireground η was found (2026-10-22 audit).** The commonly cited 0.2
+  is Särdqvist 1996 pp. 55–56, a planning assumption applied to a
+  10.8 MJ/kg flame-extinction capacity (3.6 × 3), not the 2002 book and not a
+  20% evaporation or contact fraction; the 2002 book gives no numeric water
+  efficiency and says `c_w` has no data. 0.32/0.50/0.75 are design
+  assumptions/calibrations (Barnett 1992, TP 2004/1, Grimwood); 0.385 L/s/MW
+  is a flow factor; the 20% contact figure is an unverified Särdqvist &
+  Holmstedt 2001 claim. The only controlled dataset, NISTIR 4625's four
+  small-room tests, yields Särdqvist-derived 0.11/0.24/0.29 against an
+  extinction capacity already assuming ~30–35% of fire heat removed; ~0.3 is
+  his stated upper limit, not a general efficiency. FSRI's no-fire water
+  mapping remains distribution evidence, not thermal η. Recommendation: any
+  future adjusted calculation requires an explicitly assumed or narrowly
+  matched sourced η, **with no default**; no coefficient is adopted here.
+  Sources, pages and access limits:
+  [audit](../reports/Water%20application%20efficiency%20audit.md).
 - Available named **measured peak** HRRs from NIST's *Design Fires –
   Residential and Office Items*: [Test017](https://www.nist.gov/el/fcd/design-fires-residential-and-office-items/test017)
   conference chair B **0.447 MW**; [Test016](https://www.nist.gov/el/fcd/design-fires-residential-and-office-items/test016)
@@ -930,6 +940,6 @@ geometry or crashes (see AGENTS.md).
 | Eductor: Elkhart 240 water bypass 2/6/11 psig at 60/95/125 gpm; foam mode needs 200 psi in, ≤ 130 psi out (≥ 70 psi drop, inferred), not CGBVP's flat 40 | `appliance.fixed` / eductor | M4 | Elkhart manual 98069000 Rev A, pp. 2–3 (read 2026-10-15) |
 | Hydrant curve form | `supply.hydrant` | later | NFPA 291 [E8] |
 | Reference water enthalpy and capacity | `extinguish.absorption` | M5 (not implemented) | Sourced 2026-10-19: NIST water states, 20 °C liquid → 100 °C vapor at 101.325 kPa absolute; Δh 2591.5757 kJ/kg, 163.21 kW/US gpm (§3.12; [report](../reports/Extinguishment%20heat%20balance%20foundations.md)). Reference capacity, not measured effectiveness |
-| Heat-absorption effectiveness η (not evaporated fraction) | `extinguish.absorption` | M5 | Still unresolved: Särdqvist PDF retrieved but efficiency passage not extracted/verified; specific 1996 citation and edition/date unchecked; Grimwood primary PDF fetch failed. FSRI no-fire mapping is not thermal η. No numerical default adopted; future adjusted calculation should require explicit assumption or matched primary measurement ([report](../reports/Extinguishment%20heat%20balance%20foundations.md)) |
+| Heat-absorption effectiveness η (not evaporated fraction) | `extinguish.absorption` | M5 | **Audited 2026-10-22; no default adopted.** The cited 0.2 is Särdqvist 1996 pp. 55–56, applied to a 10.8 MJ/kg flame-extinction capacity (3.6 × 3), not the 2002 book and not a 20% evaporation/contact fraction. The 2002 book gives no numeric water efficiency and says `c_w` has no data. 0.32/0.50/0.75 are design assumptions/calibrations (Barnett 1992, TP 2004/1, Grimwood); 0.385 L/s/MW is a flow factor; the 20% contact figure is an unverified Särdqvist & Holmstedt 2001 claim. NISTIR 4625's four small-room tests give Särdqvist-derived 0.11/0.24/0.29 against an extinction capacity already assuming ~30–35% of fire heat removed; ~0.3 is an upper limit, not general efficiency. Future adjusted capacity requires an explicit assumption or narrowly matched measurement ([audit](../reports/Water%20application%20efficiency%20audit.md)) |
 | Specific measured peak HRR references (not generic fire presets) | `extinguish.absorption` | M5 (not implemented) | NIST Design Fires specimen/assembly Tests017/016/027/029/034/038: 0.447/0.621/1.733/1.984/4.021/4.563 MW (§3.12 links; [report](../reports/Extinguishment%20heat%20balance%20foundations.md) retains uncertainty/conditions). No sustained-load or product-preset selection; no extinguishing-flow/η evidence |
 | NFA fire-flow formula | `extinguish.fire-flow` | M5 (first) | verified 2026-10-16: NFA *Strategy and Tactics for Initial Company Operations* Student Manual 3rd ed (2016), SM2-28–30 (PDF pp. 102–103), Q = area_ft² / 3, 40 × 30 ft = 400 gpm; JIBC FIRE-1114 ch. 5 cross-check (same area at 25 % = 100 gpm) |
