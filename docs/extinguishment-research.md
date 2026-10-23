@@ -4,7 +4,7 @@
 > (`src/extinguishment/`) and the law `extinguish.fire-flow` (MODEL.md §3.12,
 > ROADMAP §7.6 / §11 decision 8). The heat balance
 > (`extinguish.absorption`) is built as reference math with no default η; its
-> open questions are at the end.
+> final synthesis and open questions are at the end.
 
 This is a research record, not a model of fire. It fixes what the NFA
 fire-flow formula is, what it is not, and the exact arithmetic the engine
@@ -200,9 +200,31 @@ model still needs before a screen or scenario uses it (MODEL.md §3.12, §9):
    its screen ships later, beside the convention, once an η basis is declared
    or narrowly matched and 2's references are selected.
 
-Research synthesis and the math-only API:
-[`Extinguishment heat balance foundations`](../reports/Extinguishment%20heat%20balance%20foundations.md)
-(2026-10-19). Equality of adjusted capacity and a reference HRR is only a
-power comparison, not an extinction criterion, predicted HRR reduction or
-time-to-extinction model. `extinguish.absorption` is implemented as
-math-only reference; it still has no default η and no extinguishing verdict.
+## 6. Final synthesis
+
+The two laws answer different questions and stay separate. `extinguish.fire-flow`
+is a verified training convention: it turns one floor's area and involvement
+into a required flow and compares it with the delivered flow. It is not a heat
+model, and a coverage ratio of 1 is not an extinguishing verdict.
+
+`extinguish.absorption` is a physical reference: 163.21 kW per US gpm for
+liquid at 20 °C to vapor at 100 °C at 101.325 kPa absolute. The engine exposes
+the ideal capacity and an adjusted comparison only when the caller supplies an
+η with provenance. There is no default η, including no implicit 1, and no
+residual-HRR, safe-state or knockdown prediction.
+
+The efficiency audit's decisive result is negative: no transferable measured
+fireground η was found. The common 0.2 is Särdqvist's 1996 planning assumption
+on a tripled 10.8 MJ/kg extinction denominator, not a 20 % evaporation or
+contact fraction. The narrow NISTIR 4625-derived ratios (0.11/0.24/0.29, with
+about 0.3 as Särdqvist's upper limit) and the modern gas-cooling, water-mist
+and SHAR evidence measure different quantities and do not supply a general
+fireground efficiency.
+
+Consequently the engine keeps the reference and the convention separate,
+requires every adjusted result to carry its η and provenance, and declines to
+adopt a default efficiency. Screen work and fire presets remain open until a
+matched water-side heat balance or an explicitly declared scenario assumption
+is selected. Sources and access limits:
+[audit report](../reports/Water%20application%20efficiency%20audit.md);
+[foundations report](../reports/Extinguishment%20heat%20balance%20foundations.md).
