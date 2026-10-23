@@ -1,3 +1,6 @@
 node_modules/
 .svelte-kit/
 build/
+
+# nozzle reference raw cache (full scrapes/PDFs; kept local, not committed)
+docs/reference/nozzles/raw/
