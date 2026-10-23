@@ -1,5 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import {
+  compareHeatReference,
+  referenceCoolingCapacityKw,
+} from "../src/extinguishment/absorption.ts";
 import { calculateNfaFireFlow, compareNfaFireFlow } from "../src/extinguishment/fire-flow.ts";
 
 // Expected values are worked by hand or read from the printed source, never
@@ -59,4 +63,55 @@ test("extinguish.fire-flow: NFA required flow and the delivered-flow comparison 
   near(dry.marginGpm, -100);
   near(dry.deficitGpm, 100);
   near(dry.coverageRatio, 0);
+});
+
+test("extinguish.absorption: full-vaporization reference and explicit η comparison (MODEL.md §3.12)", () => {
+  // NIST water states: 2591.5757 kJ/kg from 20 °C liquid to 100 °C vapor at
+  // 101.325 kPa absolute; 998.2072 kg/m³; 3.785411784 L/US gal; 60 s/min.
+  // One gpm is therefore 0.0629770883 kg/s and 163.2098917 kW at full
+  // vaporization; 100 gpm is 16,320.9891684 kW.
+  near(referenceCoolingCapacityKw(0), 0);
+  near(referenceCoolingCapacityKw(1), 163.20989168439348);
+  near(referenceCoolingCapacityKw(100), 16_320.989168439348);
+
+  // The report's illustrative assumption, not a sourced fireground value:
+  // 100 gpm at η = 0.10 against Test034's 4021 kW measured peak.
+  const etaHeat = {
+    value: 0.1,
+    basis: "assumed",
+    rationale: "Illustrative arithmetic only; not a fireground measurement.",
+  };
+  const comparison = compareHeatReference({
+    deliveredAppliedFlowGpm: 100,
+    referenceHrrKw: 4021,
+    etaHeat,
+  });
+  assert.equal(comparison.lawId, "extinguish.absorption");
+  assert.equal(comparison.classification, "physical");
+  assert.equal(comparison.sourceId, "nistWaterStates");
+  near(comparison.referenceCapacityKw, 16_320.989168439348);
+  near(comparison.adjustedCapacityKw, 1_632.0989168439348);
+  near(comparison.signedPowerDifferenceKw, -2_388.9010831560654);
+  near(comparison.thermalRatio, 0.40589378683012556);
+  assert.deepEqual(comparison.etaHeat, etaHeat);
+
+  // η = 1 is accepted only because the caller states it; there is no default.
+  const full = compareHeatReference({
+    deliveredAppliedFlowGpm: 100,
+    referenceHrrKw: 10_000,
+    etaHeat: { value: 1, basis: "assumed", rationale: "Declared full reference." },
+  });
+  near(full.adjustedCapacityKw, 16_320.989168439348);
+  near(full.signedPowerDifferenceKw, 6_320.989168439348);
+  near(full.thermalRatio, 1.6320989168439348);
+
+  // Zero applied flow has zero reference capacity and a zero power ratio.
+  const dry = compareHeatReference({
+    deliveredAppliedFlowGpm: 0,
+    referenceHrrKw: 4021,
+    etaHeat,
+  });
+  near(dry.adjustedCapacityKw, 0);
+  near(dry.signedPowerDifferenceKw, -4021);
+  near(dry.thermalRatio, 0);
 });

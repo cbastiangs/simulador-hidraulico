@@ -20,6 +20,12 @@ export const METERS_PER_INCH = 0.0254;
 /** The US liquid gallon: 231 in³. */
 export const LITERS_PER_US_GALLON = 3.785411784;
 
+/** A cubic metre is 1000 litres by definition. */
+export const LITERS_PER_CUBIC_METER = 1000;
+
+/** A minute is 60 seconds by definition. */
+export const SECONDS_PER_MINUTE = 60;
+
 /** The international avoirdupois pound (1959): also kilograms-force per pound-force. */
 export const KILOGRAMS_PER_POUND = 0.45359237;
 
