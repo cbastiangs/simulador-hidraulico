@@ -4,6 +4,7 @@
   import * as edit from "$lib/edit.ts";
   import Gauge from "./Gauge.svelte";
   import NumberField from "./NumberField.svelte";
+  import { reading, balanceMessage } from "$lib/readings.ts";
 
   // The panel's pump header (UX.md §4): discharge gauge, pressure typed or
   // stepped, "Presión ideal" (the required pressure: shown, and set on a tap), "Ralentí" and the flow,
@@ -40,12 +41,15 @@
     flowing: "Fluyendo",
     "nozzle-closed": "Pitón cerrado · presión estática",
     "no-pressure": "La bomba no llega al punto más alto",
+    isolated: "Línea sin conectar",
+    unbalanced: "Sin equilibrio exacto · revisa la presión",
   };
   const f = (n: number) => n.toFixed(1);
   // A missing adapter (manual fittings) leaves the line unconnected: say so rather than "nozzle closed".
   const missing = $derived(missingAdapters(scenario));
   const gap = $derived(result.unsatisfied);
-  const warn = $derived(result.state !== "flowing" || missing.length > 0 || gap !== null || !balanced);
+  const issue = $derived(result.issues[0]);
+  const warn = $derived(result.state !== "flowing" || missing.length > 0 || !!issue || !balanced);
   // Inside the 350 gpm step no flow balances (MODEL.md §2): say so, and how to leave it.
   const gapTip = $derived(
     gap
@@ -58,16 +62,16 @@
   // "Presión ideal" (owner, 2026-10-18): a reading first, a shortcut second.
   // It shows what the lay asks of the pump, turns green when the pump is
   // there, and a tap sets it; a tick marks it on the pump's dial.
-  const atIdeal = $derived(Math.abs(scenario.source.pressurePsi - required) < 0.5);
+  const atIdeal = $derived(required !== null && Math.abs(scenario.source.pressurePsi - required) < 0.5);
   const requiredTip = $derived(
     atIdeal
-      ? `La bomba está en la presión ideal: ${required.toFixed(0)} psi, los ${scenario.nozzle.ratedPressurePsi} psi nominales en el pitón.`
-      : `Presión ideal: ${required.toFixed(0)} psi en la bomba dan al pitón sus ${scenario.nozzle.ratedPressurePsi} psi nominales. Toca para ponerla.`,
+      ? `La bomba está en la presión ideal: ${reading(required, 0)} psi, los ${scenario.nozzle.ratedPressurePsi} psi nominales en el pitón.`
+      : `Presión ideal: ${reading(required, 0)} psi en la bomba dan al pitón sus ${scenario.nozzle.ratedPressurePsi} psi nominales. Toca para ponerla.`,
   );
-  const idealLabel = $derived(`Presión ideal ${required.toFixed(0)} psi${atIdeal ? ", la bomba ya está ahí" : ": tocar para ponerla"}`);
+  const idealLabel = $derived(`Presión ideal ${reading(required, 0)} psi${atIdeal ? ", la bomba ya está ahí" : ": tocar para ponerla"}`);
   /** The dial's tick at the ideal pressure: a single line with a nozzle only. */
-  const mark = $derived(!branched && rated ? required : undefined);
-  const applyRequired = () => onchange(edit.setSourcePressure(scenario, required));
+  const mark = $derived(!branched && rated ? required ?? undefined : undefined);
+  const applyRequired = () => { if (required !== null) onchange(edit.setSourcePressure(scenario, required)); };
   // Idle: today's pump is an ideal pressure source, so idle is 0 psi; with the
   // governor's RPM mode (M3) it becomes the lowest RPM (UX.md §4).
   const idle = () => onchange(edit.setSourcePressure(scenario, 0));
@@ -79,15 +83,17 @@
 {/snippet}
 
 {#snippet stateLine()}
-  <span class="state" class:warn title={gapTip || undefined}>
+  <span class="state" class:warn title={gapTip || (issue ? balanceMessage(issue) : undefined)}>
     {#if branched}
       {balanced ? result.flowGpm > 0 ? "Caudal total · líneas conectadas" : "Sin caudal" : "Sin equilibrio exacto · revisa las líneas"}
     {:else if missing.length > 0}
       Línea sin conectar · falta adaptador
     {:else if gap}
       En el escalón de {gap.stepGpm} gpm · sin caudal exacto
+    {:else if issue}
+      {issue.code === "high-point" ? "Sin entrega · presión negativa en un acople" : "Sin equilibrio exacto · revisa la presión"}
     {:else}
-      {STATE[result.state]}{result.state === "flowing" ? ` · ${result.nozzlePressurePsi.toFixed(0)} psi ${rated ? "en pitón" : "en la punta"}` : ""}
+      {STATE[result.state]}{result.state === "flowing" ? ` · ${reading(result.nozzlePressurePsi, 0)} psi ${rated ? "en pitón" : "en la punta"}` : ""}
     {/if}
   </span>
 {/snippet}
@@ -103,13 +109,13 @@
       unit="psi"
       onchange={(p) => onchange(edit.setSourcePressure(scenario, p))}
     />
-    {#if !branched && rated}<button class="chip small ideal" class:at={atIdeal} type="button" title={requiredTip} aria-label={idealLabel} onclick={applyRequired}>
+    {#if !branched && rated && required !== null}<button class="chip small ideal" class:at={atIdeal} type="button" title={requiredTip} aria-label={idealLabel} onclick={applyRequired}>
       <span class="req-label">{atIdeal ? "✓ Ideal" : "Ideal"}</span>
       <span class="req-value">{required.toFixed(0)}</span>
     </button>{/if}
     <button type="button" class="flow-open" aria-label="Bomba: salida y accesorios" onclick={onOpen}>
       <span class="big">{result.flowGpm.toFixed(0)} <small>gpm</small></span>
-      <span class="mini" class:warn-text={warn}>{branched ? balanced ? "Total de líneas" : "Sin equilibrio" : missing.length > 0 ? "Sin conectar" : gap ? `escalón ${gap.stepGpm}` : result.state === "flowing" ? `${rated ? "pitón" : "punta"} ${result.nozzlePressurePsi.toFixed(0)} psi` : result.state === "nozzle-closed" ? "Cerrado" : "No llega"}{" "}<span class="chev" aria-hidden="true">›</span></span>
+      <span class="mini" class:warn-text={warn}>{branched ? balanced ? "Total de líneas" : "Sin equilibrio" : missing.length > 0 ? "Sin conectar" : gap ? `escalón ${gap.stepGpm}` : issue ? issue.code === "high-point" ? "Sin entrega" : "Sin equilibrio" : result.state === "flowing" ? `${rated ? "pitón" : "punta"} ${reading(result.nozzlePressurePsi, 0)} psi` : result.state === "nozzle-closed" ? "Cerrado" : "No llega"}{" "}<span class="chev" aria-hidden="true">›</span></span>
     </button>
   </section>
 {:else if head}
@@ -132,7 +138,7 @@
         unit="psi"
         onchange={(p) => onchange(edit.setSourcePressure(scenario, p))}
       />
-      {#if !branched && rated}<button class="chip small ideal" class:at={atIdeal} type="button" title={requiredTip} aria-label={idealLabel} onclick={applyRequired}>
+      {#if !branched && rated && required !== null}<button class="chip small ideal" class:at={atIdeal} type="button" title={requiredTip} aria-label={idealLabel} onclick={applyRequired}>
         <span class="req-label">{atIdeal ? "✓ Ideal" : "Ideal"}</span>
         <span class="req-value">{required.toFixed(0)}</span>
       </button>{/if}
@@ -161,7 +167,7 @@
       />
     </div>
     <div class="span row">
-      {#if !branched && rated}<button class="chip grow ideal" class:at={atIdeal} type="button" title={requiredTip} aria-label={idealLabel} onclick={applyRequired}>{atIdeal ? "✓ " : ""}Presión ideal: {required.toFixed(0)} psi</button>{/if}
+      {#if !branched && rated && required !== null}<button class="chip grow ideal" class:at={atIdeal} type="button" title={requiredTip} aria-label={idealLabel} onclick={applyRequired}>{atIdeal ? "✓ " : ""}Presión ideal: {required.toFixed(0)} psi</button>{/if}
       {@render idleButton()}
     </div>
     <p class="span hint">{branched ? "Ajusta la descarga y consulta la presión y el caudal de cada línea. La bomba mantiene la presión indicada; su capacidad aún no se modela." : rated ? `Presión ideal: la que da al pitón sus ${scenario.nozzle.ratedPressurePsi} psi nominales; tócala para ponerla. La marca en el manómetro la señala.` : "Sin pitón no hay presión nominal que alcanzar: el caudal lo fijan la bomba y la manguera."}</p>
@@ -182,7 +188,7 @@
       bigStep={{ size: 10, label: "10" }}
       onchange={(p) => onchange(edit.setSourcePressure(scenario, p))}
     />
-    {#if !branched && rated}<button class="chip ideal" class:at={atIdeal} type="button" title={requiredTip} aria-label={idealLabel} onclick={applyRequired}>
+    {#if !branched && rated && required !== null}<button class="chip ideal" class:at={atIdeal} type="button" title={requiredTip} aria-label={idealLabel} onclick={applyRequired}>
       {atIdeal ? "✓ " : ""}Presión ideal: {required.toFixed(0)} psi
     </button>{/if}
     {@render idleButton()}

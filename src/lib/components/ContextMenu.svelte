@@ -21,7 +21,7 @@
     x: number;
     y: number;
     scenario: Scenario;
-    requiredPsi: number;
+    requiredPsi: number | null;
     onAction: (action: Action, target: Target) => void;
     onClose: () => void;
     /** Other lines under the pointer, where lines overlap (UX.md §2). */

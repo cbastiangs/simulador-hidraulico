@@ -18,11 +18,15 @@
   // Drag the handle to resize (it snaps to the nearest height) or tap it.
   let {
     sheet,
+    selectionKey,
+    onClosedHeight,
     onSheet,
     summary,
     children,
   }: {
     sheet: SheetState;
+    selectionKey: string;
+    onClosedHeight: (height: number) => void;
     onSheet: (s: SheetState) => void;
     summary: Snippet;
     children: Snippet;
@@ -33,6 +37,8 @@
   let gripHeight = $state(0);
   const heights = $derived({ ...sheetHeights(windowHeight), closed: Math.max(CLOSED_PX, Math.ceil(gripHeight)) });
 
+  $effect(() => { onClosedHeight(heights.closed); });
+
   let drag: { y: number; from: number; moved: boolean } | null = $state(null);
   let dragHeight = $state(0);
   const height = $derived(drag ? dragHeight : heights[sheet]);
@@ -40,6 +46,7 @@
 
   // A new state starts at the top of its content.
   $effect(() => {
+    void selectionKey;
     if (sheet && body) body.scrollTop = 0;
   });
 
@@ -112,6 +119,7 @@
 <style>
   .sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; display: flex; flex-direction: column; background: var(--bg); border-radius: 16px 16px 0 0; box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.18); transition: height 0.22s ease; padding-bottom: env(safe-area-inset-bottom); }
   .sheet.dragging { transition: none; }
+  @media (prefers-reduced-motion: reduce) { .sheet { transition: none; } }
   .grip { flex: none; padding: 6px 10px 8px; touch-action: none; cursor: grab; display: grid; gap: 6px; }
   .bar { justify-self: center; width: 40px; height: 5px; border-radius: 3px; background: var(--muted); opacity: 0.5; }
   .body { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; padding: 0 8px 12px; display: grid; gap: 8px; align-content: start; }

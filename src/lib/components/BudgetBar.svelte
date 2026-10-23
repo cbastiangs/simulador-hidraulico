@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { SeriesResult } from "$hydraulics/series.ts";
+  import { reading as f, balanceMessage } from "$lib/readings.ts";
 
   // Where the pump's pressure goes (ROADMAP §5): nozzle + friction + elevation,
   // from the engine's terms. A downhill line gains pressure; that shows as a
@@ -47,7 +48,6 @@
   const noData = $derived(result.terms.some((t) => t.lawId === "appliance.fixed" && t.inputs.lossPsi === null));
   const total = $derived(parts.nozzle + parts.friction + parts.fittings + Math.max(0, parts.elevation));
   const pct = (v: number) => `${total > 0 ? (Math.max(0, v) / total) * 100 : 0}%`;
-  const f = (n: number) => n.toFixed(1);
 
   // A slice shows its name and value, else the value, else nothing (its title
   // keeps it), whichever fits: a clipped "Fricción 3" misreads (UX.md §10.7, UX-06).
@@ -102,6 +102,8 @@
         ⚠ Regla de 350 gpm: entre {g.lowPsi.toFixed(0)} y {g.highPsi.toFixed(0)} psi en la bomba no hay caudal exacto. A {g.stepGpm} gpm sobran
         {f(g.sparePsi)} psi sin la pérdida de los acoples y faltan {f(g.stepPsi - g.sparePsi)} con ella; la barra no suma la bomba.
       </p>
+    {:else if result.issues.length && !compact}
+      <p class="gap" role="status">{balanceMessage(result.issues[0])} La barra muestra un resultado aproximado.</p>
     {/if}
     {#if !compact}<ul class="legend">
       <li>
@@ -133,7 +135,13 @@
       </li>
     </ul>{/if}
   {:else}
-    <p class="small">Sin caudal no hay fricción: la bomba solo sostiene el desnivel ({f(parts.elevation)} psi).</p>
+    <p class="small">
+      {#if result.issues.length}{balanceMessage(result.issues[0])}
+      {:else if result.state === "isolated"}Línea aislada: sin caudal y con presión desconocida aguas abajo.
+      {:else if result.state === "no-pressure"}La bomba no alcanza el punto más alto de la línea: sin entrega de agua.
+      {:else}Pitón cerrado: sin caudal en esta línea. La presión en el pitón es {f(result.nozzlePressurePsi)} psi.{#if lines.length > 1} Otras salidas pueden seguir consumiendo presión en la alimentación común.{/if}
+      {/if}
+    </p>
   {/if}
 </section>
 
@@ -142,8 +150,10 @@
   .budget.compact { padding: 6px 12px; gap: 4px; }
   .budget.compact .bar { height: 24px; }
   .row { display: flex; justify-content: space-between; gap: 12px; color: var(--muted); font-size: 14px; }
-  .row b { color: var(--ink); }
-  .which { color: var(--ink); font-weight: 600; margin-left: 4px; }
+  .row b { color: var(--ink); white-space: nowrap; flex-shrink: 0; }
+  .budget.compact { container-type: inline-size; }
+  @container (max-width: 350px) { .compact .which { display: block; margin-left: 0; } }
+  .which { white-space: nowrap; color: var(--ink); font-weight: 600; margin-left: 4px; }
   .lines { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
   .lines button { width: 100%; display: grid; grid-template-columns: minmax(7rem, auto) 1fr; gap: 8px; align-items: center; padding: 4px 6px; border: 1px solid transparent; border-radius: 8px; background: none; text-align: left; cursor: pointer; font-size: 13px; }
   .lines button.edited { border-color: var(--accent); background: var(--accent-soft); }

@@ -50,7 +50,7 @@
 
   const issueText = (issue: { code: string; segmentId: string | null; residualPsi: number }) => {
     const who = issue.segmentId ? branch.flattenSegments(scenario).find((e) => e.path.at(-1) === issue.segmentId)?.segment.name ?? issue.segmentId : "Alimentación";
-    if (issue.code === "high-point") return `${who}: la presión se hace negativa en el punto más alto (${issue.residualPsi.toFixed(1)} psi). Acerca el pitón o sube la bomba.`;
+    if (issue.code === "high-point") return `${who}: el caudal exigiría presión negativa en un acople (${issue.residualPsi.toFixed(1)} psi); la línea no entrega agua.`;
     if (issue.code === "pressure-balance") return `${who}: no hay un caudal que equilibre la malla (residuo ${issue.residualPsi.toFixed(1)} psi); el resultado es aproximado.`;
     return `${who}: el caudal queda atrapado en un escalón de la pérdida por accesorios (residuo ${issue.residualPsi.toFixed(1)} psi); revisa la presión.`;
   };

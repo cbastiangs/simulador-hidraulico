@@ -4,6 +4,7 @@ import { requiredPumpPressurePsi, solveAttackLine } from "../src/hydraulics/line
 import { METHODS } from "../src/hydraulics/references.ts";
 import { solveSeriesLine } from "../src/hydraulics/series.ts";
 import { feetToMeters } from "../src/hydraulics/units.ts";
+import { solveScenarioTree } from "../src/hydraulics/tree.ts";
 
 // Expected values are worked by hand in the comments, or come from line.ts's
 // closed form -- an independent derivation of the same laws.
@@ -106,7 +107,7 @@ test("a closed nozzle shows static pressure at every coupling", () => {
   near(result.nodes[2].pressurePsi, 141.32);
 });
 
-test("a pump that can't reach the highest coupling flows nothing, even to a lower nozzle", () => {
+test("a pump must reach every coupling after friction as well as under static head", () => {
   // Highest point 30 ft needs 13.02 psi; the pump gives 10.
   const result = solveSeriesLine({
     pumpPressurePsi: 10,
@@ -118,7 +119,32 @@ test("a pump that can't reach the highest coupling flows nothing, even to a lowe
   });
   assert.equal(result.state, "no-pressure");
   assert.equal(result.flowGpm, 0);
-  near(result.nodes[1].pressurePsi, -3.02);
+  assert.equal(result.nodes[1].pressurePsi, null);
+  assert.equal(result.nozzlePressurePsi, null);
+
+  // 50 psi reaches 100 ft statically (43.4 psi), but the putative flow
+  // Q² = 50/(0.0024 + 0.0024 + 0.01) = 3378.378 puts the crest at
+  // 50 − 0.0024·Q² − 43.4 = −1.508108 psi. Flexible hose cannot sustain it.
+  const highPoint = {
+    pumpPressurePsi: 50,
+    sections: [100, 0].map((ft) => ({ hose: hose(100, 24), endElevationM: feetToMeters(ft) })),
+    nozzle,
+  };
+  const series = solveSeriesLine(highPoint);
+  const tree = solveScenarioTree({
+    schema: "simulador-hidraulico/scenario", version: 1, name: "crest", methodId: "physical",
+    source: { kind: "fixed-pressure", pressurePsi: 50 },
+    sections: highPoint.sections.map((s) => ({ ...s.hose, endElevationM: s.endElevationM, diameterIn: 1.5, hoseSizeId: "1-1/2" })),
+    nozzle: { ...nozzle, kind: "fixed-orifice", specId: null, settingsGpm: [], pattern: 0 },
+  });
+  for (const r of [series, tree.root.result]) {
+    assert.equal(r.state, "no-pressure");
+    assert.equal(r.flowGpm, 0);
+    assert.equal(r.nozzlePressurePsi, null);
+    assert.equal(r.issues[0].code, "high-point");
+    near(r.issues[0].residualPsi, 50 - 0.0024 * (50 / 0.0148) - 43.4);
+  }
+  assert.equal(tree.balanced, false);
 });
 
 test("required pump pressure delivers the rated flow under either method", () => {
@@ -184,4 +210,12 @@ test("Colorado's appliance allowance: 0 up to 350 gpm, 10 psi above, and no bala
   near(inside.unsatisfied.sparePsi, 4.9375);
   near(inside.unsatisfied.lowPsi, 101.0625);
   near(inside.unsatisfied.highPsi, 111.0625);
+  // Q = 350 counts no allowance: the lower endpoint is a root, the upper
+  // endpoint is still excluded by the strict >350 gpm rule.
+  const lower = solveSeriesLine(line(101.0625), METHODS.physical);
+  near(lower.flowGpm, 350);
+  assert.equal(lower.unsatisfied, null);
+  const upper = solveSeriesLine(line(111.0625), METHODS.physical);
+  assert.equal(upper.flowGpm, 350);
+  near(upper.unsatisfied.sparePsi, 10);
 });

@@ -13,7 +13,7 @@
     mark,
     markTitle = "Nominal",
   }: {
-    psi: number;
+    psi: number | null;
     x?: number;
     y?: number;
     r?: number;
@@ -26,12 +26,12 @@
   } = $props();
 
   const MAX = 300;
-  const shown = Tween.of(() => psi, { duration: 250 });
+  const shown = Tween.of(() => psi ?? 0, { duration: 250 });
   const angle = $derived(-135 + (Math.min(Math.max(shown.current, 0), MAX) / MAX) * 270);
   const ticks = [-135, -90, -45, 0, 45, 90, 135];
 </script>
 
-<g transform={`translate(${x} ${y})`} class:dark class:negative={psi < 0}>
+<g transform={`translate(${x} ${y})`} class:dark class:negative={psi !== null && psi < 0}>
   <circle class="face" {r} />
   {#each ticks as t (t)}
     <line class="tick" x1="0" y1={-(r - 3)} x2="0" y2={-(r - 7)} transform={`rotate(${t})`} />
@@ -39,9 +39,9 @@
   {#if mark !== undefined}
     <path class="mark" d={`M 0 ${-(r + 1)} L -3 ${-(r + 6)} L 3 ${-(r + 6)} Z`} transform={`rotate(${-135 + (Math.min(Math.max(mark, 0), MAX) / MAX) * 270})`}><title>{markTitle} {mark.toFixed(0)} psi</title></path>
   {/if}
-  <line class="needle" x1="0" y1="0" x2="0" y2={-(r - 6)} transform={`rotate(${angle})`} />
+  {#if psi !== null}<line class="needle" x1="0" y1="0" x2="0" y2={-(r - 6)} transform={`rotate(${angle})`} />{/if}
   <circle class="hub" r={r / 8} />
-  {#if label}<text class="value" y={r + 16}>{psi.toFixed(0)} psi</text>{/if}
+  {#if label}<text class="value" y={r + 16}>{psi?.toFixed(0) ?? "—"} psi</text>{/if}
 </g>
 
 <style>

@@ -419,7 +419,8 @@ export function reactionAt(
   result: Pick<SeriesResult, "flowGpm" | "nozzlePressurePsi">,
   methodId: MethodId,
 ): Reaction {
-  return reactionOf(segment.nozzle, endBoreIn(segment.sections), result.flowGpm, result.nozzlePressurePsi, METHODS[methodId]);
+  // Unknown pressure occurs only with zero delivery; it produces no jet reaction.
+  return reactionOf(segment.nozzle, endBoreIn(segment.sections), result.flowGpm, result.nozzlePressurePsi ?? 0, METHODS[methodId]);
 }
 
 /** The engine's input for a parsed document. */
@@ -439,12 +440,17 @@ export function toSeriesLine(scenario: Scenario): SeriesLine {
 /**
  * Solves under the document's method, or another one (the reference shown
  * beside it). A line with a missing adapter isn't connected, so no water
- * flows: it is solved with the nozzle shut (static pressure only).
+ * flows. Pressure beyond the disconnected joint is unknown.
  */
 export function solveScenario(scenario: Scenario, methodId: MethodId = scenario.methodId): SeriesResult {
   const line = toSeriesLine(scenario);
-  const connected = missingAdapters(scenario).length === 0;
-  return solveSeriesLine(connected ? line : { ...line, nozzle: { ...line.nozzle, open: false } }, METHODS[methodId]);
+  const missing = missingAdapters(scenario);
+  const result = solveSeriesLine(missing.length ? { ...line, nozzle: { ...line.nozzle, open: false } } : line, METHODS[methodId]);
+  if (!missing.length) return result;
+  return {
+    ...result, state: "isolated", issues: [], nozzlePressurePsi: null,
+    nodes: result.nodes.map((node, i) => i > missing[0].index ? { ...node, pressurePsi: null } : node),
+  };
 }
 
 export { solveScenarioTree, pathResult, type ScenarioTreeResult, type TreeSegmentResult, type TreeIssue } from "./tree.ts";

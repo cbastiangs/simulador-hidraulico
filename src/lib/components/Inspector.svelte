@@ -40,7 +40,7 @@
     floorM?: number;
     onchange: (s: Scenario) => void;
     onSelect: (s: Selection) => void;
-    requiredPsi: number;
+    requiredPsi: number | null;
     result: SeriesResult;
     /** Run an action from lib/actions.ts: the panel shows every action for the selection. */
     onAction: (action: Action, target: Target) => void;
@@ -69,7 +69,7 @@
   const design = $derived(scenario.nozzle.design ?? "fog");
   /** Below its rating by more than 5 %: it gives less than its rated flow (MODEL §3.13). An open end has no rating. */
   const short = $derived(
-    design !== "open-end" && result.state === "flowing" && result.nozzlePressurePsi < scenario.nozzle.ratedPressurePsi * 0.95,
+    design !== "open-end" && result.state === "flowing" && result.nozzlePressurePsi !== null && result.nozzlePressurePsi < scenario.nozzle.ratedPressurePsi * 0.95,
   );
   const nozzleKind = $derived(
     design === "smooth-bore"
@@ -94,12 +94,16 @@
   ] as const;
 </script>
 
-<aside class="inspector">
+{#snippet closeSelection()}
   {#if selection}
     <button type="button" class="close" aria-label="Quitar selección (Esc)" title="Quitar selección (Esc)" onclick={onClose}>×</button>
   {/if}
+{/snippet}
+
+<aside class="inspector">
   {#if selection === null}
-    <header>
+    <header class:sticky={selection !== null}>
+      {@render closeSelection()}
       <h3>Partes</h3>
       <p>Toca una parte, aquí o en el dibujo, para editarla. Clic derecho o mantener pulsado: más opciones.</p>
     </header>
@@ -113,7 +117,8 @@
     </nav>
   {:else if selection.kind === "pump"}
     {@const outlet = scenario.source.outletSizeIn}
-    <header>
+    <header class:sticky={selection !== null}>
+      {@render closeSelection()}
       <h3>Bomba · descargas</h3>
       <p>Descarga 1 → línea de {scenario.sections.length} {scenario.sections.length === 1 ? "tramo" : "tramos"} · la presión, arriba</p>
     </header>
@@ -129,7 +134,8 @@
     <JointControls {scenario} flowGpm={result.flowGpm} joint={0} onToggle={(kind) => onchange(edit.toggleFitting(scenario, 0, kind))} />
   {:else if selection.kind === "nozzle"}
     {@const n = scenario.nozzle}
-    <header>
+    <header class:sticky={selection !== null}>
+      {@render closeSelection()}
       {#if design === "open-end"}
         <h3>Sin pitón</h3>
         <p>Punta abierta · el agua sale por el acople de {tipName(endBoreIn(scenario.sections))}</p>
@@ -159,9 +165,6 @@
 
     <!-- Operating controls first, so they show at the phone sheet's peek (UX.md §10.7, UX-03); choosing the model is configuration and comes after. -->
     <!-- Drawn (Close-up) or plain controls, by preference; both complete (UX.md §10.1). -->
-    <div class="style-switch">
-      <button type="button" onclick={() => setControls(prefs.controls === "drawn" ? "plain" : "drawn")}>{prefs.controls === "drawn" ? "Ver controles simples" : "Ver pitón dibujado"}</button>
-    </div>
     {#if prefs.controls === "drawn"}
       <NozzleCloseUp
         nozzle={n}
@@ -207,6 +210,9 @@
       </div>
     </section>
     {/if}
+    <div class="style-switch">
+      <button type="button" onclick={() => setControls(prefs.controls === "drawn" ? "plain" : "drawn")}>{prefs.controls === "drawn" ? "Ver controles simples" : "Ver pitón dibujado"}</button>
+    </div>
     {/if}
 
     <!-- The force on the hands at the solved flow (MODEL.md §3.6, §7): the engine's numbers, formula substituted. -->
@@ -228,7 +234,7 @@
     <!-- After the controls, so it appearing mid-turn doesn't move them under the finger. -->
     {#if short}
       <p class="warn" role="status">
-        ⚠ {result.nozzlePressurePsi.toFixed(0)} psi en el pitón, por debajo de sus {n.ratedPressurePsi} psi nominales: da
+        ⚠ {result.nozzlePressurePsi?.toFixed(0) ?? "—"} psi en el pitón, por debajo de sus {n.ratedPressurePsi} psi nominales: da
         {result.flowGpm.toFixed(0)} gpm, no {n.ratedFlowGpm}. {branched ? "Sube la presión de la bomba o revisa las líneas abiertas." : "Sube la presión o toca «Ideal» en la bomba."}
       </p>
     {/if}
@@ -269,14 +275,16 @@
     <JointControls {scenario} flowGpm={result.flowGpm} joint={last + 1} onToggle={(kind) => onchange(edit.toggleFitting(scenario, last + 1, kind))} />
   {:else if selection.kind === "joint" && tree && onTree && onLine && junctionAt(scenario, selection.index)}
     {@const wye = junctionAt(scenario, selection.index)!}
-    <header>
+    <header class:sticky={selection !== null}>
+      {@render closeSelection()}
       <h3>{jointName(scenario, selection.index)}</h3>
       <p>Cada salida tiene su válvula: toca la palanca para abrir o cerrar · arrastra el bifurco para moverlo</p>
     </header>
     <JunctionPanel {tree} junction={wye} {outlets} {onTree} {onLine} />
   {:else if selection.kind === "joint"}
     {@const j = selection.index}
-    <header>
+    <header class:sticky={selection !== null}>
+      {@render closeSelection()}
       <h3>{jointName(scenario, j)}</h3>
       <p>{j === 0 ? "Entre la bomba y el tramo 1" : `Entre el tramo ${j} y el tramo ${j + 1}`} · arrastra el acople para moverlo</p>
     </header>
@@ -284,7 +292,8 @@
   {:else}
     {@const i = selection.index}
     {@const s = scenario.sections[i]}
-    <header>
+    <header class:sticky={selection !== null}>
+      {@render closeSelection()}
       <h3>Tramo {i + 1} de {scenario.sections.length}</h3>
       <p>C = {s.frictionCoefficient} · {s.hoseSizeId ? "valor publicado" : "valor manual"}</p>
     </header>
@@ -328,13 +337,16 @@
   .reaction .formula { font-size: 12px; color: var(--muted); }
   .sublabel { font-size: 12px; color: var(--muted); margin: 6px 0 4px; }
   .style-switch { display: flex; justify-content: flex-end; margin: -8px 0 -6px; }
-  .style-switch button { min-height: 36px; padding: 0 4px; border: 0; background: transparent; color: var(--accent); font-size: 13px; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+  .style-switch button { min-height: 44px; padding: 0 4px; border: 0; background: transparent; color: var(--accent); font-size: 13px; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+  header { position: relative; background: var(--surface); padding-bottom: 6px; }
+  header.sticky { position: sticky; top: 0; z-index: 2; }
+  .inspector :global(button), .inspector :global(input), .inspector :global(select) { scroll-margin-top: 100px; }
   header h3 { margin: 0; font-size: 16px; padding-right: 40px; }
-  .close { position: absolute; top: 6px; right: 6px; width: 44px; height: 44px; border: 0; border-radius: 8px; background: transparent; font-size: 22px; color: var(--muted); cursor: pointer; }
+  .close { position: absolute; top: -8px; right: -8px; width: 44px; height: 44px; border: 0; border-radius: 8px; background: transparent; font-size: 22px; color: var(--muted); cursor: pointer; }
   .close:hover { background: var(--band); color: var(--ink); }
   .parts { display: grid; gap: 4px; }
-  .parts button { min-height: 40px; padding: 0 12px; text-align: left; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); cursor: pointer; font-size: 14px; }
-  .parts .joint { min-height: 32px; margin-left: 16px; font-size: 13px; color: var(--muted); border-style: dashed; }
+  .parts button { min-height: 44px; padding: 0 12px; text-align: left; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); cursor: pointer; font-size: 14px; }
+  .parts .joint { min-height: 44px; margin-left: 16px; font-size: 13px; color: var(--muted); border-style: dashed; }
   header p { margin: 2px 0 0; color: var(--muted); font-size: 13px; }
   .label { font-size: 12px; color: var(--muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.04em; }
   .field { display: grid; gap: 6px; }

@@ -4,6 +4,7 @@
   import BudgetBar from "$lib/components/BudgetBar.svelte";
   import PowerSplit from "$lib/components/PowerSplit.svelte";
   import { powerSplit } from "$hydraulics/power.ts";
+  import { reading } from "$lib/readings.ts";
   import { untrack } from "svelte";
   import Canvas from "$lib/components/Canvas.svelte";
   import Concepts from "$lib/components/Concepts.svelte";
@@ -47,7 +48,7 @@
   /** A branched lay's drawn line: one branch id per wye, from the pump to a nozzle (UX.md §2). */
   let selectedPath: string[] = $state([]);
 
-  // Phones (UX.md §8): the page does not scroll; a bottom sheet holds the
+  // Phones and tablets (UX.md §10.9): the page does not scroll; a bottom sheet holds the
   // inspector and results, and opens at peek when something is selected.
   // Read from media queries, not innerWidth: a phone can report its 980 px
   // layout width when the page starts and send no resize once it settles.
@@ -55,7 +56,7 @@
   // Desktop (UX.md §4): one panel on the right, the pump header atop it.
   let wide = $state(false);
   $effect(() => {
-    const queries = [matchMedia("(max-width: 599.98px)"), matchMedia("(min-width: 1024px)")];
+    const queries = [matchMedia("(max-width: 1023.98px)"), matchMedia("(min-width: 1024px)")];
     const sync = () => ([phone, wide] = queries.map((q) => q.matches));
     sync();
     queries.forEach((q) => q.addEventListener("change", sync));
@@ -63,8 +64,9 @@
   });
   let sheet = $state<SheetState>("closed");
   let windowHeight = $state(800);
-  /** How much of the canvas the open sheet covers, so the canvas keeps the selection above it. */
-  const coverPx = $derived(phone && sheet === "peek" ? sheetHeights(windowHeight).peek - CLOSED_PX : 0);
+  let closedSheetHeight = $state(CLOSED_PX);
+  /** Viewport edge available to the drawing above the peek or closed sheet. */
+  const canvasBottom = $derived(windowHeight - (sheet === "peek" ? sheetHeights(windowHeight).peek : closedSheetHeight));
 
   function select(s: Selection, open = true) {
     selection = s;
@@ -454,7 +456,7 @@
 
 {#snippet results()}
   <div bind:this={budgetEl} data-tour="budget"><BudgetBar {result} {reference} referenceLabel={refName} openEnd={lineScenario.nozzle.design === "open-end"} line={budgetLine} lines={budgetLines} onPickLine={(key) => selectLine(key.split("/"))} /></div>
-  {#if network}<PowerSplit split={power} flowGpm={network.totalFlowGpm} pumpPsi={pumpResult.nodes[0].pressurePsi} lines={budgetLines} reference={referencePower} referenceLabel={refName} />{/if}
+  {#if network}<PowerSplit split={power} flowGpm={network.totalFlowGpm} pumpPsi={scenario.source.pressurePsi} lines={budgetLines} reference={referencePower} referenceLabel={refName} />{/if}
   <details class="card">
     <summary>Ver cálculo ({result.terms.length} fórmulas) · {methodName}{comparing ? ` y ${refName}` : ""}</summary>
     <table>
@@ -462,8 +464,8 @@
       <tbody>
         <tr><td>Caudal</td><td>{result.flowGpm.toFixed(1)} gpm</td>{#if reference}<td>{reference.flowGpm.toFixed(1)} gpm</td>{/if}</tr>
         <tr><td>Accesorios</td><td>{result.terms.some((t) => t.lawId === "appliance.fixed" && t.inputs.lossPsi === null) ? "sin dato" : `${result.fittingLossPsi.toFixed(1)} psi`}</td>{#if reference}<td>{reference.terms.some((t) => t.lawId === "appliance.fixed" && t.inputs.lossPsi === null) ? "sin dato" : `${reference.fittingLossPsi.toFixed(1)} psi`}</td>{/if}</tr>
-        <tr><td>{lineScenario.nozzle.design === "open-end" ? "Presión en la punta" : "Presión en pitón"}</td><td>{result.nozzlePressurePsi.toFixed(1)} psi</td>{#if reference}<td>{reference.nozzlePressurePsi.toFixed(1)} psi</td>{/if}</tr>
-        {#if !network && lineScenario.nozzle.design !== "open-end"}<tr><td>Presión requerida</td><td>{result.requiredPumpPressurePsi.toFixed(1)} psi</td>{#if reference}<td>{reference.requiredPumpPressurePsi.toFixed(1)} psi</td>{/if}</tr>{/if}
+        <tr><td>{lineScenario.nozzle.design === "open-end" ? "Presión en la punta" : "Presión en pitón"}</td><td>{reading(result.nozzlePressurePsi)} psi</td>{#if reference}<td>{reading(reference.nozzlePressurePsi)} psi</td>{/if}</tr>
+        {#if !network && lineScenario.nozzle.design !== "open-end"}<tr><td>Presión requerida</td><td>{reading(result.requiredPumpPressurePsi)} psi</td>{#if reference}<td>{reading(reference.requiredPumpPressurePsi)} psi</td>{/if}</tr>{/if}
       </tbody>
     </table>
     <Breakdown terms={result.terms} methodId={scenario.methodId} scenario={lineScenario} />
@@ -474,14 +476,14 @@
 {/snippet}
 
 {#snippet pumpPanel(mode: "strip" | "head" | "full" | "bar")}
-  <PumpPanel {scenario} result={pumpResult} branched={!!network} balanced={network?.balanced ?? true} onchange={(s) => apply(s, "pump")} strip={mode === "strip"} head={mode === "head"} full={mode === "full"} onOpen={() => select({ kind: "pump" })} />
+  <PumpPanel {scenario} result={pumpResult} branched={!!network} balanced={network?.balanced ?? pumpResult.issues.length === 0} onchange={(s) => apply(s, "pump")} strip={mode === "strip"} head={mode === "head"} full={mode === "full"} onOpen={() => select({ kind: "pump" })} />
 {/snippet}
 
 {#snippet summary()}
   <div data-tour="budget"><BudgetBar {result} {reference} referenceLabel={refName} openEnd={lineScenario.nozzle.design === "open-end"} line={budgetLine} compact /></div>
 {/snippet}
 
-<div class="app" class:phone class:wide style:--sheet-closed={`${CLOSED_PX}px`}>
+<div class="app" class:phone class:wide style:--sheet-closed={`${closedSheetHeight}px`}>
   <header class="top">
     <h1>Simulador hidráulico</h1>
     <div class="history">
@@ -524,7 +526,7 @@
       {selection}
       {phone}
       {wide}
-      {coverPx}
+      visibleBottom={canvasBottom}
       floorM={edit.floorOf(scenario)}
       resetKey={`${presetId}#${loads}`}
       onSelect={select}
@@ -587,7 +589,7 @@
 />
 
 {#if phone}
-  <Sheet {summary} {sheet} onSheet={(s) => (sheet = s)}>
+  <Sheet onClosedHeight={(height) => (closedSheetHeight = height)} selectionKey={JSON.stringify([selectedPath, selection])} {summary} {sheet} onSheet={(s) => (sheet = s)}>
     {#if selection?.kind === "pump"}
       <!-- The strip is a summary; the pump's whole control opens here, above its detail (UX.md §4). -->
       {@render pumpPanel("full")}

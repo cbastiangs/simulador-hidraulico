@@ -4,11 +4,10 @@ import { frictionLossPsi } from "./line.ts";
 import type { SeriesResult, Fitting } from "./series.ts";
 import type { Term } from "./laws.ts";
 import { metersToFeet } from "./units.ts";
+import { pressureBalanced, PRESSURE_TOLERANCE_PSI, type BalanceIssue } from "./balance.ts";
 
-export type TreeIssue = {
-  code: "allowance-gap" | "high-point" | "pressure-balance";
+export type TreeIssue = BalanceIssue & {
   segmentId: string | null;
-  residualPsi: number;
 };
 export type TreeSegmentResult = {
   id: string | null;
@@ -51,7 +50,6 @@ type Evaluation = {
   children: Evaluation[];
   issue?: TreeIssue;
 };
-const TOLERANCE = 1e-7;
 
 /**
  * One source, diverging trees only (MODEL §2). Solve each junction's head:
@@ -99,11 +97,13 @@ export function solveScenarioTree(input: Scenario, methodId: MethodId = input.me
     let minimum = h - k * node.start;
     for (let i = 0; i < node.segment.sections.length; i++) {
       for (const f of node.fittings.filter((f) => f.joint === i)) h -= fittingLoss(f.kind, q);
+      minimum = Math.min(minimum, h - k * (node.segment.sections[i - 1]?.endElevationM ?? node.start));
       const section = node.segment.sections[i];
       h -= frictionLossPsi(section, q);
       minimum = Math.min(minimum, h - k * section.endElevationM);
     }
-    return minimum;
+    for (const f of node.fittings.filter((f) => f.joint === node.segment.sections.length)) h -= fittingLoss(f.kind, q);
+    return Math.min(minimum, h - k * node.end);
   }
   function stopped(node: Prepared, head: number, isolated: boolean, dry: boolean, issue?: TreeIssue): Evaluation {
     return {
@@ -131,7 +131,7 @@ export function solveScenarioTree(input: Scenario, methodId: MethodId = input.me
         } else q = above;
       }
       const minimum = minimumPressure(node, head, q);
-      if (q > 0 && minimum < -TOLERANCE) {
+      if (q > 0 && minimum < -PRESSURE_TOLERANCE_PSI) {
         return stopped(node, head, false, true, { code: "high-point", segmentId: node.id, residualPsi: minimum });
       }
       return { q, derivative: q > 0 && !issue ? 1 / (2 * resistance * q) : 0,
@@ -149,7 +149,7 @@ export function solveScenarioTree(input: Scenario, methodId: MethodId = input.me
       const derivative = children.reduce((sum, c) => sum + c.derivative, 0);
       const residual = x + node.resistance * q * q + allowance(node, q) - head;
       if (!best || Math.abs(residual) < Math.abs(best.residual)) best = { x, q, derivative, residual, children };
-      if (Math.abs(residual) <= TOLERANCE) break;
+      if (pressureBalanced(residual)) break;
       if (residual > 0) high = x;
       else low = x;
       if (high - low <= 1e-10) break;
@@ -158,13 +158,13 @@ export function solveScenarioTree(input: Scenario, methodId: MethodId = input.me
     }
     const solved = best!;
     const minimum = minimumPressure(node, head, solved.q);
-    if (solved.q > 0 && minimum < -TOLERANCE) {
+    if (solved.q > 0 && minimum < -PRESSURE_TOLERANCE_PSI) {
       return stopped(node, head, false, true, { code: "high-point", segmentId: node.id, residualPsi: minimum });
     }
     return {
       q: solved.q, derivative: solved.derivative / (1 + 2 * node.resistance * solved.q * solved.derivative),
       head, childHead: solved.x, children: solved.children, isolated: false, dry: false,
-      ...(Math.abs(solved.residual) > TOLERANCE ? { issue: {
+      ...(!pressureBalanced(solved.residual) ? { issue: {
         code: node.fixed || node.step ? "allowance-gap" as const : "pressure-balance" as const,
         segmentId: node.id, residualPsi: solved.residual,
       } } : {}),
@@ -176,14 +176,15 @@ export function solveScenarioTree(input: Scenario, methodId: MethodId = input.me
     const q = e.q;
     const localElevation = k * (node.end - node.start);
     let head = e.head;
-    const nodes = [{ elevationM: node.start, pressurePsi: e.isolated ? NaN : head - k * node.start }];
+    const unavailable = e.isolated || e.dry || (q === 0 && !!e.issue);
+    const nodes = [{ elevationM: node.start, pressurePsi: e.isolated ? null : head - k * node.start }];
     const terms: Term[] = [];
     for (let i = 0; i < node.segment.sections.length; i++) {
       for (const fitting of node.fittings.filter((f) => f.joint === i)) head -= fittingLoss(fitting.kind, q);
       const s = node.segment.sections[i];
       const friction = frictionLossPsi(s, q);
       head -= friction;
-      nodes.push({ elevationM: s.endElevationM, pressurePsi: e.isolated ? NaN : head - k * s.endElevationM });
+      nodes.push({ elevationM: s.endElevationM, pressurePsi: unavailable ? null : head - k * s.endElevationM });
       terms.push({ lawId: "hose.friction", sectionIndex: i,
         inputs: { frictionCoefficient: s.frictionCoefficient, flowGpm: q, lengthFt: metersToFeet(s.lengthM) }, valuePsi: friction });
     }
@@ -198,12 +199,13 @@ export function solveScenarioTree(input: Scenario, methodId: MethodId = input.me
     if (q > 0 && !node.children.length) terms.push({ lawId: "nozzle.fixed-orifice", inputs: {
       ratedPressurePsi: node.segment.nozzle.ratedPressurePsi, ratedFlowGpm: node.segment.nozzle.ratedFlowGpm, flowGpm: q,
     }, valuePsi: node.segment.nozzle.ratedPressurePsi * (q / node.segment.nozzle.ratedFlowGpm) ** 2 });
-    const outlet = e.isolated ? null : e.head - node.resistance * q * q - allowance(node, q) - k * node.end;
+    const outlet = unavailable ? null : e.head - node.resistance * q * q - allowance(node, q) - k * node.end;
     const result: SeriesResult = {
-      state: e.dry ? "no-pressure" : q > 0 ? "flowing" : "nozzle-closed", flowGpm: q, nodes,
-      nozzlePressurePsi: outlet ?? NaN,
+      state: e.isolated ? "isolated" : e.dry ? "no-pressure" : q > 0 ? "flowing" : e.issue ? "unbalanced" : "nozzle-closed",
+      issues: e.issue ? [e.issue] : [], flowGpm: q, nodes,
+      nozzlePressurePsi: outlet,
       frictionLossPsi: node.resistance * q * q, fittingLossPsi: allowance(node, q), elevationPressurePsi: localElevation,
-      requiredPumpPressurePsi: node.children.length ? NaN : node.segment.nozzle.ratedPressurePsi
+      requiredPumpPressurePsi: node.children.length ? null : node.segment.nozzle.ratedPressurePsi
         + node.resistance * node.segment.nozzle.ratedFlowGpm ** 2 + localElevation + allowance(node, node.segment.nozzle.ratedFlowGpm),
       unsatisfied: null, terms,
     };
@@ -256,14 +258,15 @@ export function pathResult(root: TreeSegmentResult, path: readonly string[]): Se
   terms.push({ lawId: "elevation", inputs: { psiPerMeter, heightM }, valuePsi: elevationPsi });
   const sum = (f: (r: SeriesResult) => number) => chain.reduce((a, s) => a + f(s.result), 0);
   return {
-    state: chain.some((s) => s.isolated) ? "nozzle-closed" : leaf.result.state,
+    state: leaf.result.state,
+    issues: chain.flatMap((s) => s.result.issues),
     flowGpm: leaf.flowGpm,
     nodes,
     nozzlePressurePsi: leaf.result.nozzlePressurePsi,
     frictionLossPsi: sum((r) => r.frictionLossPsi),
     fittingLossPsi: sum((r) => r.fittingLossPsi),
     elevationPressurePsi: elevationPsi,
-    requiredPumpPressurePsi: NaN,
+    requiredPumpPressurePsi: null,
     unsatisfied: null,
     terms,
   };

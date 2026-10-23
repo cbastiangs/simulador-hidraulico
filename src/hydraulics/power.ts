@@ -68,7 +68,7 @@ export function powerSplit(input: SeriesResult | TreeSegmentResult): PowerSplit 
     for (const b of segment.branches) walk(b, [...path, b.id ?? ""], height);
   };
   walk(root, [], 0);
-  const pumpHp = horsepower(root.flowGpm > 0 ? root.flowGpm : 0, root.result.nodes[0].pressurePsi);
+  const pumpHp = root.flowGpm > 0 ? horsepower(root.flowGpm, root.result.nodes[0].pressurePsi!) : 0;
   const wholeHp = split.streamsHp + split.frictionHp + split.heightHp + split.fittingsHp;
   return {
     ...split, pumpHp, wholeHp, streams,

@@ -25,7 +25,7 @@ export type ActionContext = {
   scenario: Scenario;
   target: Target;
   /** The pressure the line needs at the pump, for "apply required". */
-  requiredPsi: number;
+  requiredPsi: number | null;
 };
 
 export type Outcome = {
@@ -226,12 +226,12 @@ export const ACTIONS: Action[] = [
   },
   {
     id: "pump.apply-required",
-    label: (c) => `Poner la presión ideal (${c.requiredPsi.toFixed(0)} psi)`,
+    label: (c) => c.requiredPsi === null ? "Presión ideal no disponible" : `Poner la presión ideal (${c.requiredPsi.toFixed(0)} psi)`,
     on: ["pump"],
     menu: true,
     field: true,
-    blocked: (c) => (c.scenario.nozzle.design === "open-end" ? "Sin pitón no hay presión nominal que alcanzar" : null),
-    run: (c) => ({ scenario: edit.setSourcePressure(c.scenario, c.requiredPsi) }),
+    blocked: (c) => c.requiredPsi === null ? "La presión ideal para varias salidas aún no se calcula" : c.scenario.nozzle.design === "open-end" ? "Sin pitón no hay presión nominal que alcanzar" : null,
+    run: (c) => ({ scenario: c.requiredPsi === null ? c.scenario : edit.setSourcePressure(c.scenario, c.requiredPsi) }),
   },
 
   // The whole line

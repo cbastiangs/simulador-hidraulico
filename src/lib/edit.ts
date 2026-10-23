@@ -1,6 +1,6 @@
 import { NOZZLE_SPECS } from "$hydraulics/catalog.ts";
 import { HOSE_SIZES, type FittingKind } from "$hydraulics/references.ts";
-import { joints, type Scenario, type ScenarioSection } from "$hydraulics/scenario.ts";
+import { joints, type Scenario, type ScenarioSection, type ScenarioBranch } from "$hydraulics/scenario.ts";
 import type { MethodId } from "$hydraulics/references.ts";
 import { runsOf, tautRunM } from "$lib/geometry/world.ts";
 
@@ -76,17 +76,26 @@ function pruneAdapters(scenario: Scenario): Scenario {
  * which it derives again.
  */
 export function setAutoFittings(scenario: Scenario, on: boolean): Scenario {
-  if (on) {
-    const { autoFittings: _, ...rest } = scenario;
-    return joints(scenario).reduce(
-      (s, j) => (j.placed.includes("adapter") ? withFittings(s, j.index, j.placed.filter((k) => k !== "adapter")) : s),
-      rest as Scenario,
-    );
+  function visit<T extends Scenario | ScenarioBranch>(segment: T, root: boolean): T {
+    // Generic wye ports match the attached hose. Only the root has a pump
+    // outlet; projecting it onto a branch would invent an extra adapter.
+    const projected: Scenario = {
+      ...scenario, ...segment, wye: segment.wye,
+      source: root ? scenario.source : { kind: "fixed-pressure", pressurePsi: 0 },
+    };
+    const changed = joints(projected).reduce((s, j) => {
+      if (on && j.placed.includes("adapter")) return withFittings(s, j.index, j.placed.filter((k) => k !== "adapter"));
+      if (!on && j.auto) return withFittings(s, j.index, [...j.placed, "adapter"]);
+      return s;
+    }, projected);
+    return {
+      ...segment, sections: changed.sections,
+      ...(root ? { source: changed.source } : {}),
+      ...(segment.wye ? { wye: { ...segment.wye, branches: segment.wye.branches.map((b) => visit(b, false)) } } : {}),
+    };
   }
-  return joints(scenario).reduce(
-    (s, j) => (j.auto ? withFittings(s, j.index, [...j.placed, "adapter"]) : s),
-    { ...scenario, autoFittings: false } as Scenario,
-  );
+  const { autoFittings: _, ...changed } = visit(scenario, true);
+  return on ? changed : { ...changed, autoFittings: false };
 }
 
 export function setSourcePressure(scenario: Scenario, pressurePsi: number): Scenario {

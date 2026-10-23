@@ -35,6 +35,28 @@ test("a branched path's terms: feed friction at the total flow, the wye once, an
   assert.equal(wye.length, 1);
   assert.equal(wye[0].joint, 1);
   near(wye[0].valuePsi, 5);
+
+  // Close only a's nozzle: b still flows, so the closed line reads the
+  // junction pressure, 150 − feed friction at q_b − 5, not 150 psi.
+  scenario.wye.branches[0] = { ...scenario.wye.branches[0], nozzle: { ...nozzle, open: false } };
+  const one = solveScenarioTree(scenario);
+  const qb = Math.sqrt(145 / (2 * ft / 1e4 + 24 * ft / 1e4 + 100 / 1e4));
+  const shut = pathResult(one.root, ["a"]);
+  near(one.totalFlowGpm, qb);
+  assert.equal(shut.state, "nozzle-closed");
+  assert.equal(shut.flowGpm, 0);
+  near(shut.nozzlePressurePsi, 145 - 2 * ft / 1e4 * qb ** 2);
+  assert.equal(shut.requiredPumpPressurePsi, null);
+
+  // Closing the gate also stops a, but isolates its water: its pressure is
+  // unknown. The flowing line b retains exactly the same operating point.
+  scenario.wye.branches[0].open = false;
+  const isolated = solveScenarioTree(scenario);
+  near(isolated.totalFlowGpm, qb);
+  const gated = pathResult(isolated.root, ["a"]);
+  assert.equal(gated.state, "isolated");
+  assert.equal(gated.nozzlePressurePsi, null);
+  assert.equal(gated.nodes.at(-1).pressurePsi, null);
 });
 
 test("an empty wye outlet opened flows as an open end through its 1½″ bore (MODEL.md §2, §3.4d)", () => {

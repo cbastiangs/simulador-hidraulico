@@ -3,6 +3,7 @@
   import { HOSE_SIZES, type FittingKind } from "$hydraulics/references.ts";
   import { joints, type Scenario } from "$hydraulics/scenario.ts";
   import type { SeriesResult } from "$hydraulics/series.ts";
+  import { reading } from "$lib/readings.ts";
   import {
     PX_PER_M,
     drawnHose,
@@ -62,7 +63,7 @@
     fitSignal = 0,
     phone = false,
     wide = false,
-    coverPx = 0,
+    visibleBottom = Infinity,
     onTapEmpty,
     onDeselect,
     others = [],
@@ -100,12 +101,12 @@
     onAction: (action: Action, target: Target) => void;
     /** Changes when "Ver toda la línea" runs from the action list: the whole lay is shown. */
     fitSignal?: number;
-    /** Phone layout (UX.md §8): the canvas fills its container and the bottom sheet replaces the floating toolbars. */
+    /** Touch layout below 1024 px: the sheet replaces floating toolbars (UX.md §10.9). */
     phone?: boolean;
     /** Desktop three-column layout (UX.md §4): the canvas takes the window's height. */
     wide?: boolean;
-    /** Pixels of the canvas's foot under the phone's open sheet (UX.md §10.3 T1). */
-    coverPx?: number;
+    /** Viewport y-coordinate of the sheet’s top edge (UX.md §10.9). */
+    visibleBottom?: number;
     /** A tap on empty canvas (the phone's sheet closes). */
     onTapEmpty?: () => void;
     /** The floating toolbars' ×. */
@@ -148,6 +149,15 @@
   let scroller: HTMLDivElement | undefined = $state();
   let svg: SVGSVGElement | undefined = $state();
   let stage: HTMLDivElement | undefined = $state();
+  // The sheet also covers the view toolbar. Only its actual overlap with the
+  // drawing belongs in the camera's visible-height calculation.
+  const coverPx = $derived.by(() => {
+    void viewHeight;
+    void viewWidth;
+    const bottom = scroller?.getBoundingClientRect().bottom ?? windowHeight;
+    return phone ? Math.max(0, bottom - visibleBottom) : 0;
+  });
+
 
   // Mounted markup and bind:clientWidth start at 0: measure on mount so the first fit is right.
   $effect(() => {
@@ -883,6 +893,22 @@
     if (always || outX || outY) moveCamera(always || outX ? x - viewWidth / 2 : camX, always || outY ? y - visible / 2 : camY, true);
   }
 
+  /** Reveal the equipment and its gauge with the smallest camera movement. */
+  function frameSelection(sel: Selection, cover: number) {
+    const p = selectionPoint(sel);
+    if (!p) return;
+    const index = sel.kind === "nozzle" ? last : sel.kind === "pump" ? 0 : sel.kind === "section" ? sel.index + 1 : sel.index;
+    const g = showGauges ? gaugeAt(index) : null;
+    const left = Math.min(p.x * zoom - 36, g ? g.x * zoom - 38 * gaugeK * zoom : Infinity);
+    const right = Math.max(p.x * zoom + 60, g ? g.x * zoom + 38 * gaugeK * zoom : -Infinity);
+    const top = Math.min(p.y * zoom - 28, g ? g.y * zoom - 44 * gaugeK * zoom : Infinity);
+    const bottom = Math.max(p.y * zoom + 38, g ? g.y * zoom + 40 * gaugeK * zoom : -Infinity);
+    const visible = Math.max(80, viewHeight - cover);
+    const reveal = (start: number, end: number, camera: number, size: number) =>
+      end - start > size - 16 ? start - 8 : Math.max(end - size + 8, Math.min(camera, start - 8));
+    moveCamera(reveal(left, right, camX, viewWidth), reveal(top, bottom, camY, visible), true);
+  }
+
   // Locked: the camera stays on the selection, or on the truck when nothing is
   // selected. Suppressed for the whole press/drag (§10.8).
   $effect(() => {
@@ -908,8 +934,7 @@
     if (!sel || !scroller || locked || press || dragging !== null) return;
     const raf = requestAnimationFrame(() => {
       if (press || dragging !== null) return;
-      const p = selectionPoint(sel);
-      if (p) centreOn(p, cover);
+      frameSelection(sel, cover);
     });
     return () => cancelAnimationFrame(raf);
   });
@@ -1283,11 +1308,38 @@
     const margin = 8;
     const maxW = Math.max(120, viewWidth - margin * 2);
     const bw = Math.min(w || maxW, maxW);
-    let top = prefer === "above" ? sy - h - margin : sy + margin;
-    if (top < margin) top = sy + margin;
-    if (top + h > viewHeight - margin) top = Math.max(margin, sy - h - margin);
-    const left = Math.max(margin, Math.min(viewWidth - bw - margin, sx - bw / 2));
-    return { left: left + camX, top: top + camY, maxWidth: maxW };
+    const bh = h || 120;
+    type Box = { left: number; top: number; right: number; bottom: number };
+    const box = (x: number, y: number, left: number, above: number, right: number, below: number): Box => ({
+      left: x * zoom - camX - left, right: x * zoom - camX + right,
+      top: y * zoom - camY - above, bottom: y * zoom - camY + below,
+    });
+    const anchors: Box[] = [
+      ...[layout, ...otherLines.map((o) => o.layout)].flatMap((lay) => [
+        ...lay.nodes.map((n, i) => box(n.x, n.y, 30, 30, i === lay.nodes.length - 1 ? 130 : 30, 45)),
+      ]),
+      box(layout.xAt(-5.75), layout.groundY, 50, 45, 55, 25),
+      ...hoseLabels.map((l) => box(l.x, l.y, measureLabel(l.text) / 2, 12, measureLabel(l.text) / 2, 12)),
+      ...(showGauges ? [...gauges, ...otherGauges.flat().filter((g) => g !== null)].map((g) =>
+        box(g.x, g.y, 38 * gaugeK * zoom, 44 * gaugeK * zoom, 38 * gaugeK * zoom, 40 * gaugeK * zoom)) : []),
+    ];
+    const obstacles = [...anchors, ...[layout, ...otherLines.map((o) => o.layout)].flatMap((lay) =>
+      lay.hoses.flatMap((hose) => hose.geom.points.map((p) => box(p.x, p.y, 10, 10, 10, 10))))];
+    const clampX = (x: number) => Math.max(margin, Math.min(viewWidth - bw - margin, x));
+    const clampY = (y: number) => Math.max(margin, Math.min(viewHeight - bh - margin, y));
+    const idealY = prefer === "above" ? sy - bh - margin : sy + margin;
+    const xs = [sx - bw / 2, margin, viewWidth - bw - margin];
+    const ys = [idealY, sy - bh - margin, margin, ...anchors.flatMap((o) => [o.top - bh - margin, o.bottom + margin])];
+    const overlap = (left: number, top: number) => obstacles.reduce((sum, o) => sum +
+      Math.max(0, Math.min(left + bw, o.right) - Math.max(left, o.left)) *
+      Math.max(0, Math.min(top + bh, o.bottom) - Math.max(top, o.top)), 0);
+    const candidates = xs.flatMap((x) => ys.map((y) => {
+      const left = clampX(x), top = clampY(y);
+      return { left, top, overlap: overlap(left, top), distance: Math.hypot(left + bw / 2 - sx, top - idealY) };
+    }));
+    candidates.sort((a, b) => a.overlap - b.overlap || a.distance - b.distance);
+    const best = candidates[0];
+    return { left: best.left + camX, top: best.top + camY, maxWidth: maxW };
   }
 
   // ── Pieces (UX.md §2 "Pieces"): pick one in the strip, tap a lit spot ──────
@@ -1537,8 +1589,8 @@
              A tap makes that line the edited one; the edited line draws on top with its handles. -->
         <!-- What leaves each nozzle (owner, 2026-10-17): the header's gpm is the pump's total. -->
         {#snippet flowTag(at: { x: number; y: number }, flowGpm: number, nozzle: Scenario["nozzle"])}
-          <text class="flow-tag" class:idle={flowGpm <= 0.5} x={at.x + 24 * nozzleK} y={at.y + 18 * nozzleK + 12 * k}>
-            {flowGpm > 0.5 ? `${flowGpm.toFixed(0)} gpm` : nozzle.design === "open-end" ? "sin flujo" : "cerrado"}
+          <text class="flow-tag" class:idle={flowGpm <= 0} x={at.x + 24 * nozzleK} y={at.y + 18 * nozzleK + 12 * k}>
+            {flowGpm > 0 ? `${reading(flowGpm, flowGpm < 1 ? 1 : 0)} gpm` : nozzle.open || nozzle.design === "open-end" ? "sin caudal" : "cerrado"}
           </text>
         {/snippet}
         {#snippet otherLine(o: (typeof otherLines)[number], peeked: boolean)}
@@ -1761,7 +1813,7 @@
         {#if showGauges}
           {#each layout.nodes as n, i (i)}
             {@const g = gaugeAt(i)}
-            {#if Number.isFinite(n.pressurePsi)}
+            {#if n.pressurePsi !== null && Number.isFinite(n.pressurePsi)}
             <g class="gauge" transform={`translate(${g.x} ${g.y}) scale(${gaugeK})`}>
               <circle
                 class="gauge-hit"
@@ -1811,7 +1863,7 @@
           {#each layout.nodes as n, i (i)}
             {@const g = gaugeAt(i)}
             <!-- Behind a shut gate the pressure is unknown (MODEL.md §2): no gauge rather than a made-up reading. -->
-            {#if Number.isFinite(n.pressurePsi)}
+            {#if n.pressurePsi !== null && Number.isFinite(n.pressurePsi)}
               <g class="gauge" transform={`translate(${g.x} ${g.y}) scale(${gaugeK})`}>
                 <Gauge psi={n.pressurePsi} mark={i === last && scenario.nozzle.design !== "open-end" ? scenario.nozzle.ratedPressurePsi : undefined} />
                 {#if i > firstWye && editedName}<text class="gauge-tag" y="-32"><tspan class="gauge-dot" fill={colorOf(editedKey)}>●</tspan> {editedName}</text>{/if}
@@ -1972,6 +2024,8 @@
       {/if}
       {#if inspected !== null && showGauges && inspected < layout.nodes.length}
         {@const i = inspected}
+        {@const currentPressure = result.nodes[i].pressurePsi}
+        {@const previousPressure = result.nodes[i - 1]?.pressurePsi}
         {@const g = gaugeAt(i)}
         {@const friction = result.terms.find((t) => t.lawId === "hose.friction" && t.sectionIndex === i - 1)}
         {@const pos = overlayPos(g.x * zoom - camX, (g.y - 30 * gaugeK) * zoom - camY, readingW, readingH, "above")}
@@ -1986,9 +2040,9 @@
         >
           <button type="button" class="bar-close" aria-label="Cerrar lectura" onclick={() => (inspected = null)}>×</button>
           <span>Presión en {nodeName(i)}</span>
-          <b>{result.nodes[i].pressurePsi.toFixed(1)} psi</b>
-          {#if i > 0}
-            <span>{(result.nodes[i - 1].pressurePsi - result.nodes[i].pressurePsi).toFixed(1)} psi menos que en {nodeName(i - 1)}</span>
+          <b>{reading(currentPressure)} psi</b>
+          {#if i > 0 && previousPressure != null && currentPressure !== null}
+            <span>{reading(previousPressure - currentPressure)} psi menos que en {nodeName(i - 1)}</span>
             {#if friction}<span>Fricción del tramo {i}: {friction.valuePsi.toFixed(1)} psi; el resto, desnivel y accesorios</span>{/if}
           {/if}
           {#if i === last}<span>Nominal del pitón: {scenario.nozzle.ratedPressurePsi} psi (marca en el dial)</span>{/if}

@@ -14,7 +14,7 @@
   }: {
     target: Target;
     scenario: Scenario;
-    requiredPsi: number;
+    requiredPsi: number | null;
     place: "quick" | "panel";
     onAction: (action: Action, target: Target) => void;
   } = $props();

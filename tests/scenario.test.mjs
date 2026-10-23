@@ -3,7 +3,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import test from "node:test";
 import { NOZZLE_SPECS } from "../src/hydraulics/catalog.ts";
 import { HOSE_SIZES, SOURCES } from "../src/hydraulics/references.ts";
-import { parseScenario, ScenarioError, solveScenario, toSeriesLine } from "../src/hydraulics/scenario.ts";
+import { parseScenario, ScenarioError, solveScenario, solveScenarioTree, toSeriesLine } from "../src/hydraulics/scenario.ts";
 
 const PRESETS = new URL("../data/presets/", import.meta.url);
 const preset = (name) => JSON.parse(readFileSync(new URL(name, PRESETS), "utf8"));
@@ -41,6 +41,27 @@ test("preset reduccion-un-piso: physical vs the CGBVP reference", () => {
   // Pressure drops at each coupling: pump 135 → after the 2-1/2" and the climb → nozzle.
   const pressures = solveScenario(scenario).nodes.map((n) => n.pressurePsi);
   assert.ok(pressures[0] > pressures[1] && pressures[1] > pressures[2]);
+
+  // The same CGBVP 5 psi allowance is discontinuous at zero flow. On level
+  // ground, 2 or 5 psi cannot sustain any positive flow; at 6 psi exactly
+  // 1 psi remains for the two hoses and nozzle: Q² = 1 / (0.0026·98.425/100 + 0.01).
+  const level = { ...scenario, sections: scenario.sections.map((s) => ({ ...s, endElevationM: 0 })) };
+  for (const pressurePsi of [2, 5, 6]) {
+    const input = { ...level, source: { ...level.source, pressurePsi } };
+    for (const r of [solveScenario(input, "cgbvp-2019"), solveScenarioTree(input, "cgbvp-2019").root.result]) {
+      if (pressurePsi <= 5) {
+        assert.equal(r.state, "unbalanced");
+        assert.equal(r.flowGpm, 0);
+        assert.equal(r.nozzlePressurePsi, null);
+        assert.equal(r.issues[0].code, "allowance-gap");
+        near(r.issues[0].residualPsi, pressurePsi, 1e-7);
+      } else {
+        assert.equal(r.state, "flowing");
+        near(r.flowGpm, Math.sqrt(1 / (0.0026 * (30 / 0.3048 / 100) + 0.01)), 1e-6);
+        near(r.terms.reduce((sum, term) => sum + term.valuePsi, 0), 6, 1e-7);
+      }
+    }
+  }
 });
 
 test("preset ataque-tercer-piso: the main-screen design's lay", () => {

@@ -9,6 +9,7 @@ import {
 import type { Term } from "./laws.ts";
 import { METHODS, type FittingKind, type Method } from "./references.ts";
 import { metersToFeet } from "./units.ts";
+import { pressureBalanced, PRESSURE_TOLERANCE_PSI, type BalanceIssue } from "./balance.ts";
 
 /**
  * A line of several hose sections in series: pump → section → section → …
@@ -60,7 +61,8 @@ export type SeriesLine = {
 /** Pressure at a coupling: index 0 is the pump discharge, the last is the nozzle inlet. */
 export type NodeReading = {
   elevationM: number;
-  pressurePsi: number;
+  /** Unknown in an isolated, dry or unsolved line. */
+  pressurePsi: number | null;
 };
 
 export type SeriesResult = {
@@ -69,10 +71,11 @@ export type SeriesResult = {
    * not only the nozzle: a soft hose collapses rather than siphon water over
    * a point the pump can't reach.
    */
-  state: AttackLineState;
+  state: AttackLineState | "isolated" | "unbalanced";
+  issues: BalanceIssue[];
   flowGpm: number;
   nodes: NodeReading[];
-  nozzlePressurePsi: number;
+  nozzlePressurePsi: number | null;
   /** Summed over all sections. */
   frictionLossPsi: number;
   /** Summed over all fittings while flowing; 0 under a method with no fitting data. */
@@ -86,12 +89,12 @@ export type SeriesResult = {
   unsatisfied: { stepGpm: number; sparePsi: number; stepPsi: number; lowPsi: number; highPsi: number } | null;
   /** From the pump to the nozzle; signed as in line.ts. */
   elevationPressurePsi: number;
-  /** The pump pressure at which the nozzle gets its rated flow at its rated pressure. */
-  requiredPumpPressurePsi: number;
+  /** Pump pressure for the rated point; null when whole-tree planning is needed. */
+  requiredPumpPressurePsi: number | null;
   /**
    * The laws applied, one term each (laws.ts), for the on-screen formulas.
-   * While flowing, their values add up to the pump pressure. With no flow
-   * there is no friction and no nozzle term, only elevation.
+   * At a balanced flow, their values add up to the pump pressure. A stopped
+   * segment has no friction or nozzle term; a path may still have feed losses.
    */
   terms: Term[];
 };
@@ -102,6 +105,7 @@ function totalFrictionPsi(sections: readonly Section[], flowGpm: number) {
 
 /** The method's loss for one fitting at a flow: fixed, stepped, or "sin dato" (0). */
 function fittingLoss(method: Method, kind: FittingKind, flowGpm: number) {
+  if (flowGpm <= 0) return 0;
   if (method.fittingLossPsi) return method.fittingLossPsi[kind];
   const step = method.fittingStep;
   return step && flowGpm > step.aboveGpm ? step.lossPsi : 0;
@@ -122,16 +126,24 @@ function nozzlePressureAt(nozzle: FixedOrificeNozzle, flowGpm: number) {
  * Doubles an upper bound until f goes negative, then halves the bracket to
  * the last representable step.
  */
-function rootOfDecreasing(f: (x: number) => number) {
+function rootOfDecreasing(f: (x: number) => number): number | null {
+  const atZero = f(0);
+  if (!Number.isFinite(atZero) || atZero <= 0) return null;
   let low = 0;
   let high = 1;
-  while (f(high) > 0) high *= 2;
+  let upperResidual = f(high);
+  while (Number.isFinite(upperResidual) && upperResidual > 0 && high <= Number.MAX_VALUE / 2) {
+    high *= 2;
+    upperResidual = f(high);
+  }
+  if (!Number.isFinite(upperResidual) || upperResidual > 0) return null;
   for (let i = 0; i < 200 && high - low > Number.EPSILON * high; i++) {
     const mid = (low + high) / 2;
     if (f(mid) > 0) low = mid;
     else high = mid;
   }
-  return (low + high) / 2;
+  const q = (low + high) / 2;
+  return pressureBalanced(f(q)) ? q : null;
 }
 
 function assertValidSeriesLine(line: SeriesLine) {
@@ -175,16 +187,20 @@ export function solveSeriesLine(line: SeriesLine, method: Method = METHODS.physi
 
   // What the pump has left at the line's highest point once water is lifted there.
   const headAtHighestPoint = pumpPressurePsi - elevationPressurePsi(Math.max(...elevations), method);
-  const flowing = headAtHighestPoint > 0 && nozzle.open;
-  // Pressure left over at flow q once every element has taken its share.
-  const residual = (q: number) =>
-    pumpPressurePsi - elevation - allFittingsPsi(fittings, method, q) - totalFrictionPsi(sections, q) - nozzlePressureAt(nozzle, q);
+  let state: SeriesResult["state"] = headAtHighestPoint <= 0 ? "no-pressure" : nozzle.open ? "flowing" : "nozzle-closed";
+  const issues: BalanceIssue[] = [];
+  // The right-hand limit at zero includes the fixed allowance: it applies
+  // to every positive flow, although an actual stopped line spends none.
+  const fixedPsi = fittings.reduce((sum, f) => sum + (method.fittingLossPsi?.[f.kind] ?? 0), 0);
   const step = method.fittingLossPsi ? null : method.fittingStep;
   const stepPsi = step ? allFittingsPsi(fittings, method, Infinity) : 0;
+  const residual = (q: number) =>
+    pumpPressurePsi - elevation - fixedPsi - (step && q > step.aboveGpm ? stepPsi : 0)
+    - totalFrictionPsi(sections, q) - nozzlePressureAt(nozzle, q);
   // At the step's flow, without the allowance (Q ≤ Qs counts none): spare pressure the allowance can't absorb exactly.
   const spare = step && stepPsi > 0 ? residual(step.aboveGpm) : 0;
-  const unsatisfied =
-    flowing && step && spare > 0 && spare < stepPsi
+  let unsatisfied =
+    state === "flowing" && step && spare > 0 && spare <= stepPsi
       ? {
           stepGpm: step.aboveGpm,
           sparePsi: spare,
@@ -193,23 +209,42 @@ export function solveSeriesLine(line: SeriesLine, method: Method = METHODS.physi
           highPsi: pumpPressurePsi - spare + stepPsi,
         }
       : null;
-  const flowGpm = !flowing ? 0 : unsatisfied ? unsatisfied.stepGpm : rootOfDecreasing(residual);
+  let flowGpm = 0;
+  if (state === "flowing") {
+    if (residual(0) <= 0) {
+      state = "unbalanced";
+      issues.push({ code: "allowance-gap", residualPsi: pumpPressurePsi - elevation });
+    } else if (unsatisfied) {
+      flowGpm = unsatisfied.stepGpm;
+      issues.push({ code: "allowance-gap", residualPsi: unsatisfied.sparePsi });
+    } else {
+      const root = rootOfDecreasing(residual);
+      if (root === null) {
+        state = "unbalanced";
+        issues.push({ code: "pressure-balance", residualPsi: residual(0) });
+      } else flowGpm = root;
+    }
+  }
   // A loss is only spent while water moves.
-  const fittingPsiAt = (joint: number) => (flowing ? lossAtJoint(fittings, joint, method, flowGpm) : 0);
+  const fittingPsiAt = (joint: number) => lossAtJoint(fittings, joint, method, flowGpm);
 
   // Walk the line from the pump, spending friction and height at each section.
-  const nodes: NodeReading[] = [{ elevationM: 0, pressurePsi: pumpPressurePsi }];
+  const pressures = [pumpPressurePsi];
   sections.forEach(({ hose, endElevationM }, i) => {
-    const previous = nodes[i];
-    nodes.push({
-      elevationM: endElevationM,
-      pressurePsi:
-        previous.pressurePsi -
-        fittingPsiAt(i) -
-        frictionLossPsi(hose, flowGpm) -
-        elevationPressurePsi(endElevationM - previous.elevationM, method),
-    });
+    pressures.push(pressures[i] - fittingPsiAt(i) - frictionLossPsi(hose, flowGpm)
+      - elevationPressurePsi(endElevationM - elevations[i], method));
   });
+  const minimum = Math.min(...pressures.map((p, i) => p - fittingPsiAt(i)));
+  if (flowGpm > 0 && minimum < -PRESSURE_TOLERANCE_PSI) {
+    state = "no-pressure";
+    flowGpm = 0;
+    unsatisfied = null;
+    issues.splice(0, issues.length, { code: "high-point", residualPsi: minimum });
+  }
+  const available = state === "flowing" || state === "nozzle-closed";
+  const nodes = elevations.map((elevationM, i) => ({
+    elevationM, pressurePsi: i === 0 || available ? pressures[i] : null,
+  }));
 
   const terms: Term[] = sections.map(({ hose }, sectionIndex) => ({
     lawId: "hose.friction",
@@ -222,7 +257,7 @@ export function solveSeriesLine(line: SeriesLine, method: Method = METHODS.physi
     inputs: { psiPerMeter: method.psiPerMeterOfHeight, heightM: nozzleElevationM },
     valuePsi: elevation,
   });
-  if (flowing) {
+  if (flowGpm > 0) {
     for (const { joint, kind } of fittings) {
       terms.push(
         step
@@ -250,12 +285,13 @@ export function solveSeriesLine(line: SeriesLine, method: Method = METHODS.physi
   }
 
   return {
-    state: flowing ? "flowing" : headAtHighestPoint <= 0 ? "no-pressure" : "nozzle-closed",
+    state,
+    issues,
     flowGpm,
     nodes,
-    nozzlePressurePsi: nodes[nodes.length - 1].pressurePsi - fittingPsiAt(sections.length),
+    nozzlePressurePsi: available ? pressures.at(-1)! - fittingPsiAt(sections.length) : null,
     frictionLossPsi: totalFrictionPsi(sections, flowGpm),
-    fittingLossPsi: flowing ? allFittingsPsi(fittings, method, flowGpm) : 0,
+    fittingLossPsi: allFittingsPsi(fittings, method, flowGpm),
     unsatisfied,
     elevationPressurePsi: elevation,
     requiredPumpPressurePsi,

@@ -88,7 +88,7 @@ export function fillViewport(bounds: Bounds, widthPx: number, heightPx: number, 
   };
 }
 
-export type WorldNode = { x: number; y: number; distanceM: number; elevationM: number; pressurePsi: number };
+export type WorldNode = { x: number; y: number; distanceM: number; elevationM: number; pressurePsi: number | null };
 export type Point = { x: number; y: number };
 /** A fitting face the hose must reach exactly: the point and the forward direction there (degrees, pump→nozzle). */
 export type PathAttachment = { point: Point; angle: number };
@@ -464,7 +464,7 @@ export function jointAngle(hoses: readonly WorldHose[], index: number): number {
 
 export function layoutWorld(
   sections: readonly Section[],
-  pressuresPsi: readonly number[],
+  pressuresPsi: readonly (number | null)[],
   bounds: Bounds,
   floorM: number,
   /** Floor lines stop here (the world's own top); above is plain sky added to fill the viewport. */

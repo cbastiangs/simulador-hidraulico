@@ -3,6 +3,7 @@
   import type { SeriesResult } from "$hydraulics/series.ts";
   import { kilowatts, type PowerSplit } from "$hydraulics/power.ts";
   import { hoseVelocityMps, nozzleExitVelocityMps } from "$hydraulics/velocity.ts";
+  import { reading as f } from "$lib/readings.ts";
 
   // Pressure, flow and speed are three different things (MODEL.md §3.13), shown
   // with this scenario's own numbers. Every value comes from the engine's result.
@@ -10,11 +11,10 @@
   // which has its own card for it (UX.md §3).
   let { scenario, result, power = null }: { scenario: Scenario; result: SeriesResult; power?: PowerSplit | null } = $props();
 
-  const f = (n: number, digits = 1) => n.toFixed(digits);
-  const flowing = $derived(result.state === "flowing");
+  const flowing = $derived(result.state === "flowing" && result.issues.length === 0);
   const pump = $derived(result.nodes[0].pressurePsi);
-  /** Pressure at the nozzle with no flow: the pump's pressure minus the height. */
-  const staticPsi = $derived(pump - result.elevationPressurePsi);
+  /** A closed, connected nozzle reads the solved head, including shared-feed losses. */
+  const staticPsi = $derived(result.state === "nozzle-closed" && result.issues.length === 0 ? result.nozzlePressurePsi : null);
   const last = $derived(scenario.sections[scenario.sections.length - 1]);
   const n = $derived(scenario.nozzle);
 </script>
@@ -23,7 +23,7 @@
   <summary>Conceptos · presión, caudal y velocidad (con los números de esta línea)</summary>
   <dl>
     <dt>Presión estática en el pitón <b>{f(staticPsi)} psi</b></dt>
-    <dd>La que hay sin que corra agua: presión de la bomba menos la altura. Con el pitón cerrado es lo que marcan todos los manómetros.</dd>
+    <dd>La presión de esta línea con su pitón cerrado y conectado. Si otras salidas siguen abiertas, la alimentación común sigue perdiendo presión. Se muestra al cerrar el pitón; en una línea aislada o sin agua es desconocida.</dd>
 
     <dt>Presión de flujo en el pitón <b>{flowing ? `${f(result.nozzlePressurePsi)} psi` : "—"}</b></dt>
     <dd>
@@ -41,7 +41,7 @@
     <dt>Velocidad en la manguera <b>{flowing ? `${f(hoseVelocityMps(result.flowGpm, last.diameterIn))} m/s` : "—"}</b></dt>
     <dd>Caudal ÷ sección de la manguera (continuidad). Una manguera más angosta con el mismo caudal va más rápida.</dd>
 
-    <dt>Velocidad del chorro <b>{flowing ? `${f(nozzleExitVelocityMps(result.nozzlePressurePsi))} m/s` : "—"}</b></dt>
+    <dt>Velocidad del chorro <b>{flowing && result.nozzlePressurePsi !== null ? `${f(nozzleExitVelocityMps(result.nozzlePressurePsi))} m/s` : "—"}</b></dt>
     <dd>
       Depende solo de la presión en el pitón (12,18·√NP ft/s), no del caudal. Un ajuste menor da un chorro más rápido
       pero más fino: velocidad no es caudal.
@@ -68,8 +68,12 @@
     <dd>
       Es el par con que se calibró este ajuste: con {n.ratedPressurePsi} psi en la entrada, esta abertura deja pasar
       {n.ratedFlowGpm} gpm. No es la presión que tendrás: esa ({flowing ? `${f(result.nozzlePressurePsi)} psi` : "—"})
-      sale de la bomba y la línea, y se calcula con Q ∝ √P. La «Presión ideal»
-      ({f(result.requiredPumpPressurePsi)} psi) es la presión de la <b>bomba</b> con que el pitón trabaja en su clasificación; tócala para ponerla.
+      sale de la bomba y la línea, y se calcula con Q ∝ √P.
+      {#if result.requiredPumpPressurePsi !== null}
+        La «Presión ideal» ({f(result.requiredPumpPressurePsi)} psi) es la presión de la <b>bomba</b> con que el pitón trabaja en su clasificación; tócala para ponerla.
+      {:else}
+        La presión ideal de la bomba para varias salidas aún no se calcula.
+      {/if}
     </dd>
     {/if}
   </dl>
