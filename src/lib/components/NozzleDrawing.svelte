@@ -2,12 +2,15 @@
   import { Tween } from "svelte/motion";
   import type { ScenarioNozzle } from "$hydraulics/scenario.ts";
   import { anatomyOf } from "$lib/nozzle-anatomy.ts";
+  import { sideArtOf } from "$lib/nozzle-art/index.ts";
 
-  // The nozzle on the canvas (UX.md §3): drawn from its model's anatomy
-  // (nozzle-anatomy.ts) — the shutoff it really has (bale, slide or ball), its
-  // pistol grip, gallonage ring, pressure ring, pattern collar and teeth. The
-  // stream's length is illustrative (it grows with flow); real reach needs
-  // manufacturer data (MODEL.md §6), so no distance is claimed.
+  // The nozzle on the canvas (UX.md §3): the model's own side view
+  // (nozzle-art/, owner 2026-10-19) when one is drawn — its shell, its shutoff
+  // in its two poses, where its stream leaves — and the generic drawing
+  // before 2026-10-19 for anything else: a shutoff it really has (bale, slide
+  // or ball), its pistol grip, gallonage ring, pressure ring, pattern collar
+  // and teeth. The stream's length is illustrative (it grows with flow); real
+  // reach needs manufacturer data (MODEL.md §6), so no distance is claimed.
   let {
     nozzle,
     flowGpm,
@@ -35,6 +38,7 @@
 
   const design = $derived(nozzle.design ?? "fog");
   const anatomy = $derived(anatomyOf(nozzle));
+  const art = $derived(sideArtOf(nozzle));
   const fog = $derived(design !== "open-end" && design !== "smooth-bore");
   // One 0 → 1 tween; each shutoff reads its own motion out of it.
   const motion = Tween.of(() => (nozzle.open ? 1 : 0), { duration: 220 });
@@ -49,15 +53,23 @@
   const collarEnd = $derived(anatomy.pattern ? barrelEnd + 18 : barrelEnd + 2);
   /** Where the water leaves the drawing, and how wide it is there. */
   const exit = $derived(
-    design === "open-end" ? { x: 6, half: 6 } : design === "smooth-bore" ? { x: 44, half: 3 } : { x: collarEnd, half: 0 },
+    art
+      ? art.exit
+      : design === "open-end"
+        ? { x: 6, half: 6 }
+        : design === "smooth-bore"
+          ? { x: 44, half: 3 }
+          : { x: collarEnd, half: 0 },
   );
+  /** The drawing's own length: the model's, or the generic shape's. */
+  const length = $derived(art ? art.length : design === "open-end" ? 14 : collarEnd);
 
   const stream = $derived.by(() => {
     const spread = design === "open-end" ? 7 : 4 + pattern.current * 41;
     const halfAngle = (spread * Math.PI) / 180;
-    const length = (design === "open-end" ? 90 : 140) * (1 - 0.45 * pattern.current) * flow.current;
-    const dy = exit.half + Math.tan(halfAngle) * length;
-    return { length, dy, core: exit.half * 0.6 + (dy - exit.half) * 0.35 };
+    const streamLength = (design === "open-end" ? 90 : 140) * (1 - 0.45 * pattern.current) * flow.current;
+    const dy = exit.half + Math.tan(halfAngle) * streamLength;
+    return { length: streamLength, dy, core: exit.half * 0.6 + (dy - exit.half) * 0.35 };
   });
 
   const shutoffLabel = $derived(
@@ -68,14 +80,23 @@
 </script>
 
 <g transform={`translate(${x} ${y})`}>
-  {#if selected}<rect class="selection" x="-10" y="-34" width="80" height="54" rx="8" />{/if}
+  {#if selected}<rect class="selection" x="-10" y="-34" width={length + 14} height="54" rx="8" />{/if}
   {#if stream.length > 1}
     {@const x0 = exit.x}
     {@const x1 = exit.x + stream.length}
     <path class="spray" class:solid={design !== "fog"} d={`M ${x0} ${-exit.half} L ${x1} ${-stream.dy} L ${x1} ${stream.dy} L ${x0} ${exit.half} Z`} />
     <path class="core" d={`M ${x0} ${-exit.half * 0.6} L ${x1} ${-stream.core} L ${x1} ${stream.core} L ${x0} ${exit.half * 0.6} Z`} />
   {/if}
-  {#if design === "open-end"}
+  {#if art}
+    <!-- The model's own shell, then the line's colour band at the inlet. -->
+    {#each art.shell as p, i (i)}
+      <path class={p.role} d={p.d} transform={p.t} opacity={p.opacity ?? 1} />
+    {/each}
+    {#if color}<rect class="band" x="-1" y="-10" width="7" height="20" rx="2" fill={color} />{/if}
+    {#if art.flowLabel && nozzle.kind === "selectable"}
+      <text class="ring-label" x={art.flowLabel.x} y={art.flowLabel.y}>{nozzle.ratedFlowGpm}</text>
+    {/if}
+  {:else if design === "open-end"}
     <!-- Only the hose's own coupling. -->
     <rect class="ring" x="-2" y="-10" width="8" height="20" rx="2" />
     {#if color}<rect class="band" x="-8" y="-9" width="6" height="18" rx="2" fill={color} />{/if}
@@ -122,7 +143,7 @@
     {/if}
   {/if}
   <!-- The whole body drags (owner, 2026-10-17); the bale above it still takes its tap. Pointer only: the coupling handle is the keyboard slider. -->
-  {#if onGrab}<rect class="grab" role="presentation" x="-12" y="-14" width={design === "open-end" ? 32 : 64} height="28" rx="6" onpointerdown={onGrab} />{/if}
+  {#if onGrab}<rect class="grab" role="presentation" x="-12" y="-14" width={length + 12} height="28" rx="6" onpointerdown={onGrab} />{/if}
   <!-- The shutoff: tap to open or shut. An open end has none. -->
   {#if design !== "open-end" && anatomy.shutoff !== "none"}
   <g
@@ -135,7 +156,12 @@
     onclick={onToggle}
     onkeydown={(e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), onToggle())}
   >
-    {#if anatomy.shutoff === "bale"}
+    {#if art?.shutoff}
+      <!-- The model's own moving part, crossfaded between its end poses. -->
+      <circle class="hit" cx={art.shutoff.hit.x} cy={art.shutoff.hit.y} r={art.shutoff.hit.r} />
+      <g class="pose" class:on={!nozzle.open}>{#each art.shutoff.closed as p, i (i)}<path class={p.role} d={p.d} transform={p.t} opacity={p.opacity ?? 1} />{/each}</g>
+      <g class="pose" class:on={nozzle.open}>{#each art.shutoff.open as p, i (i)}<path class={p.role} d={p.d} transform={p.t} opacity={p.opacity ?? 1} />{/each}</g>
+    {:else if anatomy.shutoff === "bale"}
       <circle class="hit" cx="10" cy="-32" r="22" />
       <g transform={`rotate(${8 - 70 * motion.current} 10 -6)`}>
         <line class="lever" x1="10" y1="-6" x2="10" y2="-30" />
@@ -160,7 +186,17 @@
 
 <style>
   /* Only the shutoff takes pointer input; the rest lets drags reach the coupling handle beneath. */
-  .selection, .spray, .core, .body, .ring, .ring-label, .collar, .tip, .barrel, .pressure, .tooth, .tooth-rubber, .grip, .index { pointer-events: none; }
+  .selection, .spray, .core, .body, .ring, .ring-label, .collar, .tip, .barrel, .pressure, .tooth, .tooth-rubber, .grip, .index,
+  .dark, .steel, .brass, .label, .red, .yellow, .orange, .blue, .pose { pointer-events: none; }
+  /* The product's own colours, fixed in both themes: a black nozzle stays black (the art palette, nozzle-art/types.ts). */
+  .dark { fill: #2b2f33; }
+  .steel { fill: #8f989f; }
+  .brass { fill: #b08d57; }
+  .label { fill: #e8eaec; }
+  .red { fill: #c0392b; }
+  .yellow { fill: #e8c02a; }
+  .orange { fill: #e07f2a; }
+  .blue { fill: #2aa7c4; }
   .tip { fill: var(--steel); }
   .barrel { fill: var(--ink); }
   .spray.solid { fill: var(--water); opacity: 0.45; }
@@ -180,11 +216,16 @@
   .knob { fill: var(--ink); }
   .slider { fill: var(--ink); }
   .stem { stroke: var(--ink); stroke-width: 3; stroke-linecap: round; }
+  .pose { opacity: 0; transition: opacity 180ms ease; }
+  .pose.on { opacity: 1; }
+  @media (prefers-reduced-motion: reduce) { .pose { transition: none; } }
   .bale { cursor: pointer; outline: none; }
   /* A finger's tap near a tiny bale is a tap on the nozzle: touch adjustment would otherwise snap it to the bale. */
   @media (pointer: coarse) { .bale.small { pointer-events: none; } }
   .bale:focus-visible .lever, .bale:focus-visible .stem { stroke: var(--accent); }
   .bale:focus-visible .slider { fill: var(--accent); }
+  /* The focus ring rides the hit area, so it shows over every model's own art too. */
+  .bale:focus-visible .hit { fill: none; stroke: var(--accent); stroke-width: 2; stroke-dasharray: 4 3; }
   .hit { fill: transparent; }
   .grab { fill: transparent; cursor: grab; touch-action: none; }
   .band { stroke: var(--surface); stroke-width: 1.5; pointer-events: none; }

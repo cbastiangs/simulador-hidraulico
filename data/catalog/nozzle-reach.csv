@@ -1,0 +1,53 @@
+nozzle_id,flow_gpm,pressure_psi,angle_deg,reach_kind,reach_m,conditions,source,notes
+TFT-HM-VPGI,200,100,30,,48.2,"still air, 30° elevation; chart value; effective/overall not stated",TFT LIM-030 fig. 4.4C,raw/nozzles/LIM-030.pdf; headline of the 70–200 gpm curve in nozzles.csv
+TFT-H-2VPGI,300,100,30,,55.7,"still air, 30° elevation; chart value; effective/overall not stated",TFT LIM-030 fig. 4.4F,raw/nozzles/LIM-030.pdf; headline of the 95–300 gpm curve in nozzles.csv
+TFT-H-VPGI,300,100,30,,55.7,"still air, 30° elevation; chart value; effective/overall not stated",TFT LIM-030 fig. 4.4F,raw/nozzles/LIM-030.pdf; headline of the 95–300 gpm curve in nozzles.csv
+TFT-BGH-125,125,100,30,,44.8,"still air, 30° elevation; chart value; effective/overall not stated",TFT LIM-030 fig. 4.4A,raw/nozzles/LIM-030.pdf; headline of the 10–125 gpm curve in nozzles.csv
+TFT-M-RS1000-NJ,1000,100,30,effective,72.3,"30° elevation, no wind, approximate effective trajectory; last droplets about 10% farther",TFT LIM-030 fig. 4.5A,raw/nozzles/LIM-030.pdf; 1000 gpm curve in nozzles.csv
+TFT-GPA-EN,132.1,87,,,41,LIG-012 chart; test angle/conditions not stated; straight-stream reach; 100/250/500 L/min; 500 L/min point,TFT LIG-012 §4.5,https://webdataapi.tft.com/documents/lig-012_06.pdf
+TFT-GPB-EN,105.7,87,,,40,LIG-012 chart; test angle/conditions not stated; straight-stream reach; 100/235/400 L/min; 400 L/min point,TFT LIG-012 §4.5,https://webdataapi.tft.com/documents/lig-012_06.pdf
+TFT-GPC-EN,39.6,87,,,25,LIG-012 chart; test angle/conditions not stated; straight-stream reach; 50/100/150 L/min; 150 L/min point,TFT LIG-012 §4.5,https://webdataapi.tft.com/documents/lig-012_06.pdf
+TFT-GPD-EN,132.1,87,,,41,LIG-012 chart; test angle/conditions not stated; straight-stream reach; Auto 500 L/min; flow floor not published,TFT LIG-012 §4.5,https://webdataapi.tft.com/documents/lig-012_06.pdf
+TFT-GPF-EN,132.1,87,,,41,LIG-012 chart; test angle/conditions not stated; straight-stream reach; Pulsing 250 / Auto 500 L/min; 500 L/min point,TFT LIG-012 §4.5,https://webdataapi.tft.com/documents/lig-012_06.pdf
+TFT-GPG-EN,105.7,87,,,40,LIG-012 chart; test angle/conditions not stated; straight-stream reach; Pulsing 235 / Auto 400 L/min; 400 L/min point,TFT LIG-012 §4.5,https://webdataapi.tft.com/documents/lig-012_06.pdf
+TFT-GPJ-EN,132.1,87,,,41,LIG-012 chart; test angle/conditions not stated; straight-stream reach; Pulsing 250 / Auto 500 L/min; 500 L/min point,TFT LIG-012 §4.5,https://webdataapi.tft.com/documents/lig-012_06.pdf
+TFT-GPL-EN,66.0,87,,,34,LIG-012 chart; test angle/conditions not stated; straight-stream reach; Pulsing 150 / Auto 250 L/min; 250 L/min point,TFT LIG-012 §4.5,https://webdataapi.tft.com/documents/lig-012_06.pdf
+TFT-GPN-EN,105.7,87,,,40,LIG-012 chart; test angle/conditions not stated; straight-stream reach; Pulsing 235 / Auto 400 L/min; 400 L/min point,TFT LIG-012 §4.5,https://webdataapi.tft.com/documents/lig-012_06.pdf
+TFT-GPT-EN,105.7,87,,,40,LIG-012 chart; test angle/conditions not stated; straight-stream reach; Pulsing 400 L/min,TFT LIG-012 §4.5,https://webdataapi.tft.com/documents/lig-012_06.pdf
+TFT-GPU-EN,132.1,87,,,41,LIG-012 chart; test angle/conditions not stated; straight-stream reach; Pulsing 500 L/min,TFT LIG-012 §4.5,https://webdataapi.tft.com/documents/lig-012_06.pdf
+TFT-GPV-EN,39.6,87,,,25,LIG-012 chart; test angle/conditions not stated; straight-stream reach; Pulsing 150 L/min,TFT LIG-012 §4.5,https://webdataapi.tft.com/documents/lig-012_06.pdf
+TFT-GPW-EN,62.1,87,,,33,LIG-012 chart; test angle/conditions not stated; straight-stream reach; 100/235 L/min; 235 L/min point,TFT LIG-012 §4.5,https://webdataapi.tft.com/documents/lig-012_06.pdf
+TFT-GPY-EN,132.1,87,,,41,LIG-012 chart; test angle/conditions not stated; straight-stream reach; 100/200/300/400/500 L/min; 500 L/min point,TFT LIG-012 §4.5,https://webdataapi.tft.com/documents/lig-012_06.pdf
+TFT-GDPA-EN,62.1,87,,,31,LIG-012 chart; test angle/conditions not stated; straight-stream reach; fixed 235 L/min,TFT LIG-012 §4.5,https://webdataapi.tft.com/documents/lig-012_06.pdf
+TFT-GDPD-EN,52.8,87,,,28,LIG-012 chart; test angle/conditions not stated; straight-stream reach; 40/100/150/200 L/min; 200 L/min point,TFT LIG-012 §4.5,https://webdataapi.tft.com/documents/lig-012_06.pdf
+TFT-GDPE-EN,62.1,87,,,31,LIG-012 chart; test angle/conditions not stated; straight-stream reach; 40/100/150/235 L/min; 235 L/min point,TFT LIG-012 §4.5,https://webdataapi.tft.com/documents/lig-012_06.pdf
+TFT-GDPF-EN,105.7,87,,,38,LIG-012 chart; test angle/conditions not stated; straight-stream reach; 100/235/400 L/min; 400 L/min point,TFT LIG-012 §4.5,https://webdataapi.tft.com/documents/lig-012_06.pdf
+TFT-GDPM-EN,39.6,87,,,24,LIG-012 chart; test angle/conditions not stated; straight-stream reach; automatic 60–150 L/min; 150 L/min point,TFT LIG-012 §4.5,https://webdataapi.tft.com/documents/lig-012_06.pdf
+TFT-GDPN-EN,105.7,87,,,38,LIG-012 chart; test angle/conditions not stated; straight-stream reach; automatic 60–400 L/min; 400 L/min point,TFT LIG-012 §4.5,https://webdataapi.tft.com/documents/lig-012_06.pdf
+TFT-GDPT-EN,79.3,87,,,34,LIG-012 chart; test angle/conditions not stated; straight-stream reach; automatic 40–300 L/min; 300 L/min point,TFT LIG-012 §4.5,https://webdataapi.tft.com/documents/lig-012_06.pdf
+TFT-GDPU-EN,105.7,87,,,38,LIG-012 chart; test angle/conditions not stated; straight-stream reach; Pulsing 235 / Auto 400 L/min; 400 L/min point,TFT LIG-012 §4.5,https://webdataapi.tft.com/documents/lig-012_06.pdf
+ELK-CHIEF-XD-MID-TIP,125,100,32,overall,43,"32° elevation, nozzle 5 ft above ground, still air, measured to last droplets","Elkhart Chief XD flow & reach chart, 2017-07-26",raw/nozzles/elkhart_chiefxd_reach.pdf
+ELK-CHIEF-XD-HIGH-TIP,250,100,32,overall,56,"32° elevation, nozzle 5 ft above ground, still air, measured to last droplets","Elkhart Chief XD flow & reach chart, 2017-07-26",raw/nozzles/elkhart_chiefxd_reach.pdf
+ELK-SM1250-XSTREAM,1250,75,32,overall,82.6,"32° elevation, 4 ft above ground, still air, measured to last droplets",Elkhart X-Stream flow chart,raw/nozzles/elkhart_xstream_performance.pdf
+ELK-CSW-LB,1250,100,32,,96,32° elevation; tested at 46°F with a 9 mph WSW wind; 32/55/75° charts exist; effective/overall not stated,Elkhart CSW-L reach@height charts,raw/nozzles/elkhart_cswl_reach_height.pdf
+AKR-17204001,125,100,32,effective,43,"straight stream 32° above horizontal, still conditions",Akron Turbojet 100 psi flow/reach data,raw/nozzles/akron_turbojet_flow_reach_100psi.pdf
+AKR-17204001,125,100,32,overall,46,"straight stream 32° above horizontal, still conditions",Akron Turbojet 100 psi flow/reach data,raw/nozzles/akron_turbojet_flow_reach_100psi.pdf
+AKR-1723P,95,100,32,effective,43,straight stream 32° above horizontal; still conditions,Akron Turbojet 100 psi flow/reach data,raw/nozzles/akron_turbojet_flow_reach_100psi.pdf; table covers 1722/1723
+AKR-1723P,95,100,32,overall,46,straight stream 32° above horizontal; still conditions,Akron Turbojet 100 psi flow/reach data,raw/nozzles/akron_turbojet_flow_reach_100psi.pdf; table covers 1722/1723
+AKR-1723P,125,100,32,effective,47,straight stream 32° above horizontal; still conditions,Akron Turbojet 100 psi flow/reach data,raw/nozzles/akron_turbojet_flow_reach_100psi.pdf; table covers 1722/1723
+AKR-1723P,125,100,32,overall,50,straight stream 32° above horizontal; still conditions,Akron Turbojet 100 psi flow/reach data,raw/nozzles/akron_turbojet_flow_reach_100psi.pdf; table covers 1722/1723
+AKR-1723P,150,100,32,effective,49,straight stream 32° above horizontal; still conditions,Akron Turbojet 100 psi flow/reach data,raw/nozzles/akron_turbojet_flow_reach_100psi.pdf; table covers 1722/1723
+AKR-1723P,150,100,32,overall,52,straight stream 32° above horizontal; still conditions,Akron Turbojet 100 psi flow/reach data,raw/nozzles/akron_turbojet_flow_reach_100psi.pdf; table covers 1722/1723
+AKR-1723P,200,100,32,effective,52,straight stream 32° above horizontal; still conditions,Akron Turbojet 100 psi flow/reach data,raw/nozzles/akron_turbojet_flow_reach_100psi.pdf; table covers 1722/1723
+AKR-1723P,200,100,32,overall,55,straight stream 32° above horizontal; still conditions,Akron Turbojet 100 psi flow/reach data,raw/nozzles/akron_turbojet_flow_reach_100psi.pdf; table covers 1722/1723
+PRO-368,95,100,,effective,42,Fire Armour page table; angle/height not stated,Protek/Fire Armour Style 368 flow/reach table,https://www.firearmour.com.sg/product/protek-handline-nozzle-368/
+PRO-368,95,100,,overall,45,Fire Armour page table; angle/height not stated,Protek/Fire Armour Style 368 flow/reach table,https://www.firearmour.com.sg/product/protek-handline-nozzle-368/
+PRO-368,125,100,,effective,45,Fire Armour page table; angle/height not stated,Protek/Fire Armour Style 368 flow/reach table,https://www.firearmour.com.sg/product/protek-handline-nozzle-368/
+PRO-368,125,100,,overall,48,Fire Armour page table; angle/height not stated,Protek/Fire Armour Style 368 flow/reach table,https://www.firearmour.com.sg/product/protek-handline-nozzle-368/
+PRO-368,150,100,,effective,48,Fire Armour page table; angle/height not stated,Protek/Fire Armour Style 368 flow/reach table,https://www.firearmour.com.sg/product/protek-handline-nozzle-368/
+PRO-368,150,100,,overall,51,Fire Armour page table; angle/height not stated,Protek/Fire Armour Style 368 flow/reach table,https://www.firearmour.com.sg/product/protek-handline-nozzle-368/
+PRO-368,200,100,,effective,51,Fire Armour page table; angle/height not stated,Protek/Fire Armour Style 368 flow/reach table,https://www.firearmour.com.sg/product/protek-handline-nozzle-368/
+PRO-368,200,100,,overall,54,Fire Armour page table; angle/height not stated,Protek/Fire Armour Style 368 flow/reach table,https://www.firearmour.com.sg/product/protek-handline-nozzle-368/
+PRO-368,250,100,,effective,53,Fire Armour page table; angle/height not stated,Protek/Fire Armour Style 368 flow/reach table,https://www.firearmour.com.sg/product/protek-handline-nozzle-368/
+PRO-368,250,100,,overall,56,Fire Armour page table; angle/height not stated,Protek/Fire Armour Style 368 flow/reach table,https://www.firearmour.com.sg/product/protek-handline-nozzle-368/
+AKR-1420,210,50,,effective,43,Protek smooth-bore table; angle/conditions not stated; 1 in tip; not Akron-specific; no Akron-specific reach found,Protek smooth-bore flow/reach table,https://depotsafety.co.id/wp-content/uploads/2017/12/Flow-Reach-Data.pdf; no local PDF

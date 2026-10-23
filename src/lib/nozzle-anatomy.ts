@@ -67,11 +67,11 @@ function anatomy(entry: AnatomyInput): NozzleAnatomy {
   };
 }
 
-/** One entry per researched row of `data/catalog/nozzles.csv` with `design = combination`. */
+/** One entry per researched row of `data/catalog/nozzles.csv` with `design = combination`, plus the researched smooth-bore assembly. */
 const RESEARCHED: Record<string, NozzleAnatomy> = {
   // Task Force Tips.
   "TFT-HM-VPGI": anatomy({
-    shutoff: "slide",
+    shutoff: "bale",
     flow: "none",
     grip: true,
     pattern: true,
@@ -80,7 +80,7 @@ const RESEARCHED: Record<string, NozzleAnatomy> = {
     verify: false,
   }),
   "TFT-H-2VPGI": anatomy({
-    shutoff: "slide",
+    shutoff: "bale",
     flow: "none",
     grip: true,
     pattern: true,
@@ -89,7 +89,7 @@ const RESEARCHED: Record<string, NozzleAnatomy> = {
     verify: true,
   }),
   "TFT-GF3D2S": anatomy({
-    shutoff: "slide",
+    shutoff: "bale",
     flow: "ring",
     grip: true,
     pattern: true,
@@ -98,7 +98,7 @@ const RESEARCHED: Record<string, NozzleAnatomy> = {
     verify: false,
   }),
   "TFT-GF3C2S": anatomy({
-    shutoff: "slide",
+    shutoff: "bale",
     flow: "ring",
     grip: true,
     pattern: true,
@@ -107,7 +107,7 @@ const RESEARCHED: Record<string, NozzleAnatomy> = {
     verify: false,
   }),
   "TFT-FQS125F": anatomy({
-    shutoff: "ball",
+    shutoff: "bale",
     flow: "ring",
     grip: false,
     pattern: true,
@@ -116,7 +116,7 @@ const RESEARCHED: Record<string, NozzleAnatomy> = {
     verify: false,
   }),
   "TFT-FTS200PS": anatomy({
-    shutoff: "ball",
+    shutoff: "bale",
     flow: "ring",
     grip: true,
     pattern: true,
@@ -125,7 +125,7 @@ const RESEARCHED: Record<string, NozzleAnatomy> = {
     verify: false,
   }),
   "TFT-JTS250PS": anatomy({
-    shutoff: "ball",
+    shutoff: "bale",
     flow: "ring",
     grip: true,
     pattern: true,
@@ -134,7 +134,7 @@ const RESEARCHED: Record<string, NozzleAnatomy> = {
     verify: false,
   }),
   "TFT-H-VPGI": anatomy({
-    shutoff: "slide",
+    shutoff: "bale",
     flow: "none",
     grip: true,
     pattern: true,
@@ -143,7 +143,7 @@ const RESEARCHED: Record<string, NozzleAnatomy> = {
     verify: false,
   }),
   "TFT-BGH-125": anatomy({
-    shutoff: "slide",
+    shutoff: "bale",
     flow: "none",
     grip: true,
     pattern: true,
@@ -235,6 +235,28 @@ const RESEARCHED: Record<string, NozzleAnatomy> = {
     verify: true,
   }),
 
+  // MAFCO.
+  "MAF-SS402": anatomy({
+    shutoff: "bale",
+    flow: "ring",
+    grip: true,
+    pattern: true,
+    teeth: "metal",
+    basis: "mafco-fire.com/product/ss-series-handline-nozzles; Safequip 2021 catalogue: bale handle (owner, 2026-10-21), gallonage ring, pistol grip, 316 stainless turbine teeth",
+    verify: false,
+  }),
+
+  // Protek.
+  "PRO-368": anatomy({
+    shutoff: "bale",
+    flow: "ring",
+    grip: true,
+    pattern: true,
+    teeth: "metal",
+    basis: "protekfire.com.tw/handline-nozzles/selectable-gallonage-nozzles/105-368: bail handle on a chrome-plated ball valve, gallonage ring, pistol grip, spinning stainless teeth",
+    verify: false,
+  }),
+
   // Akron Brass.
   "AKR-17204001": anatomy({
     shutoff: "bale",
@@ -244,6 +266,24 @@ const RESEARCHED: Record<string, NozzleAnatomy> = {
     teeth: "metal",
     basis: "akronbrass.com/turbojet-nozzle-100psi: one-piece handle with stops, quarter-turn bumper, spinning teeth, removable pistol grip",
     verify: false,
+  }),
+  "AKR-1723P": anatomy({
+    shutoff: "bale",
+    flow: "ring",
+    grip: true,
+    pattern: true,
+    teeth: "metal",
+    basis: "akronbrass.com/mid-range-turbojetr-nozzle-with-pistol-grip: bale handle with stops, trunnion-mounted ball valve, pistol grip, spinning metal teeth",
+    verify: false,
+  }),
+  "AKR-1420": anatomy({
+    shutoff: "bale",
+    flow: "none",
+    grip: true,
+    pattern: false,
+    teeth: "none",
+    basis: "Viper VB9520 bail shutoff + Akron 1420 triple stacked tips; product photos and literature",
+    verify: true,
   }),
   "AKR-48634028": anatomy({
     shutoff: "bale",
@@ -273,7 +313,7 @@ const RESEARCHED: Record<string, NozzleAnatomy> = {
     verify: true,
   }),
   "POK-SOM-150": anatomy({
-    shutoff: "slide",
+    shutoff: "bale",
     flow: "slide-index",
     pressureRing: [50, 100],
     grip: false,
@@ -283,7 +323,7 @@ const RESEARCHED: Record<string, NozzleAnatomy> = {
     verify: true,
   }),
   "POK-SOM-300": anatomy({
-    shutoff: "slide",
+    shutoff: "bale",
     flow: "slide-index",
     pressureRing: [50, 100],
     grip: false,
@@ -331,8 +371,8 @@ const OPEN_END: NozzleAnatomy = anatomy({
 export function anatomyOf(nozzle: ScenarioNozzle): NozzleAnatomy {
   const design = nozzle.design ?? "fog";
   if (design === "open-end") return OPEN_END;
-  if (design === "smooth-bore") return SMOOTH_BORE;
   const known = nozzle.specId === null ? undefined : RESEARCHED[nozzle.specId];
   if (known) return known;
+  if (design === "smooth-bore") return SMOOTH_BORE;
   return { ...GENERIC_FOG, flow: nozzle.kind === "selectable" ? "ring" : "none" };
 }

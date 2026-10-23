@@ -1,5 +1,6 @@
 <script lang="ts">
   import { dev } from "$app/environment";
+  import { page } from "$app/state";
   import NozzleCloseUp from "$lib/components/NozzleCloseUp.svelte";
   import NozzleDrawing from "$lib/components/NozzleDrawing.svelte";
 
@@ -39,7 +40,11 @@
     { id: "ELK-SM-XD-HIGH", label: "Elkhart Select-O-Matic XD High-Range", kind: "fixed-orifice", settingsGpm: [], ratedFlowGpm: 325, ratedPressurePsi: 100, pattern: 0.2, open: true, specId: "ELK-SM-XD-HIGH" },
     { id: "ELK-SM1250-XSTREAM", label: "Elkhart X-Stream SM-1250", kind: "fixed-orifice", settingsGpm: [], ratedFlowGpm: 1250, ratedPressurePsi: 75, pattern: 0.2, open: true, specId: "ELK-SM1250-XSTREAM" },
     { id: "ELK-CSW-LB", label: "Elkhart Select-O-Flow CSW-LB", kind: "selectable", settingsGpm: [350, 500, 750, 1000, 1250], ratedFlowGpm: 750, ratedPressurePsi: 100, pattern: 0.2, open: true, specId: "ELK-CSW-LB" },
+    { id: "MAF-SS402", label: "MAFCO SS Series S402", kind: "selectable", settingsGpm: [30, 60, 95, 125, 150], ratedFlowGpm: 95, ratedPressurePsi: 100, pattern: 0.2, open: true, specId: "MAF-SS402" },
+    { id: "PRO-368", label: "Protek Style 368", kind: "selectable", settingsGpm: [95, 125, 150, 200, 250], ratedFlowGpm: 150, ratedPressurePsi: 100, pattern: 0.2, open: true, specId: "PRO-368" },
     { id: "AKR-17204001", label: "Akron Turbojet Style 1720", kind: "selectable", settingsGpm: [30, 60, 95, 125], ratedFlowGpm: 95, ratedPressurePsi: 100, pattern: 0.2, open: true, specId: "AKR-17204001" },
+    { id: "AKR-1723P", label: "Akron Mid-Range Turbojet 1723P", kind: "selectable", settingsGpm: [95, 125, 150, 200], ratedFlowGpm: 150, ratedPressurePsi: 100, pattern: 0.2, open: true, specId: "AKR-1723P" },
+    { id: "AKR-1420", label: "Viper VB9520 + Akron 1420", kind: "fixed-orifice", settingsGpm: [], ratedFlowGpm: 210, ratedPressurePsi: 50, pattern: 0, open: true, specId: "AKR-1420" },
     { id: "AKR-48634028", label: "Akron Mid-Range Assault", kind: "fixed-orifice", settingsGpm: [], ratedFlowGpm: 175, ratedPressurePsi: 50, pattern: 0.2, open: true, specId: "AKR-48634028" },
     { id: "AKR-51600004", label: "Akron Akromatic 1250 Style 5160", kind: "fixed-orifice", settingsGpm: [], ratedFlowGpm: 1250, ratedPressurePsi: 80, pattern: 0.2, open: true, specId: "AKR-51600004" },
     { id: "AKR-20690001", label: "Akron 4AN Navy Style 2069", kind: "fixed-orifice", settingsGpm: [], ratedFlowGpm: 52, ratedPressurePsi: 100, pattern: 0.2, open: true, specId: "AKR-20690001" },
@@ -47,20 +52,24 @@
     { id: "POK-SOM-300", label: "POK Slide-O-Matic 300", kind: "fixed-orifice", settingsGpm: [], ratedFlowGpm: 300, ratedPressurePsi: 100, pattern: 0.2, open: true, specId: "POK-SOM-300" },
   ];
 
-  const nozzles = $state(NOZZLES);
+  const all = $state(NOZZLES);
+  /** `?only=AKR-17204001,TFT-HM-VPGI` shows just those cards, for reviewing one model's art. */
+  const only = $derived(page.url.searchParams.get("only"));
+  const nozzles = $derived(only ? all.filter((n) => only.split(",").includes(n.id)) : all);
   const flowOf = (n: SheetNozzle) => (n.open ? n.ratedFlowGpm : 0);
 </script>
 
 <svelte:head><title>Boquillas investigadas · simulador</title></svelte:head>
 
 {#if dev}
-  <main>
+  <main class="app">
     <header>
       <h1>Boquillas investigadas</h1>
       <p>
         Hoja de contacto para revisar el dibujo: una tarjeta por modelo con su anatomía
-        (<code>nozzle-anatomy.ts</code>). Arriba, el pitón en el lienzo; abajo, el primer plano operable.
-        Solo existe en <code>pnpm dev</code>.
+        (<code>nozzle-anatomy.ts</code>).         Arriba, el pitón en el lienzo; abajo, el primer plano operable.
+        Solo existe en <code>pnpm dev</code>; <code>?only=ID</code> aísla tarjetas para revisar un modelo
+        (<code>/boquillas?only=AKR-17204001</code>).
       </p>
     </header>
     <div class="grid">
@@ -82,8 +91,8 @@
     </div>
   </main>
 {:else}
-  <main class="off">
-    <p>Hoja de contacto solo para desarrollo: corre <code>pnpm dev</code> y abre <code>/boquillas</code>.</p>
+  <main class="app">
+    <p class="off">Hoja de contacto solo para desarrollo: corre <code>pnpm dev</code> y abre <code>/boquillas</code>.</p>
   </main>
 {/if}
 
