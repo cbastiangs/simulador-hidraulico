@@ -72,15 +72,18 @@ job, not an automatic property of the relationships. Two other cases are
 distinct: closed-nozzle and insufficient-source cases are separate zero-flow
 states, and a discontinuity with no balanced root must be reported as an
 **unsatisfied-model case** — it is not an exact operating point. Today's
-`solve.bisection` does the bracket-and-halve search; before additional laws
-the engine is planned to establish a finite bracket and recheck the pressure
-residual at the returned root. Neither is implemented yet, and the code has
-no closed-source object.
+`solve.bisection` checks the positive-flow limit at zero, establishes finite
+endpoints with opposite residual signs, and rechecks the returned pressure
+residual (absolute tolerance 10⁻⁷ psi, shared with the tree solver). A fixed
+allowance that consumes all available head has no positive-flow root: report
+zero delivery and `allowance-gap`, not an infinitesimal flow with negative
+nozzle pressure. An unbracketed or non-finite solve reports `pressure-balance`.
+The code has no closed-source object.
 
 **Built for the 350 gpm step (2026-10-16).** `solveSeriesLine` checks the
 step before searching: at the step's flow Qs it takes the pressure left
 over without the allowance (Q ≤ Qs counts none), `spare`. If
-0 < spare < the allowance (10 psi × the fittings), no flow balances: the
+0 < spare ≤ the allowance (10 psi × the fittings), no flow balances: the
 result keeps `state: "flowing"`, reports `flowGpm = Qs` **as the step, not
 a root**, and sets `unsatisfied` to { stepGpm, sparePsi, stepPsi, lowPsi,
 highPsi }, the pump-pressure band that lands in the step. The gauges are
@@ -150,6 +153,17 @@ a candidate flow that would require negative pressure at a hose coupling is
 not accepted as a siphon. Such activation boundaries can also leave no
 steady solution under this flexible-hose assumption; the solver marks the
 unbalanced case and reports zero delivery in the dry subtree.
+
+The series solver applies the same check **after friction and fittings** at
+every coupling, including the downstream side of a fitting. Static reach
+alone does not establish a valid flowing solution. This remains the chosen
+flexible-hose constraint, not a new universal vacuum/collapse law
+(`compatibility-vs-physics.md`). Both solvers expose issues with a pressure
+residual; unavailable pressures are `null`, never NaN or a fabricated static
+reading. Isolated lines are distinct from connected, closed nozzles. A tree
+path's required pump pressure is also `null`: planning for all outlets is
+not implemented. Its connected closed nozzle reads the solved junction head
+minus elevation, including losses in any common feed still carrying water.
 
 Scenario version 1 gains optional recursive `wye.branches`; absent means
 the existing series line. Each branch stores a stable id, name, open gate,
@@ -670,9 +684,9 @@ than a fog nozzle at 100 psi (185 gpm: 69 vs 93 lbf).
   pressure, so the solver walks the line forward; still monotone in Q.
   Set points: `verify`.
 
-### 3.12 Extinguishment: `extinguish.fire-flow` ✅, `extinguish.absorption` ⏳ M5
+### 3.12 Extinguishment: `extinguish.fire-flow` ✅, `extinguish.absorption` ✅ (reference math, no default η)
 
-- **Sourced reference thermodynamics (2026-10-19; not implemented).**
+- **Sourced reference thermodynamics (2026-10-19; built 2026-10-23).**
   Liquid water at 20 °C to vapor at 100 °C, both at **101.325 kPa absolute**:
   Δh = 2675.583 − 84.00730 = **2591.5757 kJ/kg**. Inlet density
   998.2072 kg/m³ gives 0.06297709 kg/s per US gpm and **163.21 kW/US gpm**
@@ -682,7 +696,7 @@ than a fog nozzle at 100 psi (185 gpm: 69 vs 93 lbf).
 - This is **full-vaporization reference capacity**, an upper bound within
   those specified endpoints, not measured effectiveness or an absolute
   maximum for hotter steam. At this pressure saturation is 99.97430 °C.
-- Proposed adjusted comparison: capacity = applied solved Q ×
+- Built adjusted comparison: capacity = applied solved Q ×
   163.21 kW/gpm × `etaHeat`. **Heat-absorption effectiveness is not evaporated
   fraction**: unevaporated water can accept sensible heat. **No transferable
   measured fireground η was found (2026-10-22 audit).** The commonly cited 0.2
@@ -696,11 +710,21 @@ than a fog nozzle at 100 psi (185 gpm: 69 vs 93 lbf).
   small-room tests, yields Särdqvist-derived 0.11/0.24/0.29 against an
   extinction capacity already assuming ~30–35% of fire heat removed; ~0.3 is
   his stated upper limit, not a general efficiency. FSRI's no-fire water
-  mapping remains distribution evidence, not thermal η. Recommendation: any
-  future adjusted calculation requires an explicitly assumed or narrowly
-  matched sourced η, **with no default**; no coefficient is adopted here.
+  mapping remains distribution evidence, not thermal η. The built API requires
+  an explicitly assumed or narrowly matched sourced η, **with no default**;
+  no coefficient is adopted here.
   Sources, pages and access limits:
   [audit](../reports/Water%20application%20efficiency%20audit.md).
+- **API (built 2026-10-23, math only).** `referenceCoolingCapacityKw(Q)`
+  returns Q × 163.2098917 kW for the applied flow, with no effectiveness
+  factor. `compareHeatReference({ deliveredAppliedFlowGpm, referenceHrrKw,
+  etaHeat })` requires an explicit assumed or sourced η object (value in
+  [0,1], plus its rationale or source fields), rejects a missing or
+  undocumented η, and returns reference capacity, adjusted capacity, the
+  signed power difference and the thermal ratio. It has no default η, no
+  residual-HRR prediction, no safe/extinguished state and no time to
+  knockdown; equality is a power comparison, not an extinction criterion.
+  No screen or scenario wiring.
 - Available named **measured peak** HRRs from NIST's *Design Fires –
   Residential and Office Items*: [Test017](https://www.nist.gov/el/fcd/design-fires-residential-and-office-items/test017)
   conference chair B **0.447 MW**; [Test016](https://www.nist.gov/el/fcd/design-fires-residential-and-office-items/test016)
@@ -711,8 +735,8 @@ than a fog nozzle at 100 psi (185 gpm: 69 vs 93 lbf).
   Mattress C + bedding + two pillows **4.563 MW**. These are open, fully
   ventilated specimen/assembly experiments, not generic fires, sustained
   loads or measured required flows; no product presets are selected.
-  Uncertainty, conditions, source-version discrepancies, access gaps and a
-  recommended pure API are in the
+  Uncertainty, conditions, source-version discrepancies, access gaps and the
+  API contract are in the
   [research report](../reports/Extinguishment%20heat%20balance%20foundations.md).
   A power difference or ratio supplies no extinction criterion, predicted
   HRR reduction, fire dynamics or time-to-extinction claim.
@@ -751,7 +775,7 @@ labels on screen; no new law.
 
 | Term (screen) | Meaning | Where in the model |
 |---|---|---|
-| **Presión estática** | pressure with no flow (nozzle shut): pump pressure minus height | §3.2; a shut nozzle already shows it at every gauge |
+| **Presión estática** | pressure in a connected line with its nozzle shut: solved inlet pressure minus height; equals pump pressure minus height only when the whole path has no flow | §3.2; use the closed nozzle's solved reading, unavailable behind a closed gate or dry high point |
 | **Presión de flujo / residual** | pressure at a point while water flows: static minus the friction so far | each coupling's gauge |
 | **Presión en el pitón (NP)** | the flowing pressure at the nozzle **inlet**, behind the opening ("backpressure"). Ratings and the laws of §3.3–§3.5 use it. `convention`, `verify` where each manufacturer measures it | last node of the solver |
 | **Presión a la salida** | the jet leaves into the air: **atmospheric**, 0 psi gauge, for every setting. The pressure has become speed | not modelled; nothing to show |
@@ -939,7 +963,7 @@ geometry or crashes (see AGENTS.md).
 | Monitor loss: use Elkhart's *total static pressure drop*, not friction loss alone (Python 299-11, friction only: 11/18/24 psi at 750/1000/1250 gpm) | `appliance.fixed` / monitor | M2–M4 | Elkhart catalog f9 05-43 and Python pressure-drop chart (read 2026-10-15) |
 | Eductor: Elkhart 240 water bypass 2/6/11 psig at 60/95/125 gpm; foam mode needs 200 psi in, ≤ 130 psi out (≥ 70 psi drop, inferred), not CGBVP's flat 40 | `appliance.fixed` / eductor | M4 | Elkhart manual 98069000 Rev A, pp. 2–3 (read 2026-10-15) |
 | Hydrant curve form | `supply.hydrant` | later | NFPA 291 [E8] |
-| Reference water enthalpy and capacity | `extinguish.absorption` | M5 (not implemented) | Sourced 2026-10-19: NIST water states, 20 °C liquid → 100 °C vapor at 101.325 kPa absolute; Δh 2591.5757 kJ/kg, 163.21 kW/US gpm (§3.12; [report](../reports/Extinguishment%20heat%20balance%20foundations.md)). Reference capacity, not measured effectiveness |
-| Heat-absorption effectiveness η (not evaporated fraction) | `extinguish.absorption` | M5 | **Audited 2026-10-22; no default adopted.** The cited 0.2 is Särdqvist 1996 pp. 55–56, applied to a 10.8 MJ/kg flame-extinction capacity (3.6 × 3), not the 2002 book and not a 20% evaporation/contact fraction. The 2002 book gives no numeric water efficiency and says `c_w` has no data. 0.32/0.50/0.75 are design assumptions/calibrations (Barnett 1992, TP 2004/1, Grimwood); 0.385 L/s/MW is a flow factor; the 20% contact figure is an unverified Särdqvist & Holmstedt 2001 claim. NISTIR 4625's four small-room tests give Särdqvist-derived 0.11/0.24/0.29 against an extinction capacity already assuming ~30–35% of fire heat removed; ~0.3 is an upper limit, not general efficiency. Future adjusted capacity requires an explicit assumption or narrowly matched measurement ([audit](../reports/Water%20application%20efficiency%20audit.md)) |
-| Specific measured peak HRR references (not generic fire presets) | `extinguish.absorption` | M5 (not implemented) | NIST Design Fires specimen/assembly Tests017/016/027/029/034/038: 0.447/0.621/1.733/1.984/4.021/4.563 MW (§3.12 links; [report](../reports/Extinguishment%20heat%20balance%20foundations.md) retains uncertainty/conditions). No sustained-load or product-preset selection; no extinguishing-flow/η evidence |
+| Reference water enthalpy and capacity | `extinguish.absorption` | M5 (reference math built) | Sourced 2026-10-19, built 2026-10-23: NIST water states, 20 °C liquid → 100 °C vapor at 101.325 kPa absolute; Δh 2591.5757 kJ/kg, 163.21 kW/US gpm (§3.12; [report](../reports/Extinguishment%20heat%20balance%20foundations.md)). Reference capacity, not measured effectiveness |
+| Heat-absorption effectiveness η (not evaporated fraction) | `extinguish.absorption` | M5 (required input; no default) | **Audited 2026-10-22; no default adopted.** The cited 0.2 is Särdqvist 1996 pp. 55–56, applied to a 10.8 MJ/kg flame-extinction capacity (3.6 × 3), not the 2002 book and not a 20% evaporation/contact fraction. The 2002 book gives no numeric water efficiency and says `c_w` has no data. 0.32/0.50/0.75 are design assumptions/calibrations (Barnett 1992, TP 2004/1, Grimwood); 0.385 L/s/MW is a flow factor; the 20% contact figure is an unverified Särdqvist & Holmstedt 2001 claim. NISTIR 4625's four small-room tests give Särdqvist-derived 0.11/0.24/0.29 against an extinction capacity already assuming ~30–35% of fire heat removed; ~0.3 is an upper limit, not general efficiency. Future adjusted capacity requires an explicit assumption or narrowly matched measurement ([audit](../reports/Water%20application%20efficiency%20audit.md)) |
+| Specific measured peak HRR references (not generic fire presets) | `extinguish.absorption` | M5 (reference math built; no presets) | NIST Design Fires specimen/assembly Tests017/016/027/029/034/038: 0.447/0.621/1.733/1.984/4.021/4.563 MW (§3.12 links; [report](../reports/Extinguishment%20heat%20balance%20foundations.md) retains uncertainty/conditions). No sustained-load or product-preset selection; no extinguishing-flow/η evidence |
 | NFA fire-flow formula | `extinguish.fire-flow` | M5 (first) | verified 2026-10-16: NFA *Strategy and Tactics for Initial Company Operations* Student Manual 3rd ed (2016), SM2-28–30 (PDF pp. 102–103), Q = area_ft² / 3, 40 × 30 ft = 400 gpm; JIBC FIRE-1114 ch. 5 cross-check (same area at 25 % = 100 gpm) |

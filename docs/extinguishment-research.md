@@ -3,14 +3,14 @@
 > 2026-10-16. Sources, scope and arithmetic behind the extinguishment engine
 > (`src/extinguishment/`) and the law `extinguish.fire-flow` (MODEL.md §3.12,
 > ROADMAP §7.6 / §11 decision 8). The heat balance
-> (`extinguish.absorption`) is audited but not implemented; its open questions
-> are at the end.
+> (`extinguish.absorption`) is built as reference math with no default η; its
+> open questions are at the end.
 
 This is a research record, not a model of fire. It fixes what the NFA
 fire-flow formula is, what it is not, and the exact arithmetic the engine
 reproduces, so code and tests rest on a traceable source rather than memory.
 
-## 0. Status (2026-10-22)
+## 0. Status (2026-10-23)
 
 **Implemented, math only** (`src/extinguishment/`, no screen or scenario
 wiring):
@@ -20,15 +20,19 @@ wiring):
 - `compareNfaFireFlow`: delivered-versus-required margin, deficit and
   coverage ratio. It reports a comparison, never an extinguishing verdict
   (§4).
-- Tests: `tests/extinguishment.test.mjs`; the module boundary is enforced in
-  `tests/boundaries.test.mjs`.
+- `extinguish.absorption`: `referenceCoolingCapacityKw` returns the
+  full-vaporization reference; `compareHeatReference` requires an explicit
+  assumed or sourced η object, preserves its provenance and compares powers
+  only (`absorption.ts`).
+- Tests: `tests/extinguishment.test.mjs` covers both laws; the module boundary
+  is enforced in `tests/boundaries.test.mjs`.
 
-**Audited, not implemented** (`extinguish.absorption`):
+**Reference evidence behind the absorption math:**
 
 - Reference thermodynamics: 20 °C liquid to 100 °C vapor at 101.325 kPa
   absolute absorbs 2591.5757 kJ/kg → **163.21 kW per US gpm** at full
-  vaporization. This is a declared-endpoint reference capacity, not measured
-  fireground effectiveness ([NIST WebBook](https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&ID=C7732185&Type=IsoBar&Digits=7&P=0.101325&THigh=100&TLow=20&TInc=80&RefState=DEF&TUnit=C&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=uPa*s&STUnit=N%2Fm)).
+  vaporization. Built 2026-10-23. This is a declared-endpoint reference
+  capacity, not measured fireground effectiveness ([NIST WebBook](https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&ID=C7732185&Type=IsoBar&Digits=7&P=0.101325&THigh=100&TLow=20&TInc=80&RefState=DEF&TUnit=C&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=uPa*s&STUnit=N%2Fm)).
 - Six named NIST *Design Fires* measured **peak** HRRs (0.447–4.563 MW),
   tied to exact specimens and open, fully ventilated tests, not generic fire
   sizes. Documentation: `MODEL.md` §3.12 and the
@@ -49,8 +53,8 @@ wiring):
   fireground fraction was found. Sources, pages and access limits:
   [audit](../reports/Water%20application%20efficiency%20audit.md).
 
-**Open:** no default `etaHeat` is adopted. Any adjusted capacity must require
-an explicitly assumed or definition-matched sourced η, with no hidden value;
+**Open:** no default `etaHeat` is adopted. The built API requires an
+explicitly assumed or definition-matched sourced η, with no hidden value;
 equality of cooling power and fire power is not an extinction criterion. Any
 later preset needs a matched water-side heat balance or must remain a labelled
 scenario assumption.
@@ -155,8 +159,8 @@ comparison, not a prediction of extinguishment.
 
 ## 5. Open questions (heat balance, `extinguish.absorption`)
 
-Not implemented. What the model needs before it can ship (MODEL.md §3.12,
-§9):
+The reference math is built (`src/extinguishment/absorption.ts`). What the
+model still needs before a screen or scenario uses it (MODEL.md §3.12, §9):
 
 1. **Application effectiveness η: audited, still unresolved (2026-10-22).**
    Heat accepted by water is not the same quantity as evaporated fraction:
@@ -180,9 +184,8 @@ Not implemented. What the model needs before it can ship (MODEL.md §3.12,
    heat absorption (40–70%, mean 53%), or SHAR including runoff sensible heat
    (>0.7 in 1991, >0.3 in 1995); none is a fireground suppression efficiency.
    The [audit](../reports/Water%20application%20efficiency%20audit.md) records
-   sources, pages and access limits. Recommendation for a future pure API:
-   require explicitly assumed or definition-matched sourced η for adjusted
-   capacity, **with no default**.
+   sources, pages and access limits. The built API requires explicitly assumed
+   or definition-matched sourced η for adjusted capacity, **with no default**.
 2. **Specific measured HRR cases are available, not generic fire presets.**
    NIST's *Design Fires – Residential and Office Items* supplies named
    open, fully ventilated specimen/assembly **peaks**: Test017 0.447 MW,
@@ -193,12 +196,13 @@ Not implemented. What the model needs before it can ship (MODEL.md §3.12,
    or measured extinguishing flows. No product preset selection is made.
 3. **How the two sit together.** Per ROADMAP §11 decision 8, the convention
    (`extinguish.fire-flow`) says what you need and the physics
-   (`extinguish.absorption`) says why; the physics ships later, beside the
-   convention, once an η basis is declared or narrowly matched and 2's
-   references are selected.
+   (`extinguish.absorption`) says why; the physics is built as math-only and
+   its screen ships later, beside the convention, once an η basis is declared
+   or narrowly matched and 2's references are selected.
 
-Research synthesis and proposed math-only API:
+Research synthesis and the math-only API:
 [`Extinguishment heat balance foundations`](../reports/Extinguishment%20heat%20balance%20foundations.md)
 (2026-10-19). Equality of adjusted capacity and a reference HRR is only a
 power comparison, not an extinction criterion, predicted HRR reduction or
-time-to-extinction model. `extinguish.absorption` remains unimplemented.
+time-to-extinction model. `extinguish.absorption` is implemented as
+math-only reference; it still has no default η and no extinguishing verdict.

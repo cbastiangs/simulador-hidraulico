@@ -109,6 +109,12 @@ added at any time. Catalog rows retain their manufacturer source and may be
 incomplete where a published spec is missing; they are reference material,
 not runtime simulator inputs yet.
 
+Reach is kept separately in `data/catalog/nozzle-reach.csv` (2026-10-22):
+one row per published flow/angle/condition measurement, with blank fields
+where the source does not state them. Do not infer a missing angle from
+another row, and do not interpolate reach until the use case and its
+conditions are defined.
+
 
 **Floor height (2026-10-16):** optional `floorHeightM` (absent: 3 m), the
 building's floor-to-floor height: the canvas's floor lines, snapping and
@@ -120,6 +126,11 @@ the floor *h* metres up is piso *h* / `floorHeightM` + 1 — the Chilean usage,
 not the European "planta baja" with "piso n" above it. The canvas's height
 axis, the drag labels and the inspector's Altura note all follow it; the
 hydraulics keep elevations in metres (the "Floor height" field, §4).
+**Not a setting** (owner, 2026-10-19): it is the station's vocabulary, like
+metres and gpm. The labels add 1 to the stored floors-above-street count, so
+if the app is ever used where "planta baja" is the ground floor, that becomes
+an Ajustes › Vista display option (remembered per browser, like units), not
+geometry.
 
 - **Side view = the editor, every line (owner, 2026-10-17).** Distance
   along the hose horizontal, height vertical; dragging the nozzle up writes
@@ -300,15 +311,20 @@ Its own folder (`src/extinguishment/`), never imported by the hydraulics.
   not a 20% evaporation/contact fraction. Any η must be an explicit scenario
   assumption or a narrowly matched measurement, **never a default**
   ([audit](../reports/Water%20application%20efficiency%20audit.md)).
+- **Engine built (2026-10-23, math only).** `referenceCoolingCapacityKw`
+  returns the full-vaporization reference; `compareHeatReference` requires an
+  explicit assumed or sourced η with provenance and compares powers only. No
+  screen wiring, fire presets or extinguishing verdict.
 - The message: flow sets the cooling capacity; pressure moves the flow and
   shapes the stream.
 
-**Feasibility (2026-10-15):** cheap. It needs only the nozzle flow Q that
-`solveScenario` already returns, nothing from M2–M4: one engine file, one
-test against hand arithmetic, one card ("Extinción") with a fire-size picker
-and a bar *capacidad de enfriamiento vs calor del fuego*. Paired with the
-selectable nozzle (ring down: pressure up, flow down) it shows the message
-with today's line. What blocks it is sources, not code.
+**Feasibility (2026-10-15; engine built 2026-10-23):** cheap. It needs only
+the nozzle flow Q that `solveScenario` already returns, nothing from M2–M4:
+one engine file, one test against hand arithmetic, one card ("Extinción")
+with a fire-size picker and a bar *capacidad de enfriamiento vs calor del
+fuego*. Paired with the selectable nozzle (ring down: pressure up, flow down)
+it shows the message with today's line. What blocked it was sources, not code;
+the η/fire-load selection and the screen remain.
 
 Options for the law, not exclusive (a method bundle can pick one):
 
@@ -592,10 +608,12 @@ compare), routes and obstacles (§10b), the top-down view (§5, parked).
      the station teaches it.
    - **Later: heat balance (A)** beside it, as `physical` sits beside
      `cgbvp-2019`: the convention says what you need, the physics says why
-     (each gpm absorbs a fixed heat; pressure absorbs none). Waits for a
-     scenario-specific η with a declared basis (or a narrowly matched
-     measurement) and fire heat release rates; **no default η is adopted**;
-     shown alone it would be a confident number on a weak basis
+     (each gpm absorbs a fixed heat; pressure absorbs none). **Engine built
+     2026-10-23, math only:** `referenceCoolingCapacityKw` and
+     `compareHeatReference` require an explicit η with provenance. The screen
+     and fire presets wait for a scenario-specific η with a declared basis
+     (or a narrowly matched measurement) and selected HRRs; **no default η is
+     adopted**; shown alone it would be a confident number on a weak basis
      ([audit](../reports/Water%20application%20efficiency%20audit.md)).
 
 Still wanted: M11-1 and M11-5 pump plates, the nozzles carried, hose sizes

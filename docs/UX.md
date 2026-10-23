@@ -113,7 +113,7 @@
   placed on the chain (the Piezas strip, below). **Accesorios automáticos** (a switch in Ajustes › Escenario, §4; on by default):
   on, every mismatch gets an adapter, drawn dashed and not removable while the
   switch is on; off, adapters are placed by hand (turning it off keeps the
-  ones it had derived), and a mismatch without one shows a red "!" at the
+  ones it had derived throughout the tree, including nested branches), and a mismatch without one shows a red "!" at the
   joint, a "Falta adaptador" button under the canvas, and "Línea sin
   conectar" on the pump header: no water flows until it is placed. Fitting
   losses get their own segment and legend line in the pressure split, with
@@ -397,26 +397,30 @@ photo or manual. What the drawings show today:
 
 | Model | Shutoff | Flow | Pattern | Grip | Teeth | Checked |
 |---|---|---|---|---|---|---|
-| TFT Mid-Matic HM-VPGI | slide | — (auto) | collar | pistol | rubber | page |
-| TFT Handline H-2VPGI | slide | — (auto) | collar | pistol | rubber | series |
-| TFT G-Force GF3D2S | slide | ring | collar | pistol | metal | series |
-| TFT G-Force GF3C2S | slide | ring | collar | pistol | metal | page |
-| TFT QuadraFog FQS125F | ball | ring | collar | — | metal | page |
-| TFT ThunderFog FTS200PS | ball | ring | collar | pistol | metal | page |
-| TFT ThunderFog JTS250PS | ball | ring | collar | pistol | metal | note |
-| TFT Handline H-VPGI | slide | — (auto) | collar | pistol | rubber | page |
-| TFT Ultimatic BGH-125 | slide | — (auto) | collar | pistol | rubber | note |
+| TFT Mid-Matic HM-VPGI | bale | — (auto) | collar | pistol | rubber | page |
+| TFT Handline H-2VPGI | bale | — (auto) | collar | pistol | rubber | series |
+| TFT G-Force GF3D2S | bale | ring | collar | pistol | metal | series |
+| TFT G-Force GF3C2S | bale | ring | collar | pistol | metal | page |
+| TFT QuadraFog FQS125F | bale | ring | collar | — | metal | page |
+| TFT ThunderFog FTS200PS | bale | ring | collar | pistol | metal | page |
+| TFT ThunderFog JTS250PS | bale | ring | collar | pistol | metal | note |
+| TFT Handline H-VPGI | bale | — (auto) | collar | pistol | rubber | page |
+| TFT Ultimatic BGH-125 | bale | — (auto) | collar | pistol | rubber | note |
 | TFT Master Stream M-RS1000-NJ | — | ring | collar | — | metal | pending |
 | Elkhart Chief XD mid/high tip | bale | — | collar | — | metal | series |
 | Elkhart Phantom XD mid/high | bale | ring | collar | — | metal | page |
 | Elkhart Select-O-Matic XD mid/high | bale | — (auto) | collar | — | metal | series |
 | Elkhart X-Stream SM-1250 | — | — (auto) | collar | — | metal | pending |
 | Elkhart Select-O-Flow CSW-LB | — | ring | collar | — | metal | pending |
+| MAFCO SS Series S402 | bale | ring | collar | pistol | metal | series |
+| Protek 368 | bale | ring | collar | pistol | metal | photo |
 | Akron Turbojet 1720 | bale | ring | collar | pistol | metal | page |
+| Akron Mid-Range Turbojet 1723P | bale | ring | collar | pistol | metal | page |
 | Akron Mid-Range Assault 48634028 | bale | — | collar | pistol | — | series |
 | Akron Akromatic 1250 5160 | — | — (auto) | collar | — | metal | pending |
 | Akron 4AN Navy 2069 | bale | — | collar | — | — | pending |
-| POK Slide-O-Matic 150/300 | slide | index (valve) | collar | — | — | pending |
+| POK Slide-O-Matic 150/300 | bale | index (valve) | collar | — | — | pending |
+| Viper VB9520 + Akron 1420 | bale | — | — | pistol | — | photo |
 | Smooth bores (TFT FSS10-IF, Elkhart XD, Akron 1499) | bale | — | — | — | — | tip only |
 
 - **Master streams draw without a shutoff:** the monitor's valve shuts them,
@@ -428,14 +432,32 @@ photo or manual. What the drawings show today:
 - **The researched catalog is not runtime yet** (ROADMAP §3): only linked or
   hand-edited documents carry a researched `specId`, and they already draw
   with its entry. When the catalog becomes runtime this map moves into it.
+- **Each researched row draws its own art (owner, 2026-10-19).** The
+  silhouette of both views lives per model in `src/lib/nozzle-art/`, drawn
+  from that model's reference photos in `docs/reference/nozzles/`; `types.ts`
+  is the contract. The full scrape/PDFs sit in that folder's gitignored
+  `raw/` cache, with source URLs in `SOURCES.md`. The side
+  view compresses length (a schematic) but keeps true diameters; the top
+  view is true-scale, 14 units per inch; every diameter in the side view is 0.7 of the same part's in the top view, so the two agree on proportions (owner, 2026-10-22; master streams and the 4AN keep their own scale for now), and a plan projection: parts that
+  hang below the axis (a pistol grip) are hidden by the body and not drawn,
+  a bale is a U from above — an arm along each flank of the body, a pivot pin on each, the crossbar joining the arms at their free end — never its side profile (owner, 2026-10-21; a catalog's "slide valve" or "ball valve" names the valve inside, never the handle: every pistol-grip handline here — TFT, MAFCO, POK, Protek, Akron, Viper — works it with a bale loop; from the truck photos in `docs/reference/nozzles/photos/truck/`: every unit in the station inventory, the MAFCO SS402 included, has a bale handle), and a control
+  mounted on the body's top face (slide rail and knob, flow index, ball
+  lever) is drawn on the centreline — never at its side-view height (owner,
+  2026-10-19). The bale's arms and pins share one offset (±`offset` from the axis); the
+  side-view loop is never part of the top shell. Rubber teeth are drawn on
+  the tip face, not as lobes around the bumper's outline. The ring's numbers are printed round the ring, as on the unit: each one faces the person holding the nozzle (behind it, tip ahead): tops toward the tip, baseline running across the axis (circumferentially, ascending values toward the holder's right, i.e. down the screen), squashed by cos θ as the ring turns it away, and they are never straightened for readability (owner, 2026-10-22; a tooltip will carry the readable value later) The selected flow is
+  read from the horizontal readout in the close-up's top corner instead
+  (owner, 2026-10-19). The art holds only the static shell; every working part —
+  bale, slide, ball, ring numbers, collar ribs, stream — stays the
+  component's, so it keeps moving. A row without art keeps the generic
+  drawing; adding art is a file plus its `index.ts` entry.
 
 ## 4. Layout
 
 | Width | Pump header | Canvas | Panel body (selection, Línea) | Results and formulas |
 |---|---|---|---|---|
 | ≥ 1024 px | atop the right panel, stuck while it scrolls | left, the rest of the width | right panel, 360 px | below canvas, collapsible |
-| 600–1023 px | bar above the canvas | full width | below canvas | below the panel |
-| < 600 px | one-row strip (pressure ±, Req., flow); tapping the flow selects the pump | full width, the rest of the screen; the page does not scroll (§8) | bottom sheet that slides up on selection (§8.2) | in the sheet, collapsible |
+| < 1024 px | one-row strip (pressure ±, Req., flow); tapping the flow selects the pump | full width, the rest of the screen; the page does not scroll (§8) | bottom sheet that slides up on selection (§8.2) | in the sheet, collapsible |
 
 **Loading (owner, 2026-10-18).** The page is not server-rendered: built
 without a screen, it laid out at the wrong size (no canvas width, neither
@@ -532,6 +554,15 @@ results (static pressure, flowing pressure, exit pressure, flow, hose speed,
 jet speed, the manufacturer's rating, "presión requerida"), each with this
 line's own numbers (MODEL §3.13). A settings comparison table and chart are
 not built yet.
+
+Unavailable readings show **—**, never NaN. Static nozzle pressure is shown
+only for a connected, closed nozzle, using the engine's solved reading;
+another outlet may still cause losses in the common feed. An isolated line
+does not inherit the pump's pressure. Branched paths omit the ideal-pressure
+shortcut until whole-tree planning exists. A failed pressure balance or a
+dry high point is labelled in the pump status and pressure breakdown, rather
+than displayed as a normally flowing line. An open nozzle with zero delivery
+reads "sin caudal" on the canvas; "cerrado" means the nozzle is actually shut.
 
 ## 7. Process
 
@@ -1058,3 +1089,32 @@ observations where they differ.
 `/tmp/opencode/hydraulics-ux-uiXnS6/`: `svg-final-390.png`,
 `svg-final-1024.png`, `svg-final-coil.png`, `svg-final-slack.png`,
 `svg-final-fitting-300.png`, `svg-final-360.png`, `svg-final-dark.png`.
+
+### 10.9 Desktop and touch layout follow-up (2026-10-21)
+
+Approved after the current-build review. Below 1024 px, use the compact
+pump strip and bottom sheet so operating controls stay beside the drawing;
+this supersedes §4's stacked tablet layout. Keep the equipment illustration
+compact on tablets. Selection changes reset the sheet's content scroll,
+including changes of branch, but ordinary value edits preserve it.
+
+Frame the selected equipment together with its pressure gauge above the
+peek sheet, moving the camera only enough to expose them. Keep gesture-time
+camera freezing. Desktop shortcuts prefer nearby free space, avoiding
+hoses, equipment, captions and gauges before falling back in a crowded view.
+Pressure values and units never wrap; the compact budget can put its line
+name on a separate row. Step controls and parts-list targets are at least
+44 px. These changes affect presentation only, not the hydraulic model.
+
+On touch layouts, the quick operating readouts precede the nozzle drawing.
+The inspector heading stays visible while scrolling. The closed sheet reports
+its measured summary height to the page so view controls remain uncovered.
+
+Verified in Chromium at 360×740, 390×844, 768×900, 1024×768 and
+1440×900: no horizontal overflow; touch layouts stay within one screen;
+closed sheet clears the view controls; selecting from Partes resets scroll;
+44×44 pattern steps and the selectable nozzle's operating readouts fit at
+peek; close/open and undo work; closed content remains inert. Desktop
+screenshots include dark mode with reduced motion. No real-device study.
+Evidence: `/tmp/ux-improved/final-390.png`, `selector-390.png`,
+`final-768.png`, `final-1024.png`, and `dark-1024.png`.
