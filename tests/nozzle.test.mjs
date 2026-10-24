@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { openEndFlowGpm, reactionOf, smoothBoreFlowGpm } from "../src/hydraulics/nozzle.ts";
+import { NOZZLE_SPECS } from "../src/hydraulics/catalog.ts";
 import { METHODS } from "../src/hydraulics/references.ts";
 import { parseScenario, solveScenario } from "../src/hydraulics/scenario.ts";
 
@@ -63,3 +64,28 @@ test("nozzle.reaction: TFT formulas, the open-end momentum and the CGBVP shortcu
   // A shut line pushes nothing.
   assert.equal(reactionOf({ design: "fog", ratedFlowGpm: 95, ratedPressurePsi: 100 }, 1.5, 0, 120, physical).lbf, 0);
 });
+
+// Manufacturer rating points (MODEL §3.5 links), not claims about off-rating curves.
+for (const [id, pressure, settings] of [
+  ["TFT-GF3C2S", 100, [30, 60, 95, 125, 150]],
+  ["TFT-GF3D2S", 75, [30, 60, 95, 125, 150]],
+  ["AKR-17204001", 100, [30, 60, 95, 125]],
+  ["AKR-48634028", 50, [175]],
+]) {
+  test(`${id}: published rating points through the scenario solver`, () => {
+    const spec = NOZZLE_SPECS.find((n) => n.id === id);
+    assert.equal(spec.inletIn, 1.5); // All four published configurations use a 1½″ inlet.
+    assert.deepEqual(spec.settingsGpm.length ? spec.settingsGpm : [spec.ratedFlowGpm], settings);
+    for (const ratedFlowGpm of settings) {
+      const scenario = parseScenario({
+        schema: "simulador-hidraulico/scenario", version: 1, name: id, methodId: "physical",
+        source: { kind: "fixed-pressure", pressurePsi: pressure },
+        sections: [{ hoseSizeId: "1-1/2", diameterIn: 1.5, frictionCoefficient: 24, lengthM: 0, endElevationM: 0 }],
+        nozzle: { ...spec, specId: id, ratedFlowGpm, pattern: 0, open: true },
+      });
+      const result = solveScenario(scenario);
+      near(result.flowGpm, ratedFlowGpm, 0.001);
+      near(result.nozzlePressurePsi, pressure, 0.001);
+    }
+  });
+}

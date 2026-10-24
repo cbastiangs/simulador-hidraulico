@@ -1,8 +1,8 @@
 <script lang="ts">
   import { hoseSizeName, jointName } from "$lib/names.ts";
   import { NOZZLE_SPECS } from "$hydraulics/catalog.ts";
-  import { HOSE_SIZES } from "$hydraulics/references.ts";
-  import { endBoreIn, reactionAt, type Scenario } from "$hydraulics/scenario.ts";
+  import { HOSE_SIZES, SOURCES, type Source } from "$hydraulics/references.ts";
+  import { couplingOf, endBoreIn, reactionAt, type Scenario } from "$hydraulics/scenario.ts";
   import type { SeriesResult } from "$hydraulics/series.ts";
   import * as edit from "$lib/edit.ts";
   import { runsOf } from "$lib/geometry/world.ts";
@@ -54,6 +54,7 @@
     onLine?: (path: string[]) => void;
   } = $props();
 
+  const unavailable = $derived(result.pump?.pressurePsi === null);
   const last = $derived(scenario.sections.length - 1);
   const floorOf = (m: number) => {
     const n = Math.round((m / floorM) * 1000) / 1000;
@@ -67,6 +68,12 @@
         ? `${tipName(spec.tipIn ?? 0)} · ${spec.ratedFlowGpm} gpm`
         : spec.kind === "selectable" ? `Selector ${spec.settingsGpm[0]}–${spec.settingsGpm[spec.settingsGpm.length - 1]}` : `${spec.ratedFlowGpm} gpm`;
   const design = $derived(scenario.nozzle.design ?? "fog");
+  const nozzleSpec = $derived(NOZZLE_SPECS.find((spec) => spec.id === scenario.nozzle.specId));
+  const manufacturer: Source | null = $derived(nozzleSpec?.manufacturerSource ? SOURCES[nozzleSpec.manufacturerSource] : null);
+  const nozzleInlet = $derived(scenario.nozzle.inletIn ?? nozzleSpec?.inletIn);
+  const hoseCoupling = $derived(couplingOf(scenario.sections[last]));
+  const manufacturerSpecs = NOZZLE_SPECS.filter((spec) => spec.manufacturerSource);
+
   /** Below its rating by more than 5 %: it gives less than its rated flow (MODEL §3.13). An open end has no rating. */
   const short = $derived(
     design !== "open-end" && result.state === "flowing" && result.nozzlePressurePsi !== null && result.nozzlePressurePsi < scenario.nozzle.ratedPressurePsi * 0.95,
@@ -140,8 +147,8 @@
         <h3>Sin pitón</h3>
         <p>Punta abierta · el agua sale por el acople de {tipName(endBoreIn(scenario.sections))}</p>
       {:else}
-        <h3>{design === "smooth-bore" ? "Pitón de chorro sólido" : n.kind === "selectable" ? "Pitón combinado" : "Pitón"}</h3>
-        <p>{nozzleKind} · {n.ratedPressurePsi} psi nominal{n.specId === null ? " · personalizado" : " · genérico"}</p>
+        <h3>{manufacturer ? nozzleSpec?.label : design === "smooth-bore" ? "Pitón de chorro sólido" : n.kind === "selectable" ? "Pitón combinado" : "Pitón"}</h3>
+        <p>{nozzleKind} · {n.ratedPressurePsi} psi nominal{manufacturer ? " · ficha del fabricante" : n.specId === null || !nozzleSpec ? " · personalizado" : " · genérico"}</p>
       {/if}
     </header>
     {#if design === "open-end"}
@@ -215,7 +222,25 @@
     </div>
     {/if}
 
+    {#if manufacturer && nozzleSpec && design !== "open-end"}
+      <section class="equipment-rating" aria-label="Ficha del pitón">
+        <div><span>Nominal seleccionado</span><b>{n.ratedFlowGpm} gpm a {n.ratedPressurePsi} psi</b></div>
+        <div><span>Entrega calculada</span><b>{unavailable ? "—" : fmt(result.flowGpm, 1)} gpm · {result.nozzlePressurePsi === null ? "—" : fmt(result.nozzlePressurePsi, 1)} psi</b></div>
+        <div><span>Entrada</span><b>{tipName(nozzleInlet ?? nozzleSpec.inletIn)} · {nozzleInlet === hoseCoupling ? "acople directo" : "requiere adaptador"}</b></div>
+        <details>
+          <summary>Ficha y alcance del modelo</summary>
+          <p><a href={manufacturer.url} target="_blank" rel="noreferrer">{manufacturer.publisher}: {manufacturer.title}</a></p>
+          <p>Fuera del punto nominal, el caudal se aproxima con Q ∝ √NP; no es una curva medida de este pitón. El patrón es visual y la reacción es calculada.</p>
+          {#if n.kind === "selectable"}<p>Al elegir el modelo, el simulador inicia en 95 gpm; no indica una posición de fábrica.</p>{/if}
+          <p>La conexión compara diámetros; no verifica el tipo de rosca.</p>
+        </details>
+      </section>
+    {/if}
+
     <!-- The force on the hands at the solved flow (MODEL.md §3.6, §7): the engine's numbers, formula substituted. -->
+    {#if unavailable}
+      <p class="warn" role="status">Sin resultado hidráulico: la tendida está fuera del modelo de bomba disponible.</p>
+    {:else}
     <div class="reaction" role="status">
       <div><span class="label">Reacción</span> <b>{fmt(reaction.lbf, 0)} lbf</b> · {fmt(reaction.kgf, 0)} kgf</div>
       <div class="formula">
@@ -231,6 +256,8 @@
       </div>
     </div>
 
+    {/if}
+
     <!-- After the controls, so it appearing mid-turn doesn't move them under the finger. -->
     {#if short}
       <p class="warn" role="status">
@@ -240,11 +267,24 @@
     {/if}
 
     <div>
-      <div class="label">Modelo</div>
+      <label class="label" for="manufacturer-nozzle">Modelo de fabricante</label>
+      <select id="manufacturer-nozzle" class="model-picker" value={manufacturer && design !== "open-end" ? n.specId ?? "" : ""}
+        onchange={(e) => onchange(edit.setNozzleSpec(scenario, e.currentTarget.value))}>
+        <option value="" disabled>Elegir modelo…</option>
+        {#each [true, false] as direct}
+          {@const options = manufacturerSpecs.filter((spec) => (spec.inletIn === hoseCoupling) === direct)}
+          {#if options.length}
+            <optgroup label={direct ? "Acople directo" : "Requiere adaptador"}>
+              {#each options as spec (spec.id)}<option value={spec.id}>{spec.label}</option>{/each}
+            </optgroup>
+          {/if}
+        {/each}
+      </select>
+      <div class="sublabel">Modelos genéricos</div>
       {#each specGroups as group (group.design)}
         <div class="sublabel">{group.label}</div>
         <div class="seg wrap" role="radiogroup" aria-label={`Modelo de pitón: ${group.label}`}>
-          {#each NOZZLE_SPECS.filter((spec) => spec.design === group.design) as spec (spec.id)}
+          {#each NOZZLE_SPECS.filter((spec) => !spec.manufacturerSource && spec.design === group.design) as spec (spec.id)}
             {@const on = spec.design === "open-end" ? design === "open-end" : design !== "open-end" && n.specId === spec.id}
             <button type="button" role="radio" aria-checked={on} class:on title={spec.label} onclick={() => onchange(edit.setNozzleSpec(scenario, spec.id))}>{specShort(spec)}</button>
           {/each}
@@ -314,7 +354,7 @@
     {@const rise = s.endElevationM - (i === 0 ? 0 : scenario.sections[i - 1].endElevationM)}
     {@const slack = s.lengthM - Math.hypot(run, rise)}
     {@const loss = result.terms.find((t) => t.lawId === "hose.friction" && t.sectionIndex === i)}
-    <p class="loss">Fricción en este tramo: <b>{(loss?.valuePsi ?? 0).toFixed(1)} psi</b> a {result.flowGpm.toFixed(0)} gpm</p>
+    {#if !unavailable}<p class="loss">Fricción en este tramo: <b>{(loss?.valuePsi ?? 0).toFixed(1)} psi</b> a {result.flowGpm.toFixed(0)} gpm</p>{/if}
     <p class="note">
       {floorOf(s.endElevationM)} · recorrido horizontal {run.toFixed(1)} m{slack >= 0.5 ? ` · holgura ${slack.toFixed(1)} m` : " · tenso"}
     </p>
@@ -330,6 +370,14 @@
 </aside>
 
 <style>
+  .model-picker { width: 100%; min-height: 44px; margin: 6px 0 12px; padding: 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); font: inherit; }
+  .equipment-rating { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; font-size: 13px; }
+  .equipment-rating > div { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+  .equipment-rating span { color: var(--muted); }
+  .equipment-rating b { font-variant-numeric: tabular-nums; }
+  .equipment-rating p { margin: 8px 0 0; }
+  .equipment-rating a { color: var(--accent); }
+
   .inspector { position: relative; background: var(--surface); border-radius: var(--radius); padding: 14px; display: grid; gap: 14px; align-content: start; min-width: 0; }
   .inspector > * { min-width: 0; }
   .operate { display: grid; gap: 10px; }

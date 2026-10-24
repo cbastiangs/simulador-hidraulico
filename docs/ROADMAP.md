@@ -107,7 +107,8 @@ Data-collection CSV templates (`data/templates/`) and sourced equipment
 reference CSVs (`data/catalog/`) are not this schema: their columns can be
 added at any time. Catalog rows retain their manufacturer source and may be
 incomplete where a published spec is missing; they are reference material,
-not runtime simulator inputs yet.
+not imported directly at runtime. A verified subset of nozzle rows is
+compiled into the engine catalog (MODEL §3.5); incomplete rows stay reference-only.
 
 Reach is kept separately in `data/catalog/nozzle-reach.csv` (2026-10-22):
 one row per published flow/angle/condition measurement, with blank fields
@@ -523,7 +524,7 @@ Agreed, in this order; each is usable on its own. Before M3 unless noted.
    the lay, not the viewer's Vista settings (owner). The fragment is
    `#e=` (deflate-raw, base64url; about 600 characters for a three-way lay)
    or `#j=` where the browser can't compress.
-3. **Before / after deltas**: after a change, "+12 gpm · −8 psi fricción"
+3. **Before / after deltas — backlog (owner, 2026-10-24)**: after a change, "+12 gpm · −8 psi fricción"
    for a moment, or a result pinned as "antes" to compare against.
 4. **Desktop keyboard**: Delete removes the selection (✅ 2026-10-18, with
    removing in place, UX.md §2 "Pieces"), arrows nudge a
@@ -541,6 +542,44 @@ Then M3 as decided in §10d (truck, envelope, tank with its clock, several
 discharges with a flowmeter readout each, the pump × system chart; the
 hydrant after). Further back: the rest of M2 (automatic nozzles, the A/B
 compare), routes and obstacles (§10b), the top-down view (§5, parked).
+
+## 10f. Next delivery sequence (owner, 2026-10-24)
+
+This sequence supersedes §10e's immediate ordering. The next deliverable is
+one smooth workflow: **build a branched lay → operate it → understand the
+result**. Improve the existing app directly, with no mock-ups or general
+redesign; verify remaining friction against the fixes recorded in UX §10.9.
+
+1. **Focused UX and flow readability.** Check adding and connecting pieces,
+   selecting equipment, operating the bale/ring and adjusting pump pressure.
+   Fix camera/panel interference and keep the selected equipment and its
+   readings visible on the phone. Include particle improvements here, before
+   equipment integration: communicate water movement and closed/dry states,
+   keep pressure on gauges and volume flow in the gpm readout, and do not
+   equate particle speed with volume flow across different diameters. Check
+   the full workflow in a browser at 390 and 1024 px and capture screenshots.
+2. **Real fixed/selectable nozzles — first set built 2026-10-24.** Integrate a small sourced subset of
+   the reference catalog using existing supported laws, with matching art,
+   actual settings, ratings and inlet sizes. Distinguish nominal settings
+   from delivered flow, label off-rating approximations, and retain the
+   equipment values in shared scenarios. Add comparison presets. Built:
+   TFT GF3C2S/GF3D2S, Akron 17204001/48634028, source-linked ratings,
+   stored inlet sizes, and the equal-length/equal-height G-Force preset.
+3. **M3 trucks — CX family pump slice built 2026-10-25.** Capacity envelope, multiple discharge outlets, governor,
+   tank/readout and optional clock, and pump × system chart. Preserve the
+   distinction between pump plate operating points and a fixed-RPM curve;
+   keep unknown equipment details explicit. Tank first, hydrant later.
+   The owner selected a sourced CX family model ahead of a generic curve.
+   Built: source selection, pressure governor/RPM controls, bounded curve
+   solve for series and trees, operating-point chart and demonstration preset.
+   Curve digitization and affinity limits are in MODEL §3.8. It is not an
+   M11-5 calibration. Truck-specific outlets and tank remain next.
+
+Before/after comparison is backlog (owner, 2026-10-24): existing branches
+already support useful simultaneous comparisons; pinning a previous result
+is not a prerequisite for real equipment. Personal saved lays ("Mis líneas")
+remain a small follow-up. Automatic nozzles await verified operating behavior; simulated reach awaits a defined
+use case and measurement conditions. Neither blocks the sequence above.
 
 ## 11. Decisions (owner, 2026-10-14)
 

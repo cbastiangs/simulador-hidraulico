@@ -1163,7 +1163,7 @@
       const endTrim = Math.hypot(h.geom.b.x - end.point.x, h.geom.b.y - end.point.y);
       const { d, lengthPx } = drawnHose(h.geom, startTrim, endTrim, start, end);
       const q = sectionFlow(result, h.index);
-      const p = q > 0.5 ? particles(s.diameterIn, q) : { gapPx: 0, seconds: 0 };
+      const p = q > 0 ? particles(s.diameterIn, q) : { gapPx: 0, seconds: 0 };
       // Phase on the shared stream: whole particle cycles already travelled, so
       // inserted paths read as one continuous stream even across a size change.
       const offsetPx = p.gapPx > 0 ? p.gapPx * (((cycles % 1) + 1) % 1) : 0;
@@ -1172,6 +1172,30 @@
     });
     return { joints: jn, hoses };
   });
+
+  /** Continuous spacing along each visible branch, just as on the edited path. */
+  function branchHoses(o: (typeof otherLines)[number]) {
+    let cycles = 0;
+    return o.layout.hoses.filter((h) => h.index >= o.from).map((h) => {
+      const sec = o.scenario.sections[h.index];
+      const { d, lengthPx } = drawnHose(h.geom, h.index === o.from ? 24 * k : 0);
+      const q = sectionFlow(o.result, h.index);
+      const p = q > 0 ? particles(sec.diameterIn, q) : null;
+      const offsetPx = p ? p.gapPx * (((cycles % 1) + 1) % 1) : 0;
+      if (p) cycles += lengthPx / p.gapPx;
+      return { h, sec, d, p, offsetPx };
+    });
+  }
+
+  function flowLabel(r: SeriesResult, nozzle: Scenario["nozzle"]) {
+    if (r.pump?.pressurePsi === null) return "sin resultado";
+    if (r.state === "unbalanced") return "sin caudal exacto";
+    if (r.flowGpm > 0) return `${reading(r.flowGpm, r.flowGpm < 1 ? 1 : 0)} gpm`;
+    if (r.state === "isolated") return "línea aislada";
+    if (!nozzle.open && nozzle.design !== "open-end") return "pitón cerrado";
+    if (r.state === "no-pressure") return "presión insuficiente";
+    return "sin caudal";
+  }
 
   // Hose labels (UX.md §10.8): screen-aware placement, so a coiled or short
   // section's caption never covers another, never leaves the canvas, and never
@@ -1588,25 +1612,20 @@
         <!-- The other lines (owner, 2026-10-17): hoses, couplings and nozzle at their true height.
              A tap makes that line the edited one; the edited line draws on top with its handles. -->
         <!-- What leaves each nozzle (owner, 2026-10-17): the header's gpm is the pump's total. -->
-        {#snippet flowTag(at: { x: number; y: number }, flowGpm: number, nozzle: Scenario["nozzle"])}
-          <text class="flow-tag" class:idle={flowGpm <= 0} x={at.x + 24 * nozzleK} y={at.y + 18 * nozzleK + 12 * k}>
-            {flowGpm > 0 ? `${reading(flowGpm, flowGpm < 1 ? 1 : 0)} gpm` : nozzle.open || nozzle.design === "open-end" ? "sin caudal" : "cerrado"}
+        {#snippet flowTag(at: { x: number; y: number }, r: SeriesResult, nozzle: Scenario["nozzle"])}
+          <text class="flow-tag" class:idle={r.flowGpm <= 0} x={at.x + 24 * nozzleK} y={at.y + 18 * nozzleK + 12 * k}>
+            {flowLabel(r, nozzle)}
           </text>
         {/snippet}
         {#snippet otherLine(o: (typeof otherLines)[number], peeked: boolean)}
           {@const end = o.layout.nodes[o.layout.nodes.length - 1]}
           {@const lastSection = o.scenario.sections.length - 1}
           <g class="other-line" class:peeked>
-            {#each o.layout.hoses.filter((h) => h.index >= o.from) as h (h.index)}
-              {@const sec = o.scenario.sections[h.index]}
-              <!-- The first hose starts at the wye's outlet coupling, not under the casting. -->
-              {@const d = drawnHose(h.geom, h.index === o.from ? 24 * k : 0).d}
-              {@const q = sectionFlow(o.result, h.index)}
-              {@const p = q > 0.5 ? particles(sec.diameterIn, q) : null}
+            {#each branchHoses(o) as { h, sec, d, p, offsetPx } (h.index)}
               {#if peeked}<path class="peek-outline" {d} stroke-width={hoseWidth(h.thicknessPx, sec.diameterIn) + 6 * k} />{/if}
               <path class="hose-outline" {d} stroke-width={hoseWidth(h.thicknessPx, sec.diameterIn) + 2 * HOSE_BORDER * k} />
               <path class="hose" class:idle={!p} {d} stroke-width={hoseWidth(h.thicknessPx, sec.diameterIn)} />
-              {#if p}<path class="particles" {d} stroke-width={Math.max(2, hoseWidth(h.thicknessPx, sec.diameterIn) * 0.3)} style:--offset="0px" style:--gap={`${p.gapPx}px`} style:--period={`${p.seconds}s`} use:waterPhase />{/if}
+              {#if p}<path class="particles" {d} stroke-width={Math.max(2, hoseWidth(h.thicknessPx, sec.diameterIn) * 0.3)} style:--offset={`${offsetPx}px`} style:--gap={`${p.gapPx}px`} style:--period={`${p.seconds}s`} use:waterPhase />{/if}
               <path
                 class="hit"
                 {d}
@@ -1653,7 +1672,7 @@
                 onGrab={(e) => downOther(e, o, o.layout.nodes.length - 1)}
               />
             </g>
-            {@render flowTag(end, o.result.flowGpm, o.scenario.nozzle)}
+            {@render flowTag(end, o.result, o.scenario.nozzle)}
           </g>
         {/snippet}
         {#each otherLines.filter((o) => o.key !== peek?.key) as o (o.key)}{@render otherLine(o, false)}{/each}
@@ -1663,7 +1682,7 @@
           {@const s = scenario.sections[hd.index]}
           {@const lbl = hoseLabels[hd.index]}
           <path class="hose-outline" d={hd.d} stroke-width={hd.width + 2 * HOSE_BORDER * k} />
-          <path class="hose" d={hd.d} stroke-width={hd.width} />
+          <path class="hose" class:idle={hd.gapPx <= 0} d={hd.d} stroke-width={hd.width} />
           {#if hd.gapPx > 0}
             <path
               class="particles"
@@ -1857,7 +1876,7 @@
             onGrab={(e) => down(e, last, true)}
           />
         </g>
-        {@render flowTag(layout.nodes[last], result.flowGpm, scenario.nozzle)}
+        {@render flowTag(layout.nodes[last], result, scenario.nozzle)}
         <!-- The dials over everything, the spray included (owner, 2026-10-17); they take no pointer, so the bale still works under them. -->
         {#if showGauges}
           {#each layout.nodes as n, i (i)}
@@ -2076,7 +2095,7 @@
     <button type="button" aria-label="Alejar" onclick={() => setManualZoom(zoom / 1.25)}>−</button>
     <button type="button" aria-label="Acercar" onclick={() => setManualZoom(zoom * 1.25)}>+</button>
     <button type="button" onclick={showWhole}>Ver todo</button>
-    <button type="button" class="camera-lock" class:on={locked} aria-pressed={locked} title="Fijar la cámara en la selección (Y)" onclick={() => (locked = !locked)}>Cámara</button>
+    <button type="button" class="camera-lock" class:on={locked} aria-pressed={locked} aria-label="Seguir la pieza seleccionada" title="Seguir la pieza seleccionada (Y)" onclick={() => (locked = !locked)}>Seguir</button>
     <button type="button" disabled={!selection} title="Acercar a la selección" onclick={zoomToSelection}>Enfocar</button>
   </div>
   </div>
@@ -2119,7 +2138,7 @@
   @media (prefers-reduced-motion: reduce) { .spot .spot-ring { animation: none; } }
   .armed { pointer-events: auto; display: flex; align-items: center; gap: 10px; padding: 4px 4px 4px 12px; border-radius: 10px; background: var(--accent); color: #fff; font-size: 13px; font-weight: 600; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2); }
   .armed.erase { background: var(--warn); }
-  .armed button { min-height: 36px; padding: 0 12px; border: 0; border-radius: 8px; background: rgba(255, 255, 255, 0.2); color: #fff; font-weight: 700; cursor: pointer; white-space: nowrap; }
+  .armed button { min-height: 44px; padding: 0 12px; border: 0; border-radius: 8px; background: rgba(255, 255, 255, 0.2); color: #fff; font-weight: 700; cursor: pointer; white-space: nowrap; }
   .pieces-toggle { min-height: 44px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--accent); background: var(--surface); color: var(--accent); font-weight: 700; font-size: 14px; cursor: pointer; }
   .pieces-toggle.on { background: var(--accent-soft); }
   .canvas.phone .scroller { flex: 1; min-height: 0; transition: none; }
@@ -2175,7 +2194,7 @@
     from { stroke-dashoffset: var(--offset, 0px); }
     to { stroke-dashoffset: calc(var(--offset, 0px) - var(--gap)); }
   }
-  @media (prefers-reduced-motion: reduce) { .particles { animation: none; } .stage.glide { transition: none; } }
+  @media (prefers-reduced-motion: reduce) { .particles { display: none; animation: none; } .stage.glide { transition: none; } }
   .hose-selected { fill: none; stroke: var(--accent); stroke-opacity: 0.35; stroke-linecap: round; pointer-events: none; }
   .hose-hover { fill: none; stroke: var(--accent); stroke-opacity: 0.22; pointer-events: none; }
   .hit { fill: none; stroke: transparent; cursor: pointer; outline: none; }

@@ -49,7 +49,7 @@
   const missing = $derived(missingAdapters(scenario));
   const gap = $derived(result.unsatisfied);
   const issue = $derived(result.issues[0]);
-  const warn = $derived(result.state !== "flowing" || missing.length > 0 || !!issue || !balanced);
+  const warn = $derived(result.pump?.status === "limited" || result.state !== "flowing" || missing.length > 0 || !!issue || !balanced);
   // Inside the 350 gpm step no flow balances (MODEL.md §2): say so, and how to leave it.
   const gapTip = $derived(
     gap
@@ -62,7 +62,17 @@
   // "Presión ideal" (owner, 2026-10-18): a reading first, a shortcut second.
   // It shows what the lay asks of the pump, turns green when the pump is
   // there, and a tap sets it; a tick marks it on the pump's dial.
-  const atIdeal = $derived(required !== null && Math.abs(scenario.source.pressurePsi - required) < 0.5);
+  const operation = $derived(result.pump);
+  const actualPsi = $derived(operation ? operation.pressurePsi : scenario.source.pressurePsi);
+  const rpmMode = $derived(scenario.source.pump?.mode === "rpm");
+  const controlValue = $derived(rpmMode ? scenario.source.pump!.speedRpm : scenario.source.pressurePsi);
+  function setControl(value: number) {
+    const pump = scenario.source.pump;
+    if (pump && rpmMode) onchange({ ...scenario, source: { ...scenario.source, pump: { ...pump,
+      speedRpm: value <= 0 ? 0 : Math.min(pump.curve.maxRpm, Math.max(pump.curve.minRpm, value)) } } });
+    else onchange(edit.setSourcePressure(scenario, value));
+  }
+  const atIdeal = $derived(required !== null && Math.abs((actualPsi ?? -Infinity) - required) < 0.5);
   const requiredTip = $derived(
     atIdeal
       ? `La bomba está en la presión ideal: ${reading(required, 0)} psi, los ${scenario.nozzle.ratedPressurePsi} psi nominales en el pitón.`
@@ -72,19 +82,20 @@
   /** The dial's tick at the ideal pressure: a single line with a nozzle only. */
   const mark = $derived(!branched && rated ? required ?? undefined : undefined);
   const applyRequired = () => { if (required !== null) onchange(edit.setSourcePressure(scenario, required)); };
-  // Idle: today's pump is an ideal pressure source, so idle is 0 psi; with the
-  // governor's RPM mode (M3) it becomes the lowest RPM (UX.md §4).
-  const idle = () => onchange(edit.setSourcePressure(scenario, 0));
-  const idling = $derived(scenario.source.pressurePsi === 0);
+  // Stop the active control: zero pressure request or zero shaft speed.
+  const idle = () => setControl(0);
+  const idling = $derived(controlValue === 0);
 </script>
 
 {#snippet idleButton()}
-  <button class="chip kill" type="button" disabled={idling} title="Bomba a ralentí: 0 psi de descarga (se puede deshacer)" onclick={idle}>Ralentí</button>
+  <button class="chip kill" type="button" disabled={idling} title="Detener la bomba (se puede deshacer)" onclick={idle}>{operation ? "Detener" : "Ralentí"}</button>
 {/snippet}
 
 {#snippet stateLine()}
   <span class="state" class:warn title={gapTip || (issue ? balanceMessage(issue) : undefined)}>
-    {#if branched}
+    {#if operation}
+      {operation.pressurePsi === null ? "Sin resultado · fuera de curva o sin equilibrio" : `${operation.pressurePsi.toFixed(0)} psi reales${operation.status === "limited" ? " · límite de capacidad" : ""}`}
+    {:else if branched}
       {balanced ? result.flowGpm > 0 ? "Caudal total · líneas conectadas" : "Sin caudal" : "Sin equilibrio exacto · revisa las líneas"}
     {:else if missing.length > 0}
       Línea sin conectar · falta adaptador
@@ -101,44 +112,46 @@
 {#if strip}
   <section class="strip" class:branched aria-label="Panel de bomba">
     <NumberField
-      label="Presión de descarga"
+      label={rpmMode ? "Giro del eje de bomba" : operation ? "Presión solicitada" : "Presión de descarga"}
       hideLabel
       dark
       compact
-      value={scenario.source.pressurePsi}
-      unit="psi"
-      onchange={(p) => onchange(edit.setSourcePressure(scenario, p))}
+      value={controlValue}
+      unit={rpmMode ? "rpm" : "psi"}
+      step={rpmMode ? 100 : 1}
+      onchange={setControl}
     />
-    {#if !branched && rated && required !== null}<button class="chip small ideal" class:at={atIdeal} type="button" title={requiredTip} aria-label={idealLabel} onclick={applyRequired}>
+    {#if !rpmMode && !branched && rated && required !== null}<button class="chip small ideal" class:at={atIdeal} type="button" title={requiredTip} aria-label={idealLabel} onclick={applyRequired}>
       <span class="req-label">{atIdeal ? "✓ Ideal" : "Ideal"}</span>
       <span class="req-value">{required.toFixed(0)}</span>
     </button>{/if}
     <button type="button" class="flow-open" aria-label="Bomba: salida y accesorios" onclick={onOpen}>
-      <span class="big">{result.flowGpm.toFixed(0)} <small>gpm</small></span>
-      <span class="mini" class:warn-text={warn}>{branched ? balanced ? "Total de líneas" : "Sin equilibrio" : missing.length > 0 ? "Sin conectar" : gap ? `escalón ${gap.stepGpm}` : issue ? issue.code === "high-point" ? "Sin entrega" : "Sin equilibrio" : result.state === "flowing" ? `${rated ? "pitón" : "punta"} ${reading(result.nozzlePressurePsi, 0)} psi` : result.state === "nozzle-closed" ? "Cerrado" : "No llega"}{" "}<span class="chev" aria-hidden="true">›</span></span>
+      <span class="big">{operation && operation.flowGpm === null ? "—" : result.flowGpm.toFixed(0)} <small>gpm</small></span>
+      <span class="mini" class:warn-text={warn}>{operation ? `${actualPsi?.toFixed(0) ?? "—"} psi reales` : branched ? balanced ? "Total de líneas" : "Sin equilibrio" : missing.length > 0 ? "Sin conectar" : gap ? `escalón ${gap.stepGpm}` : issue ? issue.code === "high-point" ? "Sin entrega" : "Sin equilibrio" : result.state === "flowing" ? `${rated ? "pitón" : "punta"} ${reading(result.nozzlePressurePsi, 0)} psi` : result.state === "nozzle-closed" ? "Cerrado" : "No llega"}{" "}<span class="chev" aria-hidden="true">›</span></span>
     </button>
   </section>
 {:else if head}
   <section class="head" aria-label="Panel de bomba">
     <svg class="dial" width="64" height="64" viewBox="-32 -32 64 64" aria-hidden="true">
-      <Gauge psi={scenario.source.pressurePsi} r={29} dark label={false} {mark} markTitle="Presión ideal" />
+      <Gauge psi={actualPsi} r={29} dark label={false} {mark} markTitle="Presión ideal" />
     </svg>
     <div class="flow" aria-live="polite">
       <span class="kicker">Bomba · descarga</span>
-      <div class="big">{f(result.flowGpm)} <small>gpm</small></div>
+      <div class="big">{operation && operation.flowGpm === null ? "—" : f(result.flowGpm)} <small>gpm</small></div>
       {@render stateLine()}
     </div>
     <div class="controls" class:branched>
       <NumberField
-        label="Presión de descarga"
+        label={rpmMode ? "Giro del eje de bomba" : operation ? "Presión solicitada" : "Presión de descarga"}
         hideLabel
         dark
         compact
-        value={scenario.source.pressurePsi}
-        unit="psi"
-        onchange={(p) => onchange(edit.setSourcePressure(scenario, p))}
+        value={controlValue}
+        unit={rpmMode ? "rpm" : "psi"}
+      step={rpmMode ? 100 : 1}
+        onchange={setControl}
       />
-      {#if !branched && rated && required !== null}<button class="chip small ideal" class:at={atIdeal} type="button" title={requiredTip} aria-label={idealLabel} onclick={applyRequired}>
+      {#if !rpmMode && !branched && rated && required !== null}<button class="chip small ideal" class:at={atIdeal} type="button" title={requiredTip} aria-label={idealLabel} onclick={applyRequired}>
         <span class="req-label">{atIdeal ? "✓ Ideal" : "Ideal"}</span>
         <span class="req-value">{required.toFixed(0)}</span>
       </button>{/if}
@@ -148,52 +161,54 @@
 {:else if full}
   <section class="full" aria-label="Control de bomba">
     <svg class="dial" width="88" height="88" viewBox="-44 -44 88 88" aria-hidden="true">
-      <Gauge psi={scenario.source.pressurePsi} r={41} dark label={false} {mark} markTitle="Presión ideal" />
+      <Gauge psi={actualPsi} r={41} dark label={false} {mark} markTitle="Presión ideal" />
     </svg>
     <div class="flow" aria-live="polite">
       <span class="kicker">Bomba · descarga</span>
-      <div class="big">{f(result.flowGpm)} <small>gpm</small></div>
+      <div class="big">{operation && operation.flowGpm === null ? "—" : f(result.flowGpm)} <small>gpm</small></div>
       {@render stateLine()}
     </div>
     <div class="span">
       <NumberField
-        label="Presión de descarga"
+        label={rpmMode ? "Giro del eje de bomba" : operation ? "Presión solicitada" : "Presión de descarga"}
         hideLabel
         dark
-        value={scenario.source.pressurePsi}
-        unit="psi"
-        bigStep={{ size: 10, label: "10" }}
-        onchange={(p) => onchange(edit.setSourcePressure(scenario, p))}
+        value={controlValue}
+        unit={rpmMode ? "rpm" : "psi"}
+      step={rpmMode ? 100 : 1}
+        bigStep={{ size: rpmMode ? 500 : 10, label: rpmMode ? "500" : "10" }}
+        onchange={setControl}
       />
     </div>
     <div class="span row">
-      {#if !branched && rated && required !== null}<button class="chip grow ideal" class:at={atIdeal} type="button" title={requiredTip} aria-label={idealLabel} onclick={applyRequired}>{atIdeal ? "✓ " : ""}Presión ideal: {required.toFixed(0)} psi</button>{/if}
+      {#if !rpmMode && !branched && rated && required !== null}<button class="chip grow ideal" class:at={atIdeal} type="button" title={requiredTip} aria-label={idealLabel} onclick={applyRequired}>{atIdeal ? "✓ " : ""}Presión ideal: {required.toFixed(0)} psi</button>{/if}
       {@render idleButton()}
     </div>
-    <p class="span hint">{branched ? "Ajusta la descarga y consulta la presión y el caudal de cada línea. La bomba mantiene la presión indicada; su capacidad aún no se modela." : rated ? `Presión ideal: la que da al pitón sus ${scenario.nozzle.ratedPressurePsi} psi nominales; tócala para ponerla. La marca en el manómetro la señala.` : "Sin pitón no hay presión nominal que alcanzar: el caudal lo fijan la bomba y la manguera."}</p>
+    <p class="span hint">{operation ? "La descarga real depende de la curva y de la tendida. Consulta el modelo y su punto de operación abajo." : branched ? "Ajusta la descarga y consulta la presión y el caudal de cada línea. La bomba mantiene la presión indicada; su capacidad aún no se modela." : rated ? `Presión ideal: la que da al pitón sus ${scenario.nozzle.ratedPressurePsi} psi nominales; tócala para ponerla. La marca en el manómetro la señala.` : "Sin pitón no hay presión nominal que alcanzar: el caudal lo fijan la bomba y la manguera."}</p>
     {#if gap}<p class="span hint gap">{gapTip}</p>{/if}
   </section>
 {:else}
   <section class="pump" aria-label="Panel de bomba">
     <svg class="dial" width="64" height="64" viewBox="-32 -32 64 64" aria-hidden="true">
-      <Gauge psi={scenario.source.pressurePsi} r={29} dark label={false} {mark} markTitle="Presión ideal" />
+      <Gauge psi={actualPsi} r={29} dark label={false} {mark} markTitle="Presión ideal" />
     </svg>
     <div class="title"><strong>Bomba · descarga</strong><span>Presión de descarga</span></div>
     <NumberField
-      label="Presión de descarga"
+      label={rpmMode ? "Giro del eje de bomba" : operation ? "Presión solicitada" : "Presión de descarga"}
       hideLabel
       dark
-      value={scenario.source.pressurePsi}
-      unit="psi"
-      bigStep={{ size: 10, label: "10" }}
-      onchange={(p) => onchange(edit.setSourcePressure(scenario, p))}
+      value={controlValue}
+      unit={rpmMode ? "rpm" : "psi"}
+      step={rpmMode ? 100 : 1}
+      bigStep={{ size: rpmMode ? 500 : 10, label: rpmMode ? "500" : "10" }}
+      onchange={setControl}
     />
-    {#if !branched && rated && required !== null}<button class="chip ideal" class:at={atIdeal} type="button" title={requiredTip} aria-label={idealLabel} onclick={applyRequired}>
+    {#if !rpmMode && !branched && rated && required !== null}<button class="chip ideal" class:at={atIdeal} type="button" title={requiredTip} aria-label={idealLabel} onclick={applyRequired}>
       {atIdeal ? "✓ " : ""}Presión ideal: {required.toFixed(0)} psi
     </button>{/if}
     {@render idleButton()}
     <div class="flow" aria-live="polite">
-      <div class="big">{f(result.flowGpm)} <small>gpm</small></div>
+      <div class="big">{operation && operation.flowGpm === null ? "—" : f(result.flowGpm)} <small>gpm</small></div>
       {@render stateLine()}
     </div>
   </section>

@@ -1,3 +1,4 @@
+import type { PumpOperation } from "./pump.ts";
 // Keep ".ts": node --test runs this folder with no bundler (line.ts says why).
 import {
   elevationPressurePsi,
@@ -66,6 +67,7 @@ export type NodeReading = {
 };
 
 export type SeriesResult = {
+  pump?: PumpOperation;
   /**
    * As in line.ts, except `no-pressure` checks the line's highest coupling,
    * not only the nozzle: a soft hose collapses rather than siphon water over

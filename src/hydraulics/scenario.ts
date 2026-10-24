@@ -1,3 +1,4 @@
+import { parsePump, solvePump, type PumpConfig } from "./pump.ts";
 import { NOZZLE_SPECS, WYE_DEVICES, type WyeDevice } from "./catalog.ts";
 import { ratingOf, reactionOf, type NozzleDesign, type Reaction } from "./nozzle.ts";
 import { HOSE_SIZES, METHODS, type FittingKind, type MethodId } from "./references.ts";
@@ -29,6 +30,8 @@ export const SCENARIO_SCHEMA = "simulador-hidraulico/scenario";
  * floor. Either way a set pressure; heights are measured from it.
  */
 export type ScenarioSource = {
+  /** Optional real pump snapshot. pressurePsi then means requested governor pressure. */
+  pump?: PumpConfig;
   kind: "fixed-pressure";
   pressurePsi: number;
   /**
@@ -73,6 +76,8 @@ export type ScenarioNozzle = {
   kind: "fixed-orifice" | "selectable";
   /** Catalog spec (catalog.ts NOZZLE_SPECS) the values came from; null when entered by hand. */
   specId: string | null;
+  /** Stored equipment inlet; absent retains the legacy catalog lookup. */
+  inletIn?: number;
   /** The ring's settings, ascending; empty for a fixed orifice. */
   settingsGpm: number[];
   ratedFlowGpm: number;
@@ -239,6 +244,7 @@ function parseSingleScenario(value: unknown): Scenario {
     ...(doc.floorHeightM === undefined ? {} : { floorHeightM: number(doc.floorHeightM, "floorHeightM", "greater than zero") }),
     source: {
       kind: oneOf(source.kind, "source.kind", ["fixed-pressure"] as const),
+      ...(source.pump === undefined ? {} : { pump: parseSourcePump(source.pump) }),
       pressurePsi: number(source.pressurePsi, "source.pressurePsi", "zero or more"),
       ...(source.outletSizeIn === undefined
         ? {}
@@ -262,6 +268,7 @@ function parseSingleScenario(value: unknown): Scenario {
     nozzle: {
       kind: nozzleKind,
       specId: idOrNull(nozzle.specId, "nozzle.specId"),
+      ...(nozzle.inletIn === undefined ? {} : { inletIn: number(nozzle.inletIn, "nozzle.inletIn", "greater than zero") }),
       settingsGpm: [...settingsGpm].sort((a, b) => a - b),
       ratedFlowGpm,
       ratedPressurePsi: number(nozzle.ratedPressurePsi, "nozzle.ratedPressurePsi", "greater than zero"),
@@ -272,6 +279,19 @@ function parseSingleScenario(value: unknown): Scenario {
       ...(tipIn === undefined ? {} : { tipIn }),
     },
   };
+}
+
+function parseSourcePump(value: unknown): PumpConfig {
+  try { return parsePump(value); }
+  catch { throw new ScenarioError("source.pump", "must contain a valid curve and control"); }
+}
+
+/** No supported operating point: do not expose a guessed discharge or delivery. */
+export function unavailablePumpResult(result: SeriesResult): SeriesResult {
+  return { ...result, state: "unbalanced", flowGpm: 0, nozzlePressurePsi: null,
+    nodes: result.nodes.map(n => ({ ...n, pressurePsi: null })), terms: [],
+    frictionLossPsi: 0, fittingLossPsi: 0, elevationPressurePsi: 0,
+    issues: [{ code: "pressure-balance", residualPsi: 0 }] };
 }
 
 /** Parse the optional tree without changing the version-1 series document. */
@@ -357,7 +377,7 @@ export const isAuto = (scenario: Scenario) => scenario.autoFittings !== false;
 export function joints(scenario: Scenario): Joint[] {
   const { sections, source, nozzle } = scenario;
   // An open end has no nozzle to fit: water leaves through the hose's own coupling.
-  const nozzleInlet = scenario.wye || nozzle.design === "open-end" ? undefined : NOZZLE_SPECS.find((n) => n.id === nozzle.specId)?.inletIn;
+  const nozzleInlet = scenario.wye || nozzle.design === "open-end" ? undefined : nozzle.inletIn ?? NOZZLE_SPECS.find((n) => n.id === nozzle.specId)?.inletIn;
   const auto = isAuto(scenario);
   return Array.from({ length: sections.length + 1 }, (_, index) => {
     const upIn = index === 0 ? source.outletSizeIn : couplingOf(sections[index - 1]);
@@ -443,6 +463,16 @@ export function toSeriesLine(scenario: Scenario): SeriesLine {
  * flows. Pressure beyond the disconnected joint is unknown.
  */
 export function solveScenario(scenario: Scenario, methodId: MethodId = scenario.methodId): SeriesResult {
+  if (scenario.source.pump) {
+    const fixed = (pressurePsi: number) => solveScenario({ ...scenario,
+      source: { ...scenario.source, pump: undefined, pressurePsi } }, methodId);
+    const pump = solvePump(scenario.source.pump, scenario.source.pressurePsi, p => {
+      const r = fixed(p); return { flowGpm: r.flowGpm, balanced: !r.issues.length };
+    });
+    const result = fixed(pump.pressurePsi ?? 0);
+    return { ...(pump.pressurePsi === null ? unavailablePumpResult(result) : result), pump };
+  }
+
   const line = toSeriesLine(scenario);
   const missing = missingAdapters(scenario);
   const result = solveSeriesLine(missing.length ? { ...line, nozzle: { ...line.nozzle, open: false } } : line, METHODS[methodId]);

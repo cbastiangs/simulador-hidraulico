@@ -9,6 +9,7 @@
   import Canvas from "$lib/components/Canvas.svelte";
   import Concepts from "$lib/components/Concepts.svelte";
   import Inspector from "$lib/components/Inspector.svelte";
+  import PumpCurvePanel from "$lib/components/PumpCurvePanel.svelte";
   import PumpPanel from "$lib/components/PumpPanel.svelte";
   import Sources from "$lib/components/Sources.svelte";
   import Sheet, { CLOSED_PX, sheetHeights, type SheetState } from "$lib/components/Sheet.svelte";
@@ -436,6 +437,7 @@
 
 {#snippet side()}
   {#if selection === null}{@render line()}{/if}
+  {#if selection?.kind === "pump"}<PumpCurvePanel {scenario} operation={pumpResult.pump} onchange={applyTree} />{/if}
   <Inspector
     scenario={lineScenario}
     {selection}
@@ -455,8 +457,11 @@
 {/snippet}
 
 {#snippet results()}
+  {#if pumpResult.pump?.pressurePsi === null}
+    <p class="card" role="status">No hay un punto de operación disponible. Revisa la curva de la bomba y la tendida; no se extrapolan caudales.</p>
+  {:else}
   <div bind:this={budgetEl} data-tour="budget"><BudgetBar {result} {reference} referenceLabel={refName} openEnd={lineScenario.nozzle.design === "open-end"} line={budgetLine} lines={budgetLines} onPickLine={(key) => selectLine(key.split("/"))} /></div>
-  {#if network}<PowerSplit split={power} flowGpm={network.totalFlowGpm} pumpPsi={scenario.source.pressurePsi} lines={budgetLines} reference={referencePower} referenceLabel={refName} />{/if}
+  {#if network}<PowerSplit split={power} flowGpm={network.totalFlowGpm} pumpPsi={pumpResult.pump?.pressurePsi ?? scenario.source.pressurePsi} lines={budgetLines} reference={referencePower} referenceLabel={refName} />{/if}
   <details class="card">
     <summary>Ver cálculo ({result.terms.length} fórmulas) · {methodName}{comparing ? ` y ${refName}` : ""}</summary>
     <table>
@@ -473,6 +478,7 @@
   {#if network}<TreeResults {scenario} {network} reference={referenceNetwork} referenceLabel={refName} />{/if}
   <Sources methodId={scenario.methodId} />
   <Concepts scenario={lineScenario} {result} power={network ? null : power} />
+  {/if}
 {/snippet}
 
 {#snippet pumpPanel(mode: "strip" | "head" | "full" | "bar")}
@@ -625,7 +631,7 @@
   .app.wide .top > * { flex-shrink: 0; }
   .app.wide .top > .scenario { flex-shrink: 1; }
   /* Shorter than the viewport by the header (44 px and a gap) and the dock's 90 px, so its end never sits under the dock, scrolled or not. */
-  .app.wide .side { position: sticky; top: var(--gap); align-self: start; max-height: calc(100dvh - 2 * var(--gap) - 44px - 90px); overflow: auto; }
+  .app.wide .side { scroll-padding-top: 190px; position: sticky; top: var(--gap); align-self: start; max-height: calc(100dvh - 2 * var(--gap) - 44px - 90px); overflow: auto; }
   .dock { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; padding: 8px var(--gap) calc(8px + env(safe-area-inset-bottom)); background: var(--bg); box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.15); }
   .dock > :global(*) { max-width: 1976px; margin: 0 auto; }
   .top { grid-area: top; display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; justify-content: space-between; }

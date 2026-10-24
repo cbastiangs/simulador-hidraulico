@@ -1,0 +1,95 @@
+{
+  "schema": "simulador-hidraulico/scenario",
+  "version": 1,
+  "name": "G-Force: 75 y 100 psi · misma tendida",
+  "methodId": "physical",
+  "source": {
+    "kind": "fixed-pressure",
+    "pressurePsi": 125
+  },
+  "sections": [
+    {
+      "hoseSizeId": "2-1/2",
+      "diameterIn": 2.5,
+      "frictionCoefficient": 2,
+      "lengthM": 30,
+      "endElevationM": 0,
+      "runM": 10
+    }
+  ],
+  "nozzle": {
+    "kind": "fixed-orifice",
+    "specId": null,
+    "settingsGpm": [],
+    "ratedFlowGpm": 100,
+    "ratedPressurePsi": 100,
+    "pattern": 0.25,
+    "open": true
+  },
+  "wye": {
+    "branches": [
+      {
+        "id": "line-1",
+        "name": "G-Force 75 psi",
+        "open": true,
+        "sections": [
+          {
+            "hoseSizeId": "1-1/2",
+            "diameterIn": 1.5,
+            "frictionCoefficient": 24,
+            "lengthM": 30,
+            "endElevationM": 6,
+            "runM": 8
+          }
+        ],
+        "nozzle": {
+          "kind": "selectable",
+          "specId": "TFT-GF3D2S",
+          "settingsGpm": [
+            30,
+            60,
+            95,
+            125,
+            150
+          ],
+          "ratedFlowGpm": 95,
+          "ratedPressurePsi": 75,
+          "pattern": 0.25,
+          "open": true,
+          "inletIn": 1.5
+        }
+      },
+      {
+        "id": "line-2",
+        "name": "G-Force 100 psi",
+        "open": true,
+        "sections": [
+          {
+            "hoseSizeId": "1-1/2",
+            "diameterIn": 1.5,
+            "frictionCoefficient": 24,
+            "lengthM": 30,
+            "endElevationM": 6,
+            "runM": 28
+          }
+        ],
+        "nozzle": {
+          "kind": "selectable",
+          "specId": "TFT-GF3C2S",
+          "settingsGpm": [
+            30,
+            60,
+            95,
+            125,
+            150
+          ],
+          "ratedFlowGpm": 95,
+          "ratedPressurePsi": 100,
+          "pattern": 0.25,
+          "open": true,
+          "inletIn": 1.5
+        }
+      }
+    ]
+  }
+}

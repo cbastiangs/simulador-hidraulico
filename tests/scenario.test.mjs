@@ -3,7 +3,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import test from "node:test";
 import { NOZZLE_SPECS } from "../src/hydraulics/catalog.ts";
 import { HOSE_SIZES, SOURCES } from "../src/hydraulics/references.ts";
-import { parseScenario, ScenarioError, solveScenario, solveScenarioTree, toSeriesLine } from "../src/hydraulics/scenario.ts";
+import { parseScenario, ScenarioError, solveScenario, solveScenarioTree, toSeriesLine, joints } from "../src/hydraulics/scenario.ts";
 
 const PRESETS = new URL("../data/presets/", import.meta.url);
 const preset = (name) => JSON.parse(readFileSync(new URL(name, PRESETS), "utf8"));
@@ -78,6 +78,15 @@ test("the document carries values; the catalog id is provenance only", () => {
   doc.sections[0].hoseSizeId = "retired-size"; // a row the catalog no longer has
   const line = toSeriesLine(parseScenario(doc));
   assert.equal(line.sections[0].hose.frictionCoefficient, 12);
+  // A stored inlet overrides catalog data and survives even if the model is retired.
+  doc.methodId = "cgbvp-2019";
+  doc.nozzle.inletIn = 2.5; // 1½″ hose → adapter → 2½″ inlet: manual allowance 5 psi
+  for (const specId of ["fog-100", "retired-nozzle"]) {
+    doc.nozzle.specId = specId;
+    const parsed = parseScenario(JSON.parse(JSON.stringify(doc)));
+    assert.equal(joints(parsed).at(-1).downIn, 2.5);
+    near(solveScenario(parsed).requiredPumpPressurePsi, 116.811, 0.001);
+  }
 });
 
 test("a bad document is rejected with the path of the first bad field", () => {

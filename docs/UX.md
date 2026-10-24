@@ -1118,3 +1118,83 @@ peek; close/open and undo work; closed content remains inert. Desktop
 screenshots include dark mode with reduced motion. No real-device study.
 Evidence: `/tmp/ux-improved/final-390.png`, `selector-390.png`,
 `final-768.png`, `final-1024.png`, and `dark-1024.png`.
+
+### 10.10 Flow readability follow-up (2026-10-24)
+
+Apply the same flowing/stopped hose appearance to the edited line and all
+other branches. A stopped hose is muted, not labelled empty: a closed nozzle
+can retain static pressure. Keep nozzle flow labels explicit at zero flow
+(closed nozzle, isolated line, or insufficient pressure) using solver state.
+Particles use the existing engine-derived mean hose velocity and fixed volume
+per particle; preserve their phase across consecutive hoses on every drawn
+branch, including diameter changes. Any positive solved flow may animate;
+reduced motion hides particles rather than freezing dots that look like flow.
+
+Keep the existing piece-placement interaction. Its Cancel/Done control must
+meet the same 44 px touch target as other controls. The camera-follow toggle
+reads "Seguir" and identifies that it follows the selected part, including
+for assistive technology; its pressed state indicates whether following is on.
+
+Verified in Chromium at 390×844 and 1024×844: nozzle selection, close/open,
+selectable ring, pump pressure, hose placement on another branch and undo;
+closed and isolated branches leave the other branch flowing; zero pump
+pressure removes particles and labels both nozzles with insufficient
+pressure. No page errors or horizontal overflow in the walkthrough. Cancel
+measures 44 px; reduced motion hides all particle paths. `pnpm test`,
+`pnpm typecheck` (zero errors/warnings) and `pnpm build` pass. Screenshots:
+`/tmp/sim-ux/closed-390.png`, `closed-1024.png`, `placement-390.png`,
+`placement-1024.png`, `no-pressure-390.png`, `no-pressure-1024.png`, and
+`reduced-1024.png`. Browser verification, not a real-device study.
+
+### 10.11 Real nozzle selection (2026-10-24)
+
+Before/after comparison moves to backlog; real equipment is next (ROADMAP
+§10f). In the nozzle inspector, keep operating controls first and put a
+labelled manufacturer-model select above the generic model chips. Name the
+selected model in the heading; offer four verified configurations from MODEL
+§3.5 with their existing side/top artwork. Group options by matching inlet
+versus needing an adapter; inlet size does not imply thread compatibility.
+
+Show the selected nominal setting/pressure and inlet separately from solved
+delivered flow/pressure. Link the manufacturer's rating source and explain
+that off-rating flow is a square-root approximation and pattern is visual.
+The initial 95 gpm setting is labelled as a simulator choice. Generic models
+remain available; changing nominal values makes a custom model, retaining
+its stored inlet. Share links carry the numeric equipment values. Include
+identical parallel branches with the two G-Force pressure ratings as a preset
+for comparison at a shared pump pressure, not a before/after feature.
+
+Verified at 390×844 (touch emulation) and 1024×844 in Chromium: all four
+models select and operate; selectable rings update; manufacturer source links
+resolve to their recorded product pages; compressed share links retain model,
+settings, selected rating, pressure and inlet. A 2½″ hose requires an adapter
+for these 1½″ inlets, with the existing missing-adapter warning in manual
+mode. Editing nominal pressure clears the model id while retaining inlet
+size. The G-Force preset solves at about 101 vs 90 gpm at 125 psi pump pressure.
+No page errors or horizontal overflow in the walkthrough. Tests, typecheck
+(zero errors/warnings), and static build pass. Screenshots:
+`/tmp/sim-nozzles/rating-390.png`, `rating-1024.png`, `model-390.png`,
+`model-1024.png`, `final-390.png`, `final-1024.png`. Touch emulation, not a
+real-device study.
+
+### 10.12 Waterous CX family pump (2026-10-25)
+
+The first M3 delivery offers an ideal source or a Waterous CX family model
+in the selected pump's panel. Label it family data, not M11-5. Pressure mode
+edits a requested pressure; RPM mode edits pump-shaft rpm. Always distinguish
+the requested pressure from solved discharge, especially on the phone strip.
+The selected speed is the governor ceiling in pressure mode. Offer a pump ×
+lay chart with engine-supplied points, the operating point and explicit
+capacity-limited/outside-curve states. Outside the supported curve there is
+no numeric delivery claim. Keep the manufacturer source and approximation
+visible in the pump detail. No truck outlets or tank clock in this slice.
+
+Verified in Chromium at 390×844 (touch emulation) and 1024×844: requested
+pressure held at 100 psi; 200 psi request limited to approximately 137.9 psi
+and 483.3 gpm in the Waterous two-line preset; RPM mode, stop, return to the
+ideal source, and an out-of-curve lay with unavailable delivery readings.
+No page errors or horizontal overflow. Numeric RPM fields fit all four
+digits; desktop scrolling reserves space for the sticky pump header. Tests,
+typecheck (zero errors/warnings) and static build pass. Screenshots:
+`/tmp/sim-pump/chart-390.png`, `chart-1024.png`, `outside-390.png`, and
+`outside-1024.png`. Browser emulation, not a real-device study.

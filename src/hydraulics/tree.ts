@@ -1,4 +1,5 @@
-import { fittingsOf, missingAdapters, parseScenario, resolveNozzles, type Scenario, type ScenarioBranch } from "./scenario.ts";
+import { solvePump } from "./pump.ts";
+import { unavailablePumpResult, fittingsOf, missingAdapters, parseScenario, resolveNozzles, type Scenario, type ScenarioBranch } from "./scenario.ts";
 import { METHODS, type MethodId, type FittingKind } from "./references.ts";
 import { frictionLossPsi } from "./line.ts";
 import type { SeriesResult, Fitting } from "./series.ts";
@@ -59,6 +60,21 @@ type Evaluation = {
  * including discontinuous training allowances and dry-hose boundaries.
  */
 export function solveScenarioTree(input: Scenario, methodId: MethodId = input.methodId): ScenarioTreeResult {
+  if (input.source.pump) {
+    const fixed = (pressurePsi: number) => solveScenarioTree({ ...input,
+      source: { ...input.source, pump: undefined, pressurePsi } }, methodId);
+    const pump = solvePump(input.source.pump, input.source.pressurePsi, p => {
+      const r = fixed(p); return { flowGpm: r.totalFlowGpm, balanced: r.balanced };
+    });
+    const r = fixed(pump.pressurePsi ?? 0);
+    function annotate(node: TreeSegmentResult): TreeSegmentResult {
+      return { ...node, result: { ...(pump.pressurePsi === null ? unavailablePumpResult(node.result) : node.result), pump },
+        ...(pump.pressurePsi === null ? { inletPressurePsi: null, outletPressurePsi: null } : {}),
+        branches: node.branches.map(annotate) };
+    }
+    return { ...r, root: annotate(r.root), balanced: r.balanced && pump.pressurePsi !== null };
+  }
+
   const scenario = resolveNozzles(parseScenario(input));
   const method = METHODS[methodId];
   if (!method) throw new RangeError("Unknown hydraulic method");
@@ -259,6 +275,7 @@ export function pathResult(root: TreeSegmentResult, path: readonly string[]): Se
   const sum = (f: (r: SeriesResult) => number) => chain.reduce((a, s) => a + f(s.result), 0);
   return {
     state: leaf.result.state,
+    ...(root.result.pump ? { pump: root.result.pump } : {}),
     issues: chain.flatMap((s) => s.result.issues),
     flowGpm: leaf.flowGpm,
     nodes,

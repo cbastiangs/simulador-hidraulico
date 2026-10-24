@@ -294,6 +294,7 @@ export function setNozzleSpec(scenario: Scenario, specId: string): Scenario {
       ...rest,
       kind: spec.kind,
       specId: spec.id,
+      inletIn: spec.inletIn,
       settingsGpm: [...spec.settingsGpm],
       ratedFlowGpm: spec.ratedFlowGpm,
       ratedPressurePsi: spec.ratedPressurePsi,
@@ -330,8 +331,8 @@ export function setNozzleRating(
 ): Scenario {
   const { nozzle } = scenario;
   const typedFlow = rating.ratedFlowGpm !== undefined;
-  // A hand-entered nozzle has no known inlet, so it fits any hose. A typed
-  // rating is a fog nozzle's: a smooth bore's comes from its tip.
+  // Retain a stored physical inlet when editing the rating. Legacy custom
+  // nozzles without one keep their unspecified fit. A typed rating is fog.
   const { design: _d, tipIn: _t, ...fog } = nozzle;
   return pruneAdapters({
     ...scenario,

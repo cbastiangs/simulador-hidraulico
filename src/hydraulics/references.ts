@@ -30,6 +30,30 @@ export const SOURCES = {
     published: "2020-01",
     url: "https://cdpsdocs.state.co.us/dfpc/Website2.0/Sections/PQUAT/Proctor/DOPumper%20Chart%20Jan%202020.pdf",
   },
+  tftGf3c2s: {
+    title: "G-Force GF3C2S",
+    publisher: "Task Force Tips",
+    published: "read 2026-10-24",
+    url: "https://tft.com/product/gf3c2s/",
+  },
+  tftGf3d2s: {
+    title: "G-Force GF3D2S",
+    publisher: "Task Force Tips",
+    published: "read 2026-10-24",
+    url: "https://tft.com/product/gf3d2s/",
+  },
+  akron1720: {
+    title: "Turbojet 1720 / 17204001",
+    publisher: "Akron Brass",
+    published: "read 2026-10-24",
+    url: "https://www.akronbrass.com/turbojet-nozzle-100psi",
+  },
+  akron48634028: {
+    title: "Assault 48634028 · 175 gpm @ 50 psi",
+    publisher: "Akron Brass",
+    published: "read 2026-10-24",
+    url: "https://www.akronbrass.com/mid-range-assault-nozzle-175gpm-50psi",
+  },
   /** Nozzle reaction formulas, smooth bore and fog (MODEL.md §3.6, [E4]). */
   tftReaction: {
     title: "Understanding your nozzle reaction",

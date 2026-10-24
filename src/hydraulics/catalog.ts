@@ -23,6 +23,8 @@ export type NozzleSpec = {
   id: string;
   /** Spanish: shown in the app as is. */
   label: string;
+  /** Verified manufacturer rating; absent for generic equipment. */
+  manufacturerSource?: SourceId;
   /** Combination (fog), smooth bore, or none at all (MODEL.md §3.4b, §3.4d). */
   design: NozzleDesign;
   /** Smooth bore only: the tip, inches; the rating follows from it (§3.4). */
@@ -100,7 +102,30 @@ function smoothBore({ id, tipIn, name, inletIn }: (typeof SMOOTH_BORE_TIPS)[numb
   };
 }
 
+/** Verified subset of data/catalog/nozzles.csv; MODEL §3.5 records scope and assumptions. */
+function manufacturerNozzle(
+  id: string, label: string, source: SourceId, settingsGpm: readonly number[],
+  ratedFlowGpm: number, ratedPressurePsi: number,
+): NozzleSpec {
+  const published: Provenance = { sources: [source], note: "Manufacturer product specification, read 2026-10-24; MODEL §3.5" };
+  return {
+    id, label, manufacturerSource: source, design: "fog",
+    kind: settingsGpm.length ? "selectable" : "fixed-orifice",
+    settingsGpm, ratedFlowGpm, ratedPressurePsi, inletIn: 1.5,
+    provenance: {
+      ratedFlowGpm: settingsGpm.length
+        ? { ...published, note: `${published.note}; 95 gpm initial setting is a simulator choice, not a factory default` }
+        : published,
+      ratedPressurePsi: published, inletIn: published,
+    },
+  };
+}
+
 export const NOZZLE_SPECS: readonly NozzleSpec[] = [
+  manufacturerNozzle("TFT-GF3C2S", "TFT G-Force GF3C2S · 100 psi", "tftGf3c2s", [30, 60, 95, 125, 150], 95, 100),
+  manufacturerNozzle("TFT-GF3D2S", "TFT G-Force GF3D2S · 75 psi", "tftGf3d2s", [30, 60, 95, 125, 150], 95, 75),
+  manufacturerNozzle("AKR-17204001", "Akron Turbojet 1720 · 100 psi", "akron1720", [30, 60, 95, 125], 95, 100),
+  manufacturerNozzle("AKR-48634028", "Akron Assault 48634028 · 175 gpm / 50 psi", "akron48634028", [], 175, 50),
   {
     id: "combination-selectable",
     design: "fog",

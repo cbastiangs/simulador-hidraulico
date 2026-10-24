@@ -461,6 +461,28 @@ The rating pressure is per nozzle: TFT GF3D2S is rated at 75 psi, Akron
 Turbojet 1720 lists 100 and 75. The app labels rating values as the
 manufacturer's and results as calculated.
 
+**First runtime manufacturer subset (2026-10-24).** Existing fixed-orifice
+and selectable laws, no new law. Product pages rechecked on this date:
+
+| Catalog id | Settings / fixed flow (US gpm) | Rated psi | Inlet | Source |
+|---|---|---|---|---|
+| TFT-GF3C2S | 30 / 60 / 95 / 125 / 150 | 100 | 1½″ | [TFT GF3C2S](https://tft.com/product/gf3c2s/) |
+| TFT-GF3D2S | 30 / 60 / 95 / 125 / 150 | 75 | 1½″ | [TFT GF3D2S](https://tft.com/product/gf3d2s/) |
+| AKR-17204001 | 30 / 60 / 95 / 125 | 100 | 1½″ | [Akron Turbojet 1720](https://www.akronbrass.com/turbojet-nozzle-100psi) |
+| AKR-48634028 | 175 fixed | 50 | 1½″ | [Akron Assault 48634028](https://www.akronbrass.com/mid-range-assault-nozzle-175gpm-50psi) |
+
+Selectable models start at 95 gpm as a simulator choice, not a manufacturer
+factory setting. Only the rating/settings/inlet are adopted; off-rating
+Q ∝ √NP remains a model approximation, pattern remains drawing-only, and
+reaction remains the existing method's estimate. No automatic regulation,
+thread compatibility, stream reach or certification claim is added.
+
+New equipment selections store optional `nozzle.inletIn` alongside the
+rating and settings. Parsing and solving use that stored value even for an
+unknown catalog id. Absent values retain the legacy catalog lookup (unknown
+ids: unspecified inlet), so old documents keep their behavior. Custom rating
+edits retain a stored inlet but clear the manufacturer id and artwork.
+
 ### 3.6 Nozzle reaction: `nozzle.reaction` ✅ (owner, 2026-10-17: ahead of the rest of M2)
 
 | Nozzle | Law | Basis |
@@ -494,7 +516,39 @@ than a fog nozzle at 100 psi (185 gpm: 69 vs 93 lbf).
   per 1.25 gal, so the spacing is 1.25 gal / A and doesn't depend on Q
   (≈ 1.5 m in 2½″, 4.2 m in 1½″). Nozzle-exit velocity (`nozzleExitVelocityMps`) is shown in the Conceptos card, not drawn.
 
-### 3.8 Pump: `pump.*` ⏳ M3
+### 3.8 Pump: `pump.*` ✅ CX family curve/control; rest of M3 pending
+
+**CX family implementation basis (2026-10-25).** Adopt Waterous 810304,
+rev 2020-06-04, impellers 71888/71896; the original and digitized 4000 shaft
+rpm points are in `docs/reference/pumps/waterous-cx/`. Use piecewise-linear
+interpolation, approximately ±3 psi read-off accuracy, and affinity scaling
+P(Q,N) = (N/4000)² P_ref(Q/(N/4000)). Reference points (gpm, psi):
+(0,224), (250,222), (500,218), (750,212), (1000,202), (1250,184),
+(1500,154), (1600,140). This supersedes a generic rating-point envelope for
+the first M3 implementation. F-2115's two 4000 rpm points cross-check within
+5 psi; do not replace the graph with those different published values.
+
+Source intake pressure is assumed zero. The first model permits 2600–4800
+**pump-shaft** rpm, plus zero for stopped; the chosen 4800 rpm model ceiling
+is below the publication's 5200 rpm maximum. All allowed zero-flow heads
+are below its 350 psi maximum. Speed scaling is an approximation, not a
+claim that the other published curves have been digitized. Engine power,
+suction capacity, tank plumbing and transients remain unmodelled.
+
+Pressure control uses P_source(Q) = min(requested psi, P_curve(Q,N_limit));
+RPM control uses P_curve(Q,N). Solve the existing lay at trial discharge
+pressure and bracket P_curve(Q_lay(P)) − P. Check both pump and lay balance;
+a discontinuity is not an exact operating point. Beyond the last scaled
+flow point, report no supported operating point; never extrapolate or clamp
+flow. A shut lay uses zero-flow head (or the pressure set-point if lower).
+Chart samples are engine results, with no hydraulic calculation in the UI.
+Leave gaps at unsupported or unbalanced samples; do not connect across them.
+
+The optional `source.pump` contains a numeric curve snapshot and operating
+mode/speed; absent retains every existing fixed-pressure scenario. The
+legacy `kind: fixed-pressure` field stays: without a pump it is an ideal
+source, with a pump its `pressurePsi` is the governor request. Actual
+pressure is solved separately and drives gauges, budgets and power.
 
 - **`pump.envelope`.** The most net pressure the pump can give at a flow,
   through the rating points: **100 % of rated flow at 150 psi, 70 % at 200,
@@ -512,7 +566,7 @@ than a fog nozzle at 100 psi (185 gpm: 69 vs 93 lbf).
 - **`pump.governor`.** Pressure mode: the discharge holds the set point
   until the envelope is reached, then follows it. RPM mode: the curve at a
   fixed speed; pressure moves with flow (§ affinity below).
-- **`pump.affinity`** (`physics`, Hydraulic Institute [E3]): Q ∝ N,
+- **`pump.affinity`** (`physics`, [Hydraulic Institute pump curves](https://datatool.pumps.org/pump-fundamentals/pump-curves), constant efficiency assumed): Q ∝ N,
   H ∝ N², power ∝ N³. Used to scale the curve with engine speed in RPM mode.
 - **`pump.discharge`:** P_discharge = P_intake + P_net. Tank-fed: P_intake ≈
   0 (the tank's head is ignored, a few psi at most).
@@ -834,7 +888,7 @@ measured or complete. Component by component:
 | Hose friction | `FL = C·(Q/100)²·(L/100)` | Colorado DFPC generic C table [E15] p. 2; form supported by USDA [E11] App. C p. 11; a measured C can override the generic value now (multi-point curves are a planned future law) |
 | Elevation | `EP = (0.434/0.3048)·h_m psi` (hydrostatics) | `physics`; 0.434 psi/ft is the usual published approximation, not an exact constant |
 | Appliances | the actual device's ΔP–Q curve when adopted; else the Colorado allowances, labelled | [E15] p. 1; owner 2026-10-15; curves not yet adopted (§3.10) |
-| Source | fixed pressure today; a **measured** pump curve later | certification/test points are not a measured full curve |
+| Source | fixed pressure or the sourced **CX family** curve (§3.8) | certification/test points are not a measured full curve |
 
 **Runtime status.** Only the existing `physical` and `cgbvp-2019` profile
 parameter sets are implemented; `us-training`, user methods, the read-only

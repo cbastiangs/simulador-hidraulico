@@ -11,6 +11,10 @@
   const SOURCE_LABELS: Record<SourceId, string> = {
     cgbvpManual2019: "Manual de Hidráulica CGBVP 2019",
     coloradoPumperChart: "Colorado DFPC, Pumper chart 2020",
+    tftGf3c2s: "TFT G-Force GF3C2S",
+    tftGf3d2s: "TFT G-Force GF3D2S",
+    akron1720: "Akron Turbojet 1720",
+    akron48634028: "Akron Assault 48634028",
     tftReaction: "Task Force Tips, reacción del pitón",
     temeculaFireFlow: "Temecula Fire Prevention Bureau (NFPA 291)",
   };

@@ -106,7 +106,7 @@
     </ul>
   {/if}
 
-  <p class="source-note">La fuente es una presión fija: la bomba mantiene la presión indicada; su capacidad y su curva aún no se modelan.</p>
+  <p class="source-note">Las lecturas corresponden a la descarga resuelta de la fuente. Una fuente ideal mantiene la presión indicada; con bomba se aplica su curva.</p>
 </section>
 
 <style>
