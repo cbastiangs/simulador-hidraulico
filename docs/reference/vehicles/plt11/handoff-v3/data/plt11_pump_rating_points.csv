@@ -1,0 +1,5 @@
+flow_us_gpm,discharge_psi,plate_rpm,pump_mode,source_photo,rpm_interpretation
+1504,150,1660,SINGLE STAGE,1000086988.jpg,likely_engine_rpm_unverified
+1504,165,1740,SINGLE STAGE,1000086988.jpg,likely_engine_rpm_unverified
+1051,200,1840,SINGLE STAGE,1000086988.jpg,likely_engine_rpm_unverified
+750,250,2010,SINGLE STAGE,1000086988.jpg,likely_engine_rpm_unverified

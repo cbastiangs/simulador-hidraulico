@@ -1,0 +1,11 @@
+component,original_capacity_us_quarts,original_plate_fluid_type,interpretation_status,photo_source
+engine_oil,28,15W40,verified_plate,1000089044.jpg
+engine_coolant,54,1/2 EG,type_text_interpretation_pending,1000089044.jpg
+chassis_transmission_fluid,30,15W40,verified_plate_not_current_maintenance_advice,1000089044.jpg
+power_steering_fluid,6,15W40,verified_plate,1000089044.jpg
+front_axle,19,85W140?,grade_not_fully_legible,1000089044.jpg
+rear_axle,17,85W140?,grade_not_fully_legible,1000089044.jpg
+rear_rear_axle,16,85W140?,grade_not_fully_legible,1000089044.jpg
+transfer_case_power_divider,,,blank_on_plate,1000089044.jpg
+pump_transmission_lubrication,,,blank_on_plate,1000089044.jpg
+pump_primer_fluid,,,blank_on_plate,1000089044.jpg

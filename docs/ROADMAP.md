@@ -194,8 +194,9 @@ time left). The panel's structure ships with the polish (Bomba and one
 discharge, with what the engine has today); each M3 section joins it when
 its engine work lands, never shown greyed out before.
 
-M11-1 and M11-5 become two files once their pump specs are known. A generic
-1000 gpm pump ships first, labelled generic.
+M11-5's pump plate is now known (Waterous CXVC22C, 1500 gpm; see below).
+M11-1's pump plate is still wanted. A generic 1000 gpm pump ships first,
+labelled generic.
 
 **The owner's truck (owner, 2026-10-16, from memory).** A Spartan Metro
 Star pumper of the CGBVP fleet: 70 units (56, then 14) built by Spartan ERV
@@ -221,6 +222,18 @@ procurement for the 70 units, or the unit's own pump plate.
 
 This is the first built-in truck file when M3 lands, and the layout the
 pump close-up (UX.md §10.6) draws: 8 discharges, 4 intakes.
+
+**M11-5 (owner handoff, 2026-10-24).** Distinct from the remembered
+Spartan/Darley record above, which is not evidence for this unit. Pump:
+**Waterous CXVC22C**, nominal **1500 gpm**, gear ratio **1:2.27**, governor
+**2400 rpm**. Plate points (engine rpm): **1526 gpm @ 150 psi, 1657**;
+**1050 @ 200, 1807**; **752 @ 250, 1920**. They are separate operating
+points at different engine speeds, not one fixed-RPM curve. Outlets:
+**2 × 1½″ preconnects, 1 × 1½″ front fender, 2 × 2½″ each side, a 6″ intake
+each side, and an LDH discharge on the right (4″ or 5″ TBD)**. Still wanted:
+the exact LDH size, tank, acceptance test or unit-specific Waterous curve,
+chassis and hose/nozzle loads. Reference:
+`docs/reference/vehicles/m11-5/`.
 
 ## 7. Engine work, in order
 
@@ -363,7 +376,13 @@ constant sourced.
   teaching model.
 - **Link to hydraulics:** the ladder pipe's nozzle reaction comes from the
   hydraulics engine.
-- **Needs:** PLT-11's specs and load chart.
+- **Reference evidence (imported 2026-10-24):** PLT-11 handoff v3 is in
+  `docs/reference/vehicles/plt11/`: Simon-LTI **HT3S-85**, 85 ft nominal,
+  86.4 ft maximum platform elevation, 80.7 ft maximum horizontal reach,
+  −4° to +75°, a transcribed load chart (with the wet-platform 250/500 lb
+  conflict preserved), and the four pump-plate points. Still needed: the OEM
+  aerial manual, exact section/turntable/stabilizer dimensions, the
+  pump-to-waterway plumbing and bore, and the monitor model/tip.
 
 ## 9. Stack and layout
 
@@ -616,8 +635,10 @@ compare), routes and obstacles (§10b), the top-down view (§5, parked).
      adopted**; shown alone it would be a confident number on a weak basis
      ([audit](../reports/Water%20application%20efficiency%20audit.md)).
 
-Still wanted: M11-1 and M11-5 pump plates, the nozzles carried, hose sizes
-and couplings, PLT-11's load chart.
+Still wanted: M11-1's pump plate; M11-5's exact LDH size, tank and
+acceptance curve; the nozzles carried; hose sizes and couplings; PLT-11's
+OEM aerial manual and exact geometry/plumbing (its load chart and pump plate
+are imported in `docs/reference/vehicles/plt11/`).
 
 ### Saving and sharing (owner, 2026-10-15)
 

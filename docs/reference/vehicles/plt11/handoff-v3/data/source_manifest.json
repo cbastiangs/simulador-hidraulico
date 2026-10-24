@@ -1,0 +1,98 @@
+[
+  {
+    "id": "S01",
+    "url": "https://www.montgomerycountymd.gov/mcfrs-psta/Resources/Files/Driver/20150319/DT_KnowledgeBase/ManufacturerLinks/Hale/TPM_System_Installation_and_Operation_Manual.pdf",
+    "title": "Hale TPM Installation and Operation Manual",
+    "kind": "COMPONENT_MANUAL",
+    "format": "pdf",
+    "verification": "verified"
+  },
+  {
+    "id": "S02",
+    "url": "https://media.idexcorp.com/m/0c7307cd4c72ae84/original/SSD-Flow-Minder-Manual.pdf",
+    "title": "Class1 Digital Flowmeter Manual",
+    "kind": "COMPONENT_MANUAL",
+    "format": "pdf",
+    "verification": "verified_related_revision"
+  },
+  {
+    "id": "S03",
+    "url": "https://www.ebay.com/itm/313289982158",
+    "title": "LTI HT3S85 MZ100 Original Brochure Listing",
+    "kind": "BROCHURE_LISTING",
+    "format": "html",
+    "verification": "listing_only"
+  },
+  {
+    "id": "S04",
+    "url": "https://www.purplewave.com/auction/250429/item/EG6288/1985-Spartan-RS20-3064-Trucks-Fire_Truck_or_Emergency_Vehicle-Kansas",
+    "title": "Other HT3S-85 Apparatus Listing",
+    "kind": "EXACT_MODEL_OTHER_UNIT",
+    "format": "html",
+    "verification": "verified_listing"
+  },
+  {
+    "id": "S05",
+    "url": "https://spartaner.com/parts-and-support/",
+    "title": "Spartan ER Parts & Support",
+    "kind": "OEM_CONTACT",
+    "format": "html",
+    "verification": "verified"
+  },
+  {
+    "id": "S06",
+    "url": "https://manualzilla.com/doc/5739356/truck-and-ladder-manual",
+    "title": "SFFD Truck and Ladder Manual",
+    "kind": "RELATED_ONLY",
+    "format": "html",
+    "verification": "verified"
+  },
+  {
+    "id": "S07",
+    "url": "https://device.report/m/111b3ebf0ad1e61b81a29bb1b1b34c43f87e2ae2660862a3c044d94e9bedfc00",
+    "title": "Bend FD 2003 ALF LTI 93ft",
+    "kind": "RELATED_ONLY",
+    "format": "html_pdf",
+    "verification": "verified"
+  },
+  {
+    "id": "S08",
+    "url": "https://www.fireengineering.com/fire-apparatus/apparatus-deliveries-286/",
+    "title": "Other 1986 85-ft LTI Waterway",
+    "kind": "RELATED_ONLY",
+    "format": "html",
+    "verification": "verified"
+  },
+  {
+    "id": "S09",
+    "url": "https://spartaner.com/aerial-ladders/",
+    "title": "Spartan current aerial catalog",
+    "kind": "RELATED_ONLY",
+    "format": "html",
+    "verification": "verified"
+  },
+  {
+    "id": "S10",
+    "url": "https://spartaner.s3.amazonaws.com/wp-content/uploads/2024/02/LT-RML-ST-75-110-2401-01-01.pdf",
+    "title": "Modern Ladder Tower manual unrelated model",
+    "kind": "RELATED_ONLY",
+    "format": "pdf",
+    "verification": "access_not_verified_large_pdf"
+  },
+  {
+    "id": "S11",
+    "url": "https://spartaner.com/about-us/",
+    "title": "Spartan Brand Heritage",
+    "kind": "RELATED_ONLY",
+    "format": "html",
+    "verification": "verified"
+  },
+  {
+    "id": "S12",
+    "url": "https://www.usedfiretrucks.firetrucksunlimited.com/AvailableTruckFTU/17834/1997-Simon-Duplex-85%27-Tower",
+    "title": "Other Simon-Duplex 85-ft aerial photographs",
+    "kind": "RELATED_ONLY",
+    "format": "html",
+    "verification": "not_rechecked_this_turn"
+  }
+]

@@ -1,0 +1,15 @@
+{
+  "bundle_version": "3.0",
+  "date": "2026-10-23",
+  "canonical_document": "README.md",
+  "source_evidence_photos": 17,
+  "scope": "repository research centralization for PLT-11",
+  "artifact_hierarchy": [
+    "README.md",
+    "AGENT_INSTRUCTIONS.md",
+    "data/",
+    "photos/",
+    "archive/"
+  ],
+  "note": "Original photos are first-party user-supplied evidence. External URLs are research leads; third-party documents not included."
+}

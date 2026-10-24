@@ -1,0 +1,143 @@
+{
+  "apparatus_id": "PLT-11",
+  "evidence_as_of": "2026-10-23",
+  "chassis": {
+    "make": {
+      "value": "Simon-Duplex",
+      "confidence": "verified_photo",
+      "sources": [
+        "1000089051.jpg",
+        "1000089036.jpg"
+      ]
+    },
+    "model_year": {
+      "value": 1995,
+      "confidence": "high_inferred_from_prior_1995_plate_and_vin_year_char",
+      "sources": [
+        "1000089051.jpg",
+        "1000089058.jpg"
+      ]
+    },
+    "model": {
+      "value": null,
+      "partial_read": "ends -95, possible 300 middle",
+      "confidence": "unverified",
+      "sources": [
+        "1000089058.jpg",
+        "1000089014.jpg"
+      ]
+    },
+    "vin": {
+      "value": "1S91F74F6S1020008",
+      "confidence": "probable_not_confirmed_physical_vin",
+      "vin_check_digit_valid": true,
+      "sources": [
+        "1000089058.jpg",
+        "1000089014.jpg"
+      ]
+    },
+    "gvwr_lb": {
+      "value": 60000,
+      "confidence": "verified_photo",
+      "sources": [
+        "1000089029.jpg"
+      ]
+    },
+    "gawr_front_lb": {
+      "value": 20000,
+      "confidence": "verified_photo",
+      "sources": [
+        "1000089029.jpg"
+      ]
+    },
+    "gawr_rear_group_lb": {
+      "value": 40000,
+      "confidence": "verified_photo",
+      "sources": [
+        "1000089029.jpg"
+      ]
+    },
+    "front_tire": {
+      "value": "425/65R22.5 18PLY",
+      "confidence": "verified_original_plate_not_installed",
+      "sources": [
+        "1000089014.jpg"
+      ]
+    },
+    "rear_tire": {
+      "value": "11R22.5 16PLY",
+      "confidence": "verified_original_plate_not_installed",
+      "sources": [
+        "1000089014.jpg"
+      ]
+    }
+  },
+  "engine": {
+    "make": {
+      "value": "Detroit Diesel",
+      "confidence": "probable_derived_from_geometry_not_nameplate",
+      "sources": [
+        "1000089021.jpg"
+      ]
+    },
+    "family": {
+      "value": "8V92",
+      "confidence": "strongly_suggested_by_displacement_and_bore_stroke_but_serial_prefix_conflicts",
+      "sources": [
+        "1000089021.jpg",
+        "1000089036.jpg"
+      ]
+    },
+    "serial_on_chassis_plate": {
+      "value": "08VA304223",
+      "confidence": "likely_read_needs_block_check",
+      "sources": [
+        "1000089014.jpg",
+        "1000089058.jpg"
+      ]
+    },
+    "serial_conflict": {
+      "value": "08VA prefix normally 8V71; 08VF normally 8V92",
+      "confidence": "verified_external_reference",
+      "sources": [
+        "1000089014.jpg"
+      ]
+    },
+    "cylinders": {
+      "value": 8,
+      "confidence": "verified_photo",
+      "sources": [
+        "1000089021.jpg"
+      ]
+    },
+    "bore_in": {
+      "value": 4.84,
+      "confidence": "verified_photo",
+      "sources": [
+        "1000089021.jpg"
+      ]
+    },
+    "stroke_in": {
+      "value": 5.0,
+      "confidence": "verified_photo",
+      "sources": [
+        "1000089021.jpg"
+      ]
+    },
+    "displacement_cuin": {
+      "value": 736,
+      "confidence": "verified_photo",
+      "sources": [
+        "1000089021.jpg"
+      ]
+    },
+    "rated_hp": {
+      "value": null,
+      "partial_read": "?75.0",
+      "confidence": "unverified",
+      "sources": [
+        "1000089021.jpg"
+      ]
+    }
+  }
+}

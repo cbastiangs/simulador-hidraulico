@@ -351,8 +351,10 @@ waterway Δp–Q table was not found.**
 **NFPA 1901 / 1904 context:** the old NFPA 1904 waterway requirement (quoted in
 the NIOSH FACE 2008-12 report) was **"1,000 GPM monitor, 1,000 GPM nozzle"**;
 modern aerials are specified as a **"minimum 1000 gpm waterway system meeting
-NFPA 1901"** (Florida Sheriffs procurement spec; read 2026-10-17). The owner's
-PLT-11 make/model/rating is unknown.
+NFPA 1901"** (Florida Sheriffs procurement spec; read 2026-10-17). PLT-11 is
+now identified in `docs/reference/vehicles/plt11/` as a Simon-LTI HT3S-85;
+its pump plate gives 1504 gpm at 150 psi (single stage). That is the onboard
+pump rating, not a waterway Δp–Q curve.
 
 ### Loss versus flow, and extension
 
@@ -380,8 +382,9 @@ with flow or extension**, and neither is a measurement.
 ### Open questions
 
 - The waterway's **loss curve** and whether it changes with **extension** are
-  unpublished in the sources found; PLT-11's actual waterway size and rated
-  flow are needed.
+  unpublished in the sources found; PLT-11's waterway bore and plumbing are
+  still needed. The imported load chart's 1,500/2,000 gpm figures are
+  water-tower nozzle-orientation limits, not a waterway Δp–Q curve.
 - IFSTA's own aerial figure was not directly inspected (the handbook was not
   available); the "25 psi" is the Colorado chart and IFSTA's *method* as
   quoted by third parties.
@@ -660,8 +663,8 @@ was not located.
 
 ### Ask the owner (not answerable from documents)
 
-- PLT-11's make, model, year, and pump rating plate.
 - PLT-11's plumbing from pump to waterway, and its external inlet's location
-  and size.
-- The tips on PLT-11's monitor.
+  and size. Its make/model/year and pump plate are now in
+  `docs/reference/vehicles/plt11/`.
+- The make/model and tips on PLT-11's monitor.
 - The deck gun on the M11 pumpers.

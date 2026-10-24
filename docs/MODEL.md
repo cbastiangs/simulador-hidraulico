@@ -502,6 +502,13 @@ than a fog nozzle at 100 psi (185 gpm: 69 vs 93 lbf).
   points: piecewise linear (our **modelling choice**, stated on screen as
   such). Below 50 % flow: capped at the pump's maximum pressure. Above 100 %:
   `verify` against a real pump curve (Hale [E9]) before extrapolating.
+  - **M11-5 plate data (owner handoff 2026-10-24).** Waterous CXVC22C,
+    nominal 1500 gpm, gear ratio 1:2.27, governor 2400 rpm; plate points
+    `1526 gpm @ 150 psi @ 1657 engine rpm`, `1050 @ 200 @ 1807`,
+    `752 @ 250 @ 1920`. They are separate engine-speed points, not one
+    fixed-RPM curve; the Waterous CX family curve (810304) is family-level
+    and not yet calibrated to this unit. Reference:
+    `docs/reference/vehicles/m11-5/`.
 - **`pump.governor`.** Pressure mode: the discharge holds the set point
   until the envelope is reached, then follows it. RPM mode: the curve at a
   fixed speed; pressure moves with flow (§ affinity below).

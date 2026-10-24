@@ -159,6 +159,12 @@ For each modeled engine:
 
 **Why:** a generic “150 psi/200 psi/250 psi” rating sequence is not a substitute for the actual head-flow curve.
 
+**Known (2026-10-24):** M11-5 — Waterous CXVC22C, nominal 1500 gpm, gear
+ratio 1:2.27, governor 2400 rpm; plate points 1526 gpm @ 150 psi @ 1657 rpm,
+1050 @ 200 @ 1807, 752 @ 250 @ 1920. Still missing: pump mode/impeller/serial,
+an acceptance test or unit-specific curve. M11-1 remains open. Reference:
+`docs/reference/vehicles/m11-5/`.
+
 Manufacturer example showing current curve/rating documentation:
 - Hale: https://www.haleproducts.com/dsd
 - Hale: https://www.haleproducts.com/mbp
