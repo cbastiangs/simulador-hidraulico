@@ -1,0 +1,11 @@
+{
+  "schema": "simulador-hidraulico/apparatus",
+  "version": 1,
+  "id": "generic-three-outlets",
+  "name": "Genérico · 3 descargas",
+  "outlets": [
+    { "name": "Descarga 1", "sizeIn": 2.5 },
+    { "name": "Descarga 2", "sizeIn": 2.5 },
+    { "name": "Descarga 3", "sizeIn": 2.5 }
+  ]
+}

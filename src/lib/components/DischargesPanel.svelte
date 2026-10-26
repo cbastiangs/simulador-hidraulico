@@ -1,20 +1,21 @@
 <script lang="ts">
   import type { Scenario, ScenarioTreeResult } from "$hydraulics/scenario.ts";
-  import { withDischarges, toggleGate, flattenSegments, BRANCH_LIMITS } from "$lib/branch-edit.ts";
+  import { toggleGate } from "$lib/branch-edit.ts";
   import { reading } from "$lib/readings.ts";
-  let { scenario, network, onchange, onLine }: {
+  let { scenario, network, onchange, onLine, onConfigure }: {
     scenario: Scenario; network: ScenarioTreeResult | null;
     onchange: (s: Scenario) => void; onLine: (path: string[]) => void;
+    onConfigure: () => void;
   } = $props();
 </script>
 <section class="discharges" aria-label="Descargas de la bomba">
   <h3>Descargas</h3>
   {#if !scenario.discharges}
     <p>Una salida alimenta esta tendida.</p>
-    <button type="button" disabled={flattenSegments(scenario).length + 2 > BRANCH_LIMITS.branches} onclick={() => onchange(withDischarges(scenario))}>Usar bomba de 3 descargas</button>
-    <p>Configuración genérica: conserva esta línea y añade dos salidas vacías de 2½″.</p>
+    <button type="button" onclick={onConfigure}>Elegir camión y descargas</button>
+    <p>Conserva esta línea al aplicar un perfil de camión.</p>
   {:else}
-    <p>Configuración genérica · presión común, compuertas independientes. No representa la distribución de M11-5.</p>
+    <p>{scenario.apparatusName ?? "Configuración genérica"} · presión común, compuertas independientes. Configura el equipo en «Camión».</p>
     {#each scenario.discharges as d (d.id)}
       {@const r = network?.root.branches.find(b => b.id === d.id)}
       {@const unavailable = r?.result.pump?.pressurePsi === null && r?.result.pump?.status !== "empty"}

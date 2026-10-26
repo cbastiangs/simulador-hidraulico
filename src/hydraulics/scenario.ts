@@ -126,6 +126,8 @@ export type Scenario = {
   schema: typeof SCENARIO_SCHEMA;
   version: 1;
   name: string;
+  /** Applied equipment profile name; provenance only, never a catalog lookup. */
+  apparatusName?: string;
   methodId: MethodId;
   /**
    * "Accesorios automáticos" (ROADMAP §11, decision 6). Absent or true: every
@@ -217,6 +219,9 @@ function parseSingleScenario(value: unknown, allowEmpty = false): Scenario {
   }
 
   const source = record(doc.source, "source");
+  if (doc.apparatusName !== undefined && (typeof doc.apparatusName !== "string" || !doc.apparatusName.trim() || doc.apparatusName.length > 80)) {
+    throw new ScenarioError("apparatusName", "must be nonempty text of at most 80 characters");
+  }
   const nozzle = record(doc.nozzle, "nozzle");
   if (!Array.isArray(doc.sections) || (!allowEmpty && doc.sections.length === 0) || doc.sections.length > MAX_SECTIONS) {
     throw new ScenarioError("sections", `must be a list of 1 to ${MAX_SECTIONS} sections`);
@@ -250,6 +255,7 @@ function parseSingleScenario(value: unknown, allowEmpty = false): Scenario {
     schema: SCENARIO_SCHEMA,
     version: 1,
     name: doc.name,
+    ...(doc.apparatusName === undefined ? {} : { apparatusName: doc.apparatusName as string }),
     methodId: oneOf(doc.methodId, "methodId", Object.keys(METHODS) as MethodId[]),
     ...(doc.autoFittings === undefined ? {} : { autoFittings: boolFlag(doc.autoFittings, "autoFittings") }),
     ...(doc.floorHeightM === undefined ? {} : { floorHeightM: number(doc.floorHeightM, "floorHeightM", "greater than zero") }),
@@ -360,8 +366,8 @@ export function parseScenario(value: unknown): Scenario {
     return { ...(device === undefined ? {} : { device }), branches };
   }
   if (doc.discharges !== undefined) {
-    if (!Array.isArray(doc.discharges) || doc.discharges.length < 2 || doc.discharges.length > 8) {
-      throw new ScenarioError("discharges", "must contain 2 to 8 outlets");
+    if (!Array.isArray(doc.discharges) || doc.discharges.length < 1 || doc.discharges.length > 8) {
+      throw new ScenarioError("discharges", "must contain 1 to 8 outlets");
     }
     const discharges = doc.discharges.map((b, i) => parseBranch(b, `discharges[${i}]`, 0, true) as ScenarioDischarge);
     return { ...root, discharges };

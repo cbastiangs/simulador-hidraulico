@@ -39,20 +39,6 @@ function withBranches(segment: ScenarioSegment, branches: ScenarioBranch[]): Sce
     : { ...segment, wye: { ...segment.wye!, branches } };
 }
 
-/** Convert the existing lay into discharge 1; new outlets start shut and empty. */
-export function withDischarges(scenario: Scenario): Scenario {
-  if (scenario.discharges || flattenSegments(scenario).length - 1 + 3 > BRANCH_LIMITS.branches) return scenario;
-  const firstId = `line-${nextId(scenario, [])}`;
-  const first: ScenarioDischarge = { id: firstId, name: "Descarga 1", open: true,
-    outletSizeIn: scenario.source.outletSizeIn ?? couplingOf(scenario.sections[0]),
-    fittings: scenario.source.fittings, sections: scenario.sections, nozzle: scenario.nozzle,
-    ...(scenario.wye ? { wye: scenario.wye } : {}) };
-  const second = { ...newOutlet(scenario, scenario, [firstId]), name: "Descarga 2", outletSizeIn: 2.5 };
-  const third = { ...newOutlet(scenario, scenario, [firstId, second.id]), name: "Descarga 3", outletSizeIn: 2.5 };
-  return { ...scenario, sections: [], wye: undefined, discharges: [first, second, third],
-    source: { ...scenario.source, outletSizeIn: undefined, fittings: undefined } };
-}
-
 export const segmentEndElevation = (segment: ScenarioSegment) => segment.sections.at(-1)?.endElevationM ?? 0;
 
 /** Stored heights are always relative to the pump, including nested branches. */

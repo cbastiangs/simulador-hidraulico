@@ -168,6 +168,16 @@ Drawing rules:
 
 A truck is a data file (`data/apparatus/*.json`), not code:
 
+**Profile workflow (owner approved, 2026-10-26):** choose a generic built-in,
+clone it, and save named local profiles with 1–8 outlet names and diameters,
+the existing ideal or Waterous CX family pump model, and optional tank
+capacity. Applying copies equipment values and the name into the scenario;
+later profile edits never change that snapshot. Existing lines stay attached
+by outlet position; removing an occupied outlet is blocked. Applying keeps
+requested pressure, starts new outlets closed, pauses the clock and fills a
+configured tank. Unknown capacity removes finite-volume tracking. M11-5
+calibration remains separate; this adds no hydraulic law.
+
 - **Pump:** rating points (NFPA: 100 % flow at 150 psi, 70 % at 200, 50 % at
   250; review §11 [E10]) defining a capacity envelope; maximum pressure.
 - **Outlets:** size, preconnect or not, each with a discharge valve that can
@@ -602,11 +612,28 @@ use case and measurement conditions. Neither blocks the sequence above.
   app, including lazy nozzle artwork. Personal lays can reopen offline.
 - Exact dependency pins, including TypeScript and Node type definitions.
 
-Remaining M3 work is verified truck files/configuration and actual internal
+Truck configuration follows in §10h. Remaining M3 work is verified truck files and actual internal
 plumbing/supply limits. M11-5's tank and LDH bore are still unknown. Partial
 valves need their own sourced law. Display-unit options and the other
 remaining §10e items stay in the backlog; automatic nozzles, measured reach
 and the aerial module are not prerequisites for this delivery.
+
+## 10h. Configurable truck profiles (built 2026-10-26)
+
+The pump's **Camión** tab chooses a generic built-in or a locally saved
+clone. Profiles define 1–8 named outlet diameters, ideal/CX family pump and
+optional tank capacity. Save and apply are separate; applying preserves
+attached lines by position and refuses to remove occupied outlets. The
+scenario carries numeric equipment snapshots and `apparatusName`, including
+in exports, shared links and autosave. Old version-1 scenarios remain valid.
+The generic definition lives in `data/apparatus/generic.json`; local copies
+use `simulador.apparatus.v1`. Unreadable stored profiles are not overwritten.
+
+Verified at 390 and 1024 px: clone/edit/save/apply/reload, profile edits
+independent of the scenario, one-outlet conversion, line/gate preservation,
+occupied-outlet protection and scenario export. M11-5 calibration, intake
+plumbing and partial-valve laws remain open. Next: display units (bar,
+L/min, ft), then a walkthrough on the actual station phone.
 
 ## 11. Decisions (owner, 2026-10-14)
 

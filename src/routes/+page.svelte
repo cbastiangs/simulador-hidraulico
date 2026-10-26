@@ -27,6 +27,7 @@
   import * as branch from "$lib/branch-edit.ts";
   import { leafColor } from "$lib/line-colors.ts";
   import DischargesPanel from "$lib/components/DischargesPanel.svelte";
+  import TruckPanel from "$lib/components/TruckPanel.svelte";
   import TankPanel from "$lib/components/TankPanel.svelte";
   import SavedLays from "$lib/components/SavedLays.svelte";
   import Offline from "$lib/components/Offline.svelte";
@@ -441,7 +442,7 @@
       pasteError = error instanceof share.ShareError ? error.message : "No se pudo abrir.";
     }
   }
-  let pumpTab = $state<"discharges" | "tank" | "curve">("discharges");
+  let pumpTab = $state<"truck" | "discharges" | "tank" | "curve">("discharges");
   let libraryOpen = $state(false);
   let fileInput: HTMLInputElement | undefined;
   let storageReady = $state(false);
@@ -525,13 +526,17 @@
 {#snippet side()}
   {#if selection === null}{@render line()}{/if}
   {#if selection?.kind === "pump"}
+    {#if scenario.apparatusName}<p class="truck-name">Camión aplicado: <strong>{scenario.apparatusName}</strong></p>{/if}
     <nav class="pump-tabs" aria-label="Panel de bomba">
+      <button type="button" aria-pressed={pumpTab === "truck"} onclick={() => pumpTab = "truck"}>Camión</button>
       <button type="button" aria-pressed={pumpTab === "discharges"} onclick={() => pumpTab = "discharges"}>Descargas</button>
       <button type="button" aria-pressed={pumpTab === "tank"} onclick={() => pumpTab = "tank"}>Tanque</button>
       <button type="button" aria-pressed={pumpTab === "curve"} onclick={() => pumpTab = "curve"}>Curva y control</button>
     </nav>
-    {#if pumpTab === "discharges"}
-      <DischargesPanel {scenario} {network} onchange={applyTree} onLine={path => { selectLine(path); select({ kind: "section", index: 0 }); }} />
+    {#if pumpTab === "truck"}
+      <TruckPanel {scenario} onchange={next => { pauseClock(); applyTree(next); }} />
+    {:else if pumpTab === "discharges"}
+      <DischargesPanel {scenario} {network} onchange={applyTree} onConfigure={() => pumpTab = "truck"} onLine={path => { selectLine(path); select({ kind: "section", index: 0 }); }} />
     {:else if pumpTab === "tank"}
       <TankPanel {scenario} flowGpm={totalFlow} running={clockRunning} onchange={changeTank} onToggle={toggleClock} />
     {:else}
@@ -735,7 +740,8 @@
 
 <style>
   .empty-summary { display: grid; gap: 6px; padding: 12px; border-radius: 8px; background: var(--surface); font-size: 13px; }.empty-summary span { color: var(--muted); }
-  .pump-tabs { display: flex; gap: 4px; }
+  .pump-tabs { display: flex; flex-wrap: wrap; gap: 4px; }
+  .truck-name { margin: 0; font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
   .pump-tabs button { flex: 1; min-height: 44px; padding: 8px 4px; font: inherit; font-size: 13px; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; cursor: pointer; }
   .pump-tabs button[aria-pressed=true] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
   .file-input { display: none; }.save-status { padding: 4px 12px; margin: 0; font-size: 12px; color: var(--muted); max-width: 310px; }

@@ -795,7 +795,7 @@ allowed, with the reason.
 | **Scenario** | preset ✅; blank line ✅ ("Línea en blanco", Escenario menu) | rename ✅ (Línea) | — | reset to preset ✅ (Escenario menu, undoable) | — | share link ✅, copy / paste ✅ (Escenario menu); cloud save ⏳ (paid) |
 | **Method** | clone a built-in ⏳ | edit a clone ⏳; built-ins ✕ (read-only) | — | delete a clone ⏳ | sources ✅ ("Fuentes" card) | pick "Método" ✅; "Comparar con" ✅ (Ajustes; per browser, off when equal to Método) |
 | **Pump** | ✕ (a line needs a source) | pressure ✅, apply required ✅, outlet size ✅; spec ⏳ M3 | ✕ | ✕ | flow, state ✅ | — |
-| **Truck** | choose a truck file / preset ⏳ M3; clone a built-in ⏳ M3 | discharges open / shut, tank ⏳ M3; partial valves ⏳ (`valve.partial`); **specs editor** (pump, discharge sizes and diameters) ⏳ M3 | ✕ | ✕ | capacity ⏳ M3 | presets carry pump and discharge diameters ⏳ M3 |
+| **Truck** | choose a profile ✅; clone a built-in ✅ | discharges open / shut, tank ✅; partial valves ⏳ (`valve.partial`); **specs editor** (pump, outlet names/count/diameters, tank capacity) ✅ | ✕ | ✕ | capacity ✅ | scenarios carry pump and discharge values ✅ |
 | **Hose** | insert, split ✅ | size, length, lock ✅ | its couplings move it | remove, join ✅ | its friction loss ✅ (panel) | true-scale thickness ✅ (Ajustes › Vista; default exaggerated, badge "grosor ×11") |
 | **Coupling** | with a hose ✅ | fittings ✅ | drag ✅; first-drag camera stability ✅ (§10.8) | join the two hoses ✅ | pressure here, lost before it ✅ (tap its gauge) | — |
 | **Fitting** | adapter ✅; valve: engine only, no toggle (a coupling kind later) | ✕ (a kind has one loss) | moves with its coupling | ✅ | its loss and basis ✅ | auto fittings switch ✅ |
@@ -808,6 +808,17 @@ allowed, with the reason.
 | **Canvas view** | — | pan, zoom, fit ✅; zoom to selection ✅ ("Enfocar") | — | — | — | — |
 | **History** | — | undo, redo ✅ | — | — | — | — |
 | **Help** | — | — | — | — | tour ✅ (§8.4; "?" wide, Escenario › Ver recorrido on a phone) | — |
+
+### Truck profiles (2026-10-26)
+
+The pump detail includes **Camión**, before the operating tabs. It shows the
+applied profile name as a snapshot. Choose a read-only built-in or clone it
+to edit outlet names, count (1–8), diameters, pump model and optional tank
+capacity. Save locally and apply are separate actions. Applying explains
+that lines stay in outlet order, new gates start closed, and a configured
+tank starts full; unknown capacity disables finite-volume tracking. An
+occupied outlet cannot be removed by applying a smaller profile. Storage
+errors are visible and must not overwrite unreadable local profiles.
 
 ### 10.3 Phone walkthrough of the built tasks
 
