@@ -19,6 +19,7 @@
   const systemPath = (ps: (PumpPoint | null)[]) => ps.map((p, i) => p
     ? `${i === 0 || ps[i - 1] === null ? "M" : "L"}${x(p.flowGpm)},${y(p.pressurePsi)}` : "").join(" ");
   const status = $derived(operation ? {
+    empty: "Tanque vacío · sin entrega",
     holding: "Mantiene la presión solicitada", limited: "Capacidad alcanzada · la presión cae",
     rpm: "RPM fijas · la presión depende de la tendida", stopped: "Bomba detenida",
     "outside-curve": "Fuera de la curva publicada · sin resultado", unbalanced: "Sin equilibrio exacto · revisa la tendida",
@@ -31,7 +32,7 @@
     <option value="cx">Waterous CX · familia</option>
   </select>
   {#if pump}
-    <p>Familia CX · no calibrada a M11-5. Admisión a 0 psi; sin límite de potencia del motor ni de abastecimiento.</p>
+    <p>Familia CX · no calibrada a M11-5. Admisión a 0 psi; sin límite de potencia del motor ni de caudal de admisión.</p>
     <div class="modes" role="group" aria-label="Control de la bomba">
       <button type="button" aria-pressed={pump.mode === "pressure"} onclick={() => control({ mode: "pressure" })}>Presión</button>
       <button type="button" aria-pressed={pump.mode === "rpm"} onclick={() => control({ mode: "rpm" })}>RPM fijas</button>
@@ -46,7 +47,11 @@
         <span>Solicitada: {pump.mode === "pressure" ? `${scenario.source.pressurePsi.toFixed(0)} psi` : "control por RPM"}</span>
         <b>Descarga: {operation.pressurePsi?.toFixed(1) ?? "—"} psi · {operation.flowGpm?.toFixed(1) ?? "—"} gpm</b>
       </div>
-      {#if pump.speedRpm > 0}
+      {#if operation.status === "limited"}<p>La tendida demanda más agua de la que la bomba sostiene a la presión solicitada. La descarga real baja hasta equilibrarse. Cerrar una salida o cambiar el límite de giro cambia ese equilibrio.</p>
+      {:else if operation.status === "outside-curve"}<p>La tendida exige un punto fuera de los datos disponibles. Reduce la demanda cerrando una salida o elige otra configuración; el modelo no puede afirmar cuánto entregaría aquí.</p>
+      {:else if operation.status === "holding"}<p>La bomba puede sostener la presión solicitada con las salidas abiertas actualmente.</p>
+      {:else if operation.status === "unbalanced"}<p>Las pérdidas o una condición de la manguera impiden equilibrar esta tendida. Revisa los avisos del cálculo y modifica la presión o la configuración.</p>{/if}
+      {#if pump.speedRpm > 0 && operation.status !== "empty"}
         <svg viewBox="0 0 340 212" role="img" aria-label="Curva de bomba y demanda de la tendida, con el punto de operación">
           <path d="M44 28 V174 H312" class="axis" />
           <text x="8" y="22">psi</text><text x="282" y="205">gpm</text>

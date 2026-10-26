@@ -27,7 +27,7 @@
     for (const child of node.branches) climbing(child, [...current, child.id!], depth + 1, out);
     return out;
   }
-  const entries = $derived(climbing(network.root, [], 0, []));
+  const entries = $derived(climbing(network.root, [], 0, []).filter(e => !scenario.discharges || e.depth > 0));
 
   function readingAt(root: TreeSegmentResult, current: string[]): TreeSegmentResult {
     let node = root;

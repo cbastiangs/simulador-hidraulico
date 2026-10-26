@@ -516,7 +516,7 @@ than a fog nozzle at 100 psi (185 gpm: 69 vs 93 lbf).
   per 1.25 gal, so the spacing is 1.25 gal / A and doesn't depend on Q
   (≈ 1.5 m in 2½″, 4.2 m in 1½″). Nozzle-exit velocity (`nozzleExitVelocityMps`) is shown in the Conceptos card, not drawn.
 
-### 3.8 Pump: `pump.*` ✅ CX family curve/control; rest of M3 pending
+### 3.8 Pump: `pump.*` ✅ CX family curve/control and independent discharges; truck files pending
 
 **CX family implementation basis (2026-10-25).** Adopt Waterous 810304,
 rev 2020-06-04, impellers 71888/71896; the original and digitized 4000 shaft
@@ -611,10 +611,36 @@ pressure is solved separately and drives gauges, budgets and power.
 
 ### 3.9 Supply: `supply.*`
 
+**Multiple discharges and tank endurance (2026-10-25).** Optional root
+`discharges` are independent open/shut outlets on the same pump manifold.
+Each has a stored bore and its own hose tree. All pump outlets may be empty;
+the pump-only drawing provides connection targets without a dummy hose. The root has no hose or wye;
+continuity gives Q_pump = ΣQ_outlet at one common pressure (§2). No generic
+wye allowance is charged at the manifold, and no unverified internal truck
+plumbing loss is invented. Outlet adapters retain §3.10's selected method.
+A shut gate isolates its downstream readings; an open empty discharge uses
+§3.4d with its stored bore. Existing scenarios without discharges retain
+their single outlet. These are optional version-1 additions with no change
+of meaning for existing fields.
+
+`source.tank` stores capacity and remaining volume in US gallons, explicitly
+entered for the scenario; no M11-5 capacity is assumed. Conservation of
+volume (`physics`) gives t_minutes = V_gal / Q_gpm and
+V_next = max(0, V − Q·elapsed_seconds/60). Q is the total solved pump flow,
+including open empty outlets. Zero flow means no consumption and no finite
+emptying time; unavailable/unbalanced delivery has no endurance estimate.
+The optional teaching clock integrates successive steady solutions and
+pauses when the page is hidden or a scenario is loaded. Running state is
+local, never shared or restored. At empty, supply is disconnected: all
+flows stop and downstream pressure is unavailable (trapped water history
+is not modelled). Refill is an explicit action. Tank head, suction limits
+and tank-to-pump plumbing remain unmodelled and are stated on screen.
+
 - **`supply.fixed-pressure`** ✅: the source is a set pressure. It models a
   pump at a set discharge and a **standpipe outlet** on the fire floor.
-- **`supply.tank`** ⏳ M3: Q ≤ tank-to-pump line limit (apparatus data);
-  time remaining = volume / Q.
+- **`supply.tank`** ✅ volume/endurance/teaching clock (2026-10-26), as
+  defined above. ⏳ Tank-to-pump line capacity and suction losses require
+  apparatus data; no arbitrary maximum gpm is imposed.
 - **`supply.hydrant`** ⏳ later: static/residual curve,
   Q₂ = Q₁ · ((P_s − P₂)/(P_s − P₁))^0.54 (`published` NFPA 291 [E8];
   the same form is printed, with a worked example, by [E16]; `verify`

@@ -109,7 +109,7 @@ export function spotsFor(piece: PieceId, line: Scenario): SpotChoice[] {
     for (const jn of junctions) {
       const behind = jn.outlets.filter((o) => !o.active);
       behind.forEach((o, k) => {
-        if (o.empty) out.push({ spot: { kind: "outlet", path: o.path, joint: jn.joint, slot: k + 1 }, label: "Conectar una línea a la salida vacía", blocked: full });
+        if (o.empty) out.push({ spot: { kind: "outlet", path: o.path, joint: jn.joint, slot: k + 1 }, label: jn.pump ? `Conectar una manguera a ${o.name}` : "Conectar una línea a la salida vacía", blocked: full });
       });
     }
   } else if (device) {
@@ -127,7 +127,12 @@ export function spotsFor(piece: PieceId, line: Scenario): SpotChoice[] {
     line.sections.forEach((_, i) => {
       const { start, end } = runOf(line, i);
       const alone = end - start <= 1;
-      if (n <= 1) out.push({ spot: { kind: "section", index: i }, label: "Quitar tramo", blocked: "Una línea necesita al menos un tramo" });
+      const pump = branch.junctionsOf(line).find(j => j.pump);
+      if (alone && start === 0 && pump) {
+        const path = pump.outlets.find(o => o.active)!.path;
+        out.push({ spot: { kind: "section", index: i }, label: "Desconectar esta descarga", blocked: branch.disconnectLimit(branch.treeOf(line), path) });
+      }
+      else if (n <= 1) out.push({ spot: { kind: "section", index: i }, label: "Quitar tramo", blocked: "Una línea necesita al menos un tramo" });
       else if (alone && start === 0) out.push({ spot: { kind: "section", index: i }, label: "Quitar tramo", blocked: "Pon al menos un tramo antes del bifurco" });
       else if (alone) {
         const path = branch.junctionAt(line, start)!.outlets.find((o) => o.active)!.path;
@@ -135,6 +140,7 @@ export function spotsFor(piece: PieceId, line: Scenario): SpotChoice[] {
       } else out.push({ spot: { kind: "section", index: i }, label: `Quitar tramo ${i + 1}`, blocked: null });
     });
     for (const jn of junctions) {
+      if (jn.pump) continue;
       const connected = jn.outlets.filter((o) => !o.empty).length;
       const what = DEVICE_NAME[jn.device];
       out.push({ spot: { kind: "joint", index: jn.joint }, label: connected === 1 ? `Quitar el ${what} (la línea sigue)` : `Quitar el ${what} y sus ${connected} líneas`, blocked: null });
@@ -195,7 +201,7 @@ export function place(piece: PieceId, spot: Spot, line: Scenario): Placed {
   if (hose && spot.kind === "joint") {
     const j = spot.index;
     // At a wye the hose goes before it, into the run that ends there.
-    const hint = branch.junctionAt(line, j) ? j - 1 : j;
+    const hint = branch.junctionAt(line, j) && !branch.junctionAt(line, j)?.pump ? j - 1 : j;
     return { scenario: sized(edit.insertSection(line, j), j, hose), hint, select: { kind: "section", index: j } };
   }
   if (hose && spot.kind === "outlet") {
@@ -222,7 +228,7 @@ export function place(piece: PieceId, spot: Spot, line: Scenario): Placed {
   }
   if (spot.kind !== "joint") return {};
   const jn = branch.junctionAt(line, spot.index);
-  if (jn) {
+  if (jn && !jn.pump) {
     // One line connected: it rejoins and stays drawn; more: they all go, and the owner's line is drawn.
     const drawn = branch.drawnPathOf(line);
     const rejoins = jn.outlets.filter((o) => !o.empty).length === 1;

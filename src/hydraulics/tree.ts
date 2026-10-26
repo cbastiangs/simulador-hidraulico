@@ -1,5 +1,6 @@
 import { solvePump } from "./pump.ts";
-import { unavailablePumpResult, fittingsOf, missingAdapters, parseScenario, resolveNozzles, type Scenario, type ScenarioBranch } from "./scenario.ts";
+import { unavailablePumpResult, branchesOf, fittingsOf, missingAdapters, parseScenario, resolveNozzles, type Scenario, type ScenarioBranch, type ScenarioDischarge } from "./scenario.ts";
+import { emptySupplyResult } from "./tank.ts";
 import { METHODS, type MethodId, type FittingKind } from "./references.ts";
 import { frictionLossPsi } from "./line.ts";
 import type { SeriesResult, Fitting } from "./series.ts";
@@ -60,6 +61,13 @@ type Evaluation = {
  * including discontinuous training allowances and dry-hose boundaries.
  */
 export function solveScenarioTree(input: Scenario, methodId: MethodId = input.methodId): ScenarioTreeResult {
+  if (input.source.tank?.remainingGal === 0) {
+    const r = solveScenarioTree({ ...input, source: { ...input.source, tank: undefined, pump: undefined, pressurePsi: 0 } }, methodId);
+    const empty = (n: TreeSegmentResult): TreeSegmentResult => ({ ...n, flowGpm: 0,
+      result: emptySupplyResult(n.result), inletPressurePsi: null, outletPressurePsi: null,
+      wyeLossPsi: 0, isolated: true, branches: n.branches.map(empty) });
+    return { root: empty(r.root), totalFlowGpm: 0, balanced: true, issues: [] };
+  }
   if (input.source.pump) {
     const fixed = (pressurePsi: number) => solveScenarioTree({ ...input,
       source: { ...input.source, pump: undefined, pressurePsi } }, methodId);
@@ -88,10 +96,12 @@ export function solveScenarioTree(input: Scenario, methodId: MethodId = input.me
   function prepare(segment: Segment, start: number, id: string | null): Prepared {
     const projected: Scenario = {
       ...scenario, ...segment,
-      source: id === null ? scenario.source : { kind: "fixed-pressure", pressurePsi: 0 },
+      source: id === null ? scenario.source : { kind: "fixed-pressure", pressurePsi: 0,
+        ...("outletSizeIn" in segment ? { outletSizeIn: (segment as ScenarioDischarge).outletSizeIn, fittings: (segment as ScenarioDischarge).fittings } : {}) },
+      discharges: undefined,
       wye: segment.wye,
     };
-    const fittings = fittingsOf(projected);
+    const fittings = id === null && scenario.discharges ? [] : fittingsOf(projected);
     const kinds: (FittingKind | "wye")[] = [...fittings.map((f) => f.kind), ...(segment.wye ? ["wye" as const] : [])];
     const fixed = kinds.reduce((sum, kind) => sum + (kind === "wye" ? method.wyeLossPsi ?? 0 : method.fittingLossPsi?.[kind] ?? 0), 0);
     const step = kinds.reduce((sum, kind) => sum + ((kind === "wye" ? method.wyeLossPsi : method.fittingLossPsi?.[kind]) == null ? method.fittingStep?.lossPsi ?? 0 : 0), 0);
@@ -103,7 +113,7 @@ export function solveScenarioTree(input: Scenario, methodId: MethodId = input.me
       resistance: segment.sections.reduce((sum, s) => sum + frictionLossPsi(s, 1), 0),
       fittings, fixed, step,
       disconnected: ("open" in segment && !segment.open) || missingAdapters(projected).length > 0,
-      children: (segment.wye?.branches ?? []).map((child) => prepare(child, end, child.id)),
+      children: branchesOf(segment).map((child) => prepare(child, end, child.id)),
     };
   }
   const root = prepare(scenario, 0, null);
@@ -205,7 +215,7 @@ export function solveScenarioTree(input: Scenario, methodId: MethodId = input.me
         inputs: { frictionCoefficient: s.frictionCoefficient, flowGpm: q, lengthFt: metersToFeet(s.lengthM) }, valuePsi: friction });
     }
     terms.push({ lawId: "elevation", inputs: { psiPerMeter: k, heightM: node.end - node.start }, valuePsi: localElevation });
-    const appliances = [...node.fittings, ...(node.children.length ? [{ joint: node.segment.sections.length, kind: "wye" as const }] : [])];
+    const appliances = [...node.fittings, ...(node.segment.wye ? [{ joint: node.segment.sections.length, kind: "wye" as const }] : [])];
     if (q > 0) for (const { joint, kind } of appliances) {
       const fixed = kind === "wye" ? method.wyeLossPsi : method.fittingLossPsi?.[kind];
       terms.push(fixed != null
@@ -227,7 +237,7 @@ export function solveScenarioTree(input: Scenario, methodId: MethodId = input.me
     };
     return { id: node.id, flowGpm: q, result, isolated: e.isolated,
       inletPressurePsi: e.isolated ? null : e.head - k * node.start,
-      outletPressurePsi: outlet, wyeLossPsi: node.children.length ? fittingLoss("wye", q) : 0,
+      outletPressurePsi: outlet, wyeLossPsi: node.segment.wye ? fittingLoss("wye", q) : 0,
       branches: node.children.map((child, i) => report(child, e.children[i])),
     };
   }

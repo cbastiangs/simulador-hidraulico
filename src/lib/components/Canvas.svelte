@@ -363,7 +363,8 @@
   const isSection = (i: number) => selection?.kind === "section" && selection.index === i;
   const outletIn = $derived(scenario.source.outletSizeIn);
   // A wye on a branched lay's drawn path (UX.md §2) is drawn by itself, not as an adapter.
-  const junctions = $derived(junctionsOf(scenario));
+  const pumpJunction = $derived(junctionsOf(scenario).find(j => j.pump));
+  const junctions = $derived(junctionsOf(scenario).filter(j => !j.pump));
   const junctionAtJoint = (i: number): Junction | undefined => junctions.find((j) => j.joint === i);
   // The other lines of a branched lay, each laid out like the edited one: the
   // shared feed lands on the same pixels and every line sits at its true
@@ -1061,7 +1062,7 @@
     );
   });
   /** On a branched lay the edited line's gauges past its first wye carry its name too. */
-  const firstWye = $derived(junctions[0]?.joint ?? Infinity);
+  const firstWye = $derived(pumpJunction ? 0 : junctions[0]?.joint ?? Infinity);
 
   const nodeName = (i: number) => (i === 0 ? "la bomba" : jointNameIn(scenario, i));
 
@@ -1178,7 +1179,7 @@
     let cycles = 0;
     return o.layout.hoses.filter((h) => h.index >= o.from).map((h) => {
       const sec = o.scenario.sections[h.index];
-      const { d, lengthPx } = drawnHose(h.geom, h.index === o.from ? 24 * k : 0);
+      const { d, lengthPx } = drawnHose(h.geom, h.index === o.from && o.from > 0 ? 24 * k : 0);
       const q = sectionFlow(o.result, h.index);
       const p = q > 0 ? particles(sec.diameterIn, q) : null;
       const offsetPx = p ? p.gapPx * (((cycles % 1) + 1) % 1) : 0;
@@ -1188,6 +1189,7 @@
   }
 
   function flowLabel(r: SeriesResult, nozzle: Scenario["nozzle"]) {
+    if (r.pump?.status === "empty") return "tanque vacío · 0 gpm";
     if (r.pump?.pressurePsi === null) return "sin resultado";
     if (r.state === "unbalanced") return "sin caudal exacto";
     if (r.flowGpm > 0) return `${reading(r.flowGpm, r.flowGpm < 1 ? 1 : 0)} gpm`;
@@ -1425,7 +1427,7 @@
     }
     const i = spot.kind === "joint" ? spot.index : spot.joint;
     const n = o.layout.nodes[i];
-    if (piece.startsWith("hose") && junctionsOf(o.scenario).some((j) => j.joint === i)) {
+    if (piece.startsWith("hose") && junctionsOf(o.scenario).some((j) => !j.pump && j.joint === i)) {
       const p = o.layout.nodes[i - 1];
       const len = Math.hypot(n.x - p.x, n.y - p.y) || 1;
       return { x: n.x - ((n.x - p.x) / len) * 40 * k, y: n.y - ((n.y - p.y) / len) * 40 * k };

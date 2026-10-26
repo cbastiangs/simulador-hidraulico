@@ -1,6 +1,6 @@
 import { WYE_DEVICES, type WyeDevice } from "$hydraulics/catalog.ts";
 import { HOSE_SIZES } from "$hydraulics/references.ts";
-import { couplingOf, type Scenario, type ScenarioBranch, type ScenarioNozzle } from "$hydraulics/scenario.ts";
+import { branchesOf, couplingOf, type ScenarioDischarge, type Scenario, type ScenarioBranch, type ScenarioNozzle } from "$hydraulics/scenario.ts";
 import { attachNozzle } from "$lib/edit.ts";
 
 /** A path is a list of stable branch IDs; the empty path is the shared feed. */
@@ -10,7 +10,7 @@ export type ScenarioSegment = Scenario | ScenarioBranch;
 export function segmentAt(scenario: Scenario, path: readonly string[]): ScenarioSegment | undefined {
   let segment: ScenarioSegment = scenario;
   for (const id of path) {
-    const branches: ScenarioBranch[] = segment.wye?.branches ?? [];
+    const branches: ScenarioBranch[] = branchesOf(segment);
     const branch: ScenarioBranch | undefined = branches.find((candidate) => candidate.id === id);
     if (!branch) return undefined;
     segment = branch;
@@ -27,20 +27,33 @@ export function editSegment(
   if (!segmentAt(scenario, path)) return scenario;
   function visit(segment: ScenarioSegment, depth: number): ScenarioSegment {
     if (depth === path.length) return change(segment);
-    return {
-      ...segment,
-      wye: {
-        ...segment.wye!,
-        branches: segment.wye!.branches.map((branch) =>
-          branch.id === path[depth] ? (visit(branch, depth + 1) as ScenarioBranch) : branch,
-        ),
-      },
-    };
+    return withBranches(segment, branchesOf(segment).map(branch =>
+      branch.id === path[depth] ? visit(branch, depth + 1) as ScenarioBranch : branch));
   }
   return visit(scenario, 0) as Scenario;
 }
 
-export const segmentEndElevation = (segment: ScenarioSegment) => segment.sections.at(-1)!.endElevationM;
+function withBranches(segment: ScenarioSegment, branches: ScenarioBranch[]): ScenarioSegment {
+  return "discharges" in segment && segment.discharges
+    ? { ...segment, discharges: branches as ScenarioDischarge[] }
+    : { ...segment, wye: { ...segment.wye!, branches } };
+}
+
+/** Convert the existing lay into discharge 1; new outlets start shut and empty. */
+export function withDischarges(scenario: Scenario): Scenario {
+  if (scenario.discharges || flattenSegments(scenario).length - 1 + 3 > BRANCH_LIMITS.branches) return scenario;
+  const firstId = `line-${nextId(scenario, [])}`;
+  const first: ScenarioDischarge = { id: firstId, name: "Descarga 1", open: true,
+    outletSizeIn: scenario.source.outletSizeIn ?? couplingOf(scenario.sections[0]),
+    fittings: scenario.source.fittings, sections: scenario.sections, nozzle: scenario.nozzle,
+    ...(scenario.wye ? { wye: scenario.wye } : {}) };
+  const second = { ...newOutlet(scenario, scenario, [firstId]), name: "Descarga 2", outletSizeIn: 2.5 };
+  const third = { ...newOutlet(scenario, scenario, [firstId, second.id]), name: "Descarga 3", outletSizeIn: 2.5 };
+  return { ...scenario, sections: [], wye: undefined, discharges: [first, second, third],
+    source: { ...scenario.source, outletSizeIn: undefined, fittings: undefined } };
+}
+
+export const segmentEndElevation = (segment: ScenarioSegment) => segment.sections.at(-1)?.endElevationM ?? 0;
 
 /** Stored heights are always relative to the pump, including nested branches. */
 export function segmentStartElevation(scenario: Scenario, path: readonly string[]): number {
@@ -72,7 +85,7 @@ export function flattenSegments(scenario: Scenario): SegmentEntry[] {
   const entries: SegmentEntry[] = [];
   function visit(segment: ScenarioSegment, path: BranchPath, upstreamClosed: boolean) {
     entries.push({ path, segment, label: path.length ? segment.name : "Alimentación", depth: path.length, upstreamClosed });
-    for (const branch of segment.wye?.branches ?? []) {
+    for (const branch of branchesOf(segment)) {
       visit(branch, [...path, branch.id], upstreamClosed || ("open" in segment && !segment.open));
     }
   }
@@ -89,8 +102,8 @@ function nextId(scenario: Scenario, reservedIds: readonly string[]) {
   return number;
 }
 
-function defaultHose(endElevationM: number) {
-  const hose = HOSE_SIZES.find((size) => size.id === "1-1/2")!;
+function defaultHose(endElevationM: number, hoseSizeId = "1-1/2") {
+  const hose = HOSE_SIZES.find((size) => size.id === hoseSizeId)!;
   return { hoseSizeId: hose.id, diameterIn: hose.nominalDiameterIn, frictionCoefficient: hose.frictionCoefficient, lengthM: 30, endElevationM };
 }
 
@@ -114,7 +127,7 @@ function newOutlet(scenario: Scenario, parent: ScenarioSegment, reservedIds: str
   return { id: `line-${number}`, name: `Línea ${number}`, open: false, sections: [], nozzle: { ...copyNozzle(parent.nozzle), design: "open-end", open: true } };
 }
 
-export const isEmptyOutlet = (segment: ScenarioSegment) => segment.sections.length === 0;
+export const isEmptyOutlet = (segment: ScenarioSegment) => segment.sections.length === 0 && branchesOf(segment).length === 0;
 
 /** The device's other outlets, empty, after `first`. */
 function outletsAfter(scenario: Scenario, parent: ScenarioSegment, first: ScenarioBranch, device: WyeDevice): ScenarioBranch[] {
@@ -167,19 +180,20 @@ export function removeWye(scenario: Scenario, path: readonly string[]): Scenario
 }
 
 /** Connects a line to an empty outlet: a hose and the nozzle it kept. Its gate stays as it was. */
-export function connectOutlet(scenario: Scenario, path: readonly string[]): Scenario {
+export function connectOutlet(scenario: Scenario, path: readonly string[], hoseSizeId = "1-1/2"): Scenario {
   const start = segmentStartElevation(scenario, path);
   return editSegment(scenario, path, (segment) => {
     if (!isEmptyOutlet(segment)) return segment;
-    const fitted = attachNozzle({ ...scenario, wye: undefined, sections: [defaultHose(start)], nozzle: segment.nozzle });
+    const fitted = attachNozzle({ ...scenario, wye: undefined, sections: [defaultHose(start, hoseSizeId)], nozzle: segment.nozzle });
     return { ...segment, sections: fitted.sections, nozzle: fitted.nozzle };
   });
 }
 
 /** Why an outlet's line can't be disconnected, or null. */
 export function disconnectLimit(scenario: Scenario, path: readonly string[]): string | null {
+  if (scenario.discharges && path.length === 1) return null;
   const parent = segmentAt(scenario, path.slice(0, -1));
-  const connected = parent?.wye?.branches.filter((b) => !isEmptyOutlet(b)) ?? [];
+  const connected = parent ? branchesOf(parent).filter((b) => !isEmptyOutlet(b)) : [];
   return connected.length <= 1 ? "Es la única salida con manguera: quita el bifurco en su lugar" : null;
 }
 
@@ -253,7 +267,7 @@ export function wyeLimit(line: Scenario, joint: number, device: WyeDevice = "wye
   const { tree, path, at } = locate(line, joint);
   const segment = segmentAt(tree, path)!;
   const below = at < segment.sections.length ? maxWyeDepth(segment) : 0;
-  if (path.length + 1 + below > BRANCH_LIMITS.wyeDepth) return `Máximo ${BRANCH_LIMITS.wyeDepth} bifurcos encadenados.`;
+  if (path.length - (tree.discharges ? 1 : 0) + 1 + below > BRANCH_LIMITS.wyeDepth) return `Máximo ${BRANCH_LIMITS.wyeDepth} bifurcos encadenados.`;
   if (flattenSegments(tree).length - 1 + WYE_DEVICES[device].outlets > BRANCH_LIMITS.branches) return `Máximo ${BRANCH_LIMITS.branches} líneas en total.`;
   if (at === segment.sections.length && totalSections(tree) >= BRANCH_LIMITS.sections) return `Máximo ${BRANCH_LIMITS.sections} tramos en total.`;
   return null;
@@ -283,6 +297,7 @@ export type Junction = {
   /** The segment that owns the wye. */
   owner: BranchPath;
   device: WyeDevice;
+  pump?: boolean;
   /** `empty`: nothing connected (MODEL.md §2); never the drawn one. */
   outlets: { id: string; path: BranchPath; name: string; open: boolean; active: boolean; empty: boolean }[];
 };
@@ -306,7 +321,7 @@ function locate(line: Scenario, joint: number): { tree: Scenario; path: BranchPa
   if (!from) return { tree: line, path: [], at: joint };
   let start = 0;
   for (const [k, c] of from.view.counts.entries()) {
-    if (joint <= start + c) return { tree: from.tree, path: from.view.path.slice(0, k), at: joint - start };
+    if (c > 0 && joint <= start + c) return { tree: from.tree, path: from.view.path.slice(0, k), at: joint - start };
     start += c;
   }
   return { tree: from.tree, path: from.view.path, at: joint - start };
@@ -322,10 +337,10 @@ export const junctionAt = (scenario: Scenario, joint: number) => junctionsOf(sce
 export function leafPath(scenario: Scenario, path: readonly string[]): BranchPath {
   const out: string[] = [];
   let segment: ScenarioSegment = scenario;
-  for (let depth = 0; segment.wye; depth++) {
-    const branches: ScenarioBranch[] = segment.wye.branches;
+  for (let depth = 0; branchesOf(segment).length; depth++) {
+    const branches: ScenarioBranch[] = branchesOf(segment);
     const lines = branches.filter((b) => !isEmptyOutlet(b));
-    const next: ScenarioBranch = lines.find((b) => b.id === path[depth]) ?? lines.find((b) => b.open) ?? lines[0];
+    const next: ScenarioBranch = lines.find((b) => b.id === path[depth]) ?? lines.find((b) => b.open) ?? lines[0] ?? branches.find(b => b.id === path[depth]) ?? branches[0];
     out.push(next.id);
     segment = next;
   }
@@ -335,7 +350,7 @@ export function leafPath(scenario: Scenario, path: readonly string[]): BranchPat
 export function pathView(scenario: Scenario, wanted: readonly string[]): PathView {
   const path = leafPath(scenario, wanted);
   const chain: ScenarioSegment[] = [scenario];
-  for (const id of path) chain.push(chain.at(-1)!.wye!.branches.find((b) => b.id === id)!);
+  for (const id of path) chain.push(branchesOf(chain.at(-1)!).find((b) => b.id === id)!);
   const counts = chain.map((s) => s.sections.length);
   const junctions: Junction[] = [];
   let joint = 0;
@@ -345,12 +360,14 @@ export function pathView(scenario: Scenario, wanted: readonly string[]): PathVie
     junctions.push({
       joint,
       owner,
-      device: chain[i].wye!.device ?? "wye",
-      outlets: chain[i].wye!.branches.map((b) => ({ id: b.id, path: [...owner, b.id], name: b.name, open: b.open, active: b.id === path[i], empty: isEmptyOutlet(b) })),
+      device: chain[i].wye?.device ?? "wye",
+      pump: i === 0 && !!scenario.discharges,
+      outlets: branchesOf(chain[i]).map((b) => ({ id: b.id, path: [...owner, b.id], name: b.name, open: b.open, active: b.id === path[i], empty: isEmptyOutlet(b) })),
     });
   }
-  const { wye: _, ...base } = scenario;
-  const view: Scenario = { ...base, sections: chain.flatMap((s) => s.sections), nozzle: chain.at(-1)!.nozzle };
+  const { wye: _, discharges: __, ...base } = scenario;
+  const discharge = scenario.discharges?.find(d => d.id === path[0]);
+  const view: Scenario = { ...base, source: discharge ? { ...base.source, outletSizeIn: discharge.outletSizeIn, fittings: discharge.fittings } : base.source, sections: chain.flatMap((s) => s.sections), nozzle: chain.at(-1)!.nozzle };
   junctionJoints.set(view, junctions);
   const out = { path, scenario: view, junctions, counts };
   drawnFrom.set(view, { tree: scenario, view: out });
@@ -382,21 +399,18 @@ export function applyPathEdit(scenario: Scenario, view: PathView, edited: Scenar
   function rebuild(segment: ScenarioSegment, depth: number): ScenarioSegment {
     const sections = slices[depth];
     if (depth === view.path.length) return { ...segment, sections, nozzle: edited.nozzle };
-    const moved = sections.at(-1)!.endElevationM - segmentEndElevation(segment);
-    return {
-      ...segment,
-      sections,
-      wye: {
-        ...segment.wye!,
-        branches: segment.wye!.branches.map((b) => (b.id === view.path[depth] ? (rebuild(b, depth + 1) as ScenarioBranch) : shiftBranch(b, moved))),
-      },
-    };
+    const moved = (sections.at(-1)?.endElevationM ?? 0) - segmentEndElevation(segment);
+    return withBranches({ ...segment, sections }, branchesOf(segment).map(b =>
+      b.id === view.path[depth] ? rebuild(b, depth + 1) as ScenarioBranch : shiftBranch(b, moved)));
+
   }
-  const root = rebuild(scenario, 0) as Scenario;
+  let root = rebuild(scenario, 0) as Scenario;
+  if (root.discharges) root = { ...root, discharges: root.discharges.map(d => d.id === view.path[0]
+    ? { ...d, outletSizeIn: edited.source.outletSizeIn ?? (d.sections.length ? couplingOf(d.sections[0]) : d.outletSizeIn), fittings: edited.source.fittings } : d) };
   return {
     ...root,
     name: edited.name,
-    source: edited.source,
+    source: root.discharges ? { ...edited.source, outletSizeIn: undefined, fittings: undefined } : edited.source,
     methodId: edited.methodId,
     autoFittings: edited.autoFittings,
     floorHeightM: edited.floorHeightM,
@@ -415,8 +429,8 @@ export function leafPaths(scenario: Scenario): BranchPath[] {
   const out: BranchPath[] = [];
   const visit = (segment: ScenarioSegment, path: BranchPath) => {
     if (isEmptyOutlet(segment)) return;
-    if (!segment.wye) out.push(path);
-    else for (const b of segment.wye.branches) visit(b, [...path, b.id]);
+    if (!branchesOf(segment).length) out.push(path);
+    else for (const b of branchesOf(segment)) visit(b, [...path, b.id]);
   };
   visit(scenario, []);
   return out;

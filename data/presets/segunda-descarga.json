@@ -1,0 +1,135 @@
+{
+  "schema": "simulador-hidraulico/scenario",
+  "version": 1,
+  "name": "Abre la segunda descarga",
+  "methodId": "physical",
+  "source": {
+    "kind": "fixed-pressure",
+    "pressurePsi": 140,
+    "pump": {
+      "curve": {
+        "id": "waterous-cx-810304-v1",
+        "referenceRpm": 4000,
+        "minRpm": 2600,
+        "maxRpm": 4800,
+        "points": [
+          {
+            "flowGpm": 0,
+            "pressurePsi": 224
+          },
+          {
+            "flowGpm": 250,
+            "pressurePsi": 222
+          },
+          {
+            "flowGpm": 500,
+            "pressurePsi": 218
+          },
+          {
+            "flowGpm": 750,
+            "pressurePsi": 212
+          },
+          {
+            "flowGpm": 1000,
+            "pressurePsi": 202
+          },
+          {
+            "flowGpm": 1250,
+            "pressurePsi": 184
+          },
+          {
+            "flowGpm": 1500,
+            "pressurePsi": 154
+          },
+          {
+            "flowGpm": 1600,
+            "pressurePsi": 140
+          }
+        ]
+      },
+      "mode": "pressure",
+      "speedRpm": 3200
+    }
+  },
+  "sections": [],
+  "nozzle": {
+    "kind": "fixed-orifice",
+    "specId": null,
+    "settingsGpm": [],
+    "ratedFlowGpm": 100,
+    "ratedPressurePsi": 100,
+    "pattern": 0.25,
+    "open": true
+  },
+  "discharges": [
+    {
+      "id": "outlet-1",
+      "name": "Descarga 1",
+      "open": true,
+      "sections": [
+        {
+          "hoseSizeId": "2-1/2",
+          "diameterIn": 2.5,
+          "frictionCoefficient": 2,
+          "lengthM": 30,
+          "endElevationM": 0,
+          "runM": 8
+        }
+      ],
+      "nozzle": {
+        "kind": "fixed-orifice",
+        "specId": "fog-250",
+        "settingsGpm": [],
+        "ratedFlowGpm": 250,
+        "ratedPressurePsi": 100,
+        "pattern": 0.25,
+        "open": true,
+        "inletIn": 2.5
+      },
+      "outletSizeIn": 2.5
+    },
+    {
+      "id": "outlet-2",
+      "name": "Descarga 2",
+      "open": false,
+      "sections": [
+        {
+          "hoseSizeId": "2-1/2",
+          "diameterIn": 2.5,
+          "frictionCoefficient": 2,
+          "lengthM": 30,
+          "endElevationM": 0,
+          "runM": 28
+        }
+      ],
+      "nozzle": {
+        "kind": "fixed-orifice",
+        "specId": "fog-250",
+        "settingsGpm": [],
+        "ratedFlowGpm": 250,
+        "ratedPressurePsi": 100,
+        "pattern": 0.25,
+        "open": true,
+        "inletIn": 2.5
+      },
+      "outletSizeIn": 2.5
+    },
+    {
+      "id": "outlet-3",
+      "name": "Descarga 3",
+      "open": false,
+      "outletSizeIn": 2.5,
+      "sections": [],
+      "nozzle": {
+        "kind": "fixed-orifice",
+        "specId": null,
+        "settingsGpm": [],
+        "ratedFlowGpm": 100,
+        "ratedPressurePsi": 100,
+        "pattern": 0.25,
+        "open": true,
+        "design": "open-end"
+      }
+    }
+  ]
+}

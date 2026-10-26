@@ -23,6 +23,7 @@ export function jointName(scenario: Scenario, index: number): string {
   if (!j) return `Acople ${index}`;
   if (index === 0) return "Salida de la bomba";
   const wye = junctionAt(scenario, index);
+  if (wye?.pump) return "Descargas de la bomba";
   if (wye) return `${wye.device === "trifurca" ? "Trifurco" : "Bifurco"} · ${wye.outlets.length} salidas`;
   if (index === scenario.sections.length) return "Entrada del pitón";
   if (j.mismatch) {

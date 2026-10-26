@@ -94,7 +94,7 @@
 {#snippet stateLine()}
   <span class="state" class:warn title={gapTip || (issue ? balanceMessage(issue) : undefined)}>
     {#if operation}
-      {operation.pressurePsi === null ? "Sin resultado · fuera de curva o sin equilibrio" : `${operation.pressurePsi.toFixed(0)} psi reales${operation.status === "limited" ? " · límite de capacidad" : ""}`}
+      {operation.status === "empty" ? "Tanque vacío · sin entrega" : operation.pressurePsi === null ? "Sin resultado · fuera de curva o sin equilibrio" : `${operation.pressurePsi.toFixed(0)} psi reales${operation.status === "limited" ? " · límite de capacidad" : ""}`}
     {:else if branched}
       {balanced ? result.flowGpm > 0 ? "Caudal total · líneas conectadas" : "Sin caudal" : "Sin equilibrio exacto · revisa las líneas"}
     {:else if missing.length > 0}

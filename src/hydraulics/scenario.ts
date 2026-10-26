@@ -1,3 +1,5 @@
+import { solveScenarioTree } from "./tree.ts";
+import { parseTank, emptySupplyResult, type Tank } from "./tank.ts";
 import { parsePump, solvePump, type PumpConfig } from "./pump.ts";
 import { NOZZLE_SPECS, WYE_DEVICES, type WyeDevice } from "./catalog.ts";
 import { ratingOf, reactionOf, type NozzleDesign, type Reaction } from "./nozzle.ts";
@@ -32,6 +34,7 @@ export const SCENARIO_SCHEMA = "simulador-hidraulico/scenario";
 export type ScenarioSource = {
   /** Optional real pump snapshot. pressurePsi then means requested governor pressure. */
   pump?: PumpConfig;
+  tank?: Tank;
   kind: "fixed-pressure";
   pressurePsi: number;
   /**
@@ -113,6 +116,12 @@ export type ScenarioBranch = {
   wye?: ScenarioWye;
 };
 
+export type ScenarioDischarge = ScenarioBranch & { outletSizeIn: number; fittings?: FittingKind[] };
+
+/** The pump manifold and downstream wyes share traversal, but never appliance loss. */
+export const branchesOf = (segment: Scenario | ScenarioBranch): ScenarioBranch[] =>
+  ("discharges" in segment ? segment.discharges : undefined) ?? segment.wye?.branches ?? [];
+
 export type Scenario = {
   schema: typeof SCENARIO_SCHEMA;
   version: 1;
@@ -131,6 +140,8 @@ export type Scenario = {
    */
   floorHeightM?: number;
   source: ScenarioSource;
+  /** Optional independent pump outlets; root sections must then be empty. */
+  discharges?: ScenarioDischarge[];
   sections: ScenarioSection[];
   nozzle: ScenarioNozzle;
   /** Downstream diverging appliance; absent preserves a single series line. */
@@ -197,7 +208,7 @@ function idOrNull(value: unknown, path: string) {
   return value;
 }
 
-function parseSingleScenario(value: unknown): Scenario {
+function parseSingleScenario(value: unknown, allowEmpty = false): Scenario {
   const doc = record(value, "scenario");
   if (doc.schema !== SCENARIO_SCHEMA) throw new ScenarioError("schema", `must be "${SCENARIO_SCHEMA}"`);
   if (doc.version !== 1) throw new ScenarioError("version", "must be 1");
@@ -207,7 +218,7 @@ function parseSingleScenario(value: unknown): Scenario {
 
   const source = record(doc.source, "source");
   const nozzle = record(doc.nozzle, "nozzle");
-  if (!Array.isArray(doc.sections) || doc.sections.length === 0 || doc.sections.length > MAX_SECTIONS) {
+  if (!Array.isArray(doc.sections) || (!allowEmpty && doc.sections.length === 0) || doc.sections.length > MAX_SECTIONS) {
     throw new ScenarioError("sections", `must be a list of 1 to ${MAX_SECTIONS} sections`);
   }
   if (typeof nozzle.open !== "boolean") throw new ScenarioError("nozzle.open", "must be true or false");
@@ -244,6 +255,7 @@ function parseSingleScenario(value: unknown): Scenario {
     ...(doc.floorHeightM === undefined ? {} : { floorHeightM: number(doc.floorHeightM, "floorHeightM", "greater than zero") }),
     source: {
       kind: oneOf(source.kind, "source.kind", ["fixed-pressure"] as const),
+      ...(source.tank === undefined ? {} : { tank: parseSourceTank(source.tank) }),
       ...(source.pump === undefined ? {} : { pump: parseSourcePump(source.pump) }),
       pressurePsi: number(source.pressurePsi, "source.pressurePsi", "zero or more"),
       ...(source.outletSizeIn === undefined
@@ -281,6 +293,11 @@ function parseSingleScenario(value: unknown): Scenario {
   };
 }
 
+function parseSourceTank(value: unknown): Tank {
+  try { return parseTank(value); }
+  catch { throw new ScenarioError("source.tank", "must have positive capacity and remaining volume between zero and capacity"); }
+}
+
 function parseSourcePump(value: unknown): PumpConfig {
   try { return parsePump(value); }
   catch { throw new ScenarioError("source.pump", "must contain a valid curve and control"); }
@@ -296,11 +313,40 @@ export function unavailablePumpResult(result: SeriesResult): SeriesResult {
 
 /** Parse the optional tree without changing the version-1 series document. */
 export function parseScenario(value: unknown): Scenario {
-  const root = parseSingleScenario(value);
   const doc = record(value, "scenario");
+  const root = parseSingleScenario(value, doc.discharges !== undefined);
+  if (doc.discharges !== undefined && (root.sections.length || doc.wye !== undefined)) {
+    throw new ScenarioError("discharges", "requires an empty root with no wye");
+  }
   const ids = new Set<string>();
   let sectionCount = root.sections.length;
   let branchCount = 0;
+  function parseBranch(raw: unknown, path: string, depth: number, discharge = false): ScenarioBranch {
+    const branch = record(raw, path);
+    if (typeof branch.id !== "string" || (branch.id.length === 0 || branch.id.length > 100) || ids.has(branch.id)) {
+      throw new ScenarioError(`${path}.id`, "must be a unique nonempty id of at most 100 characters");
+    }
+    ids.add(branch.id);
+    if (++branchCount > 64) throw new ScenarioError(path, "must have at most 64 branches");
+    let parsed: Scenario;
+    try { parsed = parseSingleScenario({ ...root, name: branch.name, sections: branch.sections, nozzle: branch.nozzle }, true); }
+    catch (error) {
+      if (error instanceof ScenarioError) throw new ScenarioError(`${path}.${error.path}`, error.message.slice(error.path.length + 2));
+      throw error;
+    }
+    const empty = parsed.sections.length === 0;
+    if (empty && branch.wye !== undefined) throw new ScenarioError(`${path}.wye`, "empty outlets cannot have a wye");
+    if (empty && parsed.nozzle.design !== "open-end") throw new ScenarioError(`${path}.nozzle.design`, "empty outlets must have an open end");
+    sectionCount += parsed.sections.length;
+    if (sectionCount > MAX_SECTIONS) throw new ScenarioError(path, "must have at most 100 hose sections");
+    return {
+      id: branch.id, name: parsed.name, open: boolFlag(branch.open, `${path}.open`),
+      sections: parsed.sections, nozzle: parsed.nozzle,
+      ...(discharge ? { outletSizeIn: number(branch.outletSizeIn, `${path}.outletSizeIn`, "greater than zero"),
+        ...(branch.fittings === undefined ? {} : { fittings: fittingList(branch.fittings, `${path}.fittings`) }) } : {}),
+      ...(branch.wye === undefined ? {} : { wye: parseWye(branch.wye, `${path}.wye`, depth + 1) }),
+    };
+  }
   function parseWye(value: unknown, path: string, depth: number): ScenarioWye {
     if (depth > 8) throw new ScenarioError(path, "must have at most 8 nested wyes");
     const wye = record(value, path);
@@ -309,40 +355,16 @@ export function parseScenario(value: unknown): Scenario {
     if (!Array.isArray(wye.branches) || wye.branches.length !== outlets) {
       throw new ScenarioError(`${path}.branches`, `must contain ${outlets} branches, one per outlet`);
     }
-    const branches = wye.branches.map((raw: unknown, i): ScenarioBranch => {
-      const branchPath = `${path}.branches[${i}]`;
-      const branch = record(raw, branchPath);
-      if (typeof branch.id !== "string" || branch.id.length === 0 || branch.id.length > 100 || ids.has(branch.id)) {
-        throw new ScenarioError(`${branchPath}.id`, "must be a unique nonempty id of at most 100 characters");
-      }
-      ids.add(branch.id);
-      if (++branchCount > 64) throw new ScenarioError(branchPath, "must have at most 64 branches in the tree");
-      // An empty outlet: its nozzle is parsed against a stand-in hose, then must be an open end.
-      const empty = Array.isArray(branch.sections) && branch.sections.length === 0;
-      if (empty && branch.wye !== undefined) throw new ScenarioError(`${branchPath}.wye`, "must be absent on an outlet with no hose");
-      let parsed: Scenario;
-      try {
-        parsed = parseSingleScenario({ ...root, name: branch.name, sections: empty ? root.sections.slice(0, 1) : branch.sections, nozzle: branch.nozzle });
-        if (empty && parsed.nozzle.design !== "open-end") throw new ScenarioError("nozzle.design", 'must be "open-end" on an outlet with no hose');
-        if (empty) parsed = { ...parsed, sections: [] };
-      } catch (error) {
-        if (error instanceof ScenarioError) throw new ScenarioError(`${branchPath}.${error.path}`, error.message.slice(error.path.length + 2));
-        throw error;
-      }
-      sectionCount += parsed.sections.length;
-      if (sectionCount > MAX_SECTIONS) throw new ScenarioError(`${branchPath}.sections`, `must have at most ${MAX_SECTIONS} sections in the tree`);
-      return {
-        id: branch.id,
-        name: parsed.name,
-        open: boolFlag(branch.open, `${branchPath}.open`),
-        sections: parsed.sections,
-        nozzle: parsed.nozzle,
-        ...(branch.wye === undefined ? {} : { wye: parseWye(branch.wye, `${branchPath}.wye`, depth + 1) }),
-      };
-    });
-    // The editor draws one pump-to-nozzle line at a time: there must be one.
-    if (!branches.some((b) => b.sections.length)) throw new ScenarioError(`${path}.branches`, "must have at least one outlet with a hose");
+    const branches = wye.branches.map((b, i) => parseBranch(b, `${path}.branches[${i}]`, depth));
+    if (!branches.some(b => b.sections.length)) throw new ScenarioError(`${path}.branches`, "must have at least one outlet with a hose");
     return { ...(device === undefined ? {} : { device }), branches };
+  }
+  if (doc.discharges !== undefined) {
+    if (!Array.isArray(doc.discharges) || doc.discharges.length < 2 || doc.discharges.length > 8) {
+      throw new ScenarioError("discharges", "must contain 2 to 8 outlets");
+    }
+    const discharges = doc.discharges.map((b, i) => parseBranch(b, `discharges[${i}]`, 0, true) as ScenarioDischarge);
+    return { ...root, discharges };
   }
   return { ...root, ...(doc.wye === undefined ? {} : { wye: parseWye(doc.wye, "wye", 1) }) };
 }
@@ -421,10 +443,11 @@ export function resolvedNozzle(sections: readonly ScenarioSection[], nozzle: Sce
 }
 
 /** Every nozzle of the lay, the branches' included, with its derived rating: what the solvers read. */
-export function resolveNozzles<T extends { sections: ScenarioSection[]; nozzle: ScenarioNozzle; wye?: ScenarioWye }>(segment: T): T {
+export function resolveNozzles<T extends { sections: ScenarioSection[]; nozzle: ScenarioNozzle; wye?: ScenarioWye; discharges?: ScenarioDischarge[]; outletSizeIn?: number }>(segment: T): T {
   return {
     ...segment,
-    nozzle: resolvedNozzle(segment.sections, segment.nozzle),
+    nozzle: { ...segment.nozzle, ...ratingOf(segment.nozzle, segment.sections.length ? endBoreIn(segment.sections) : segment.outletSizeIn ?? endBoreIn([])) },
+    ...(segment.discharges ? { discharges: segment.discharges.map(b => resolveNozzles(b)) } : {}),
     ...(segment.wye ? { wye: { ...segment.wye, branches: segment.wye.branches.map((b) => resolveNozzles(b)) } } : {}),
   };
 }
@@ -463,6 +486,10 @@ export function toSeriesLine(scenario: Scenario): SeriesLine {
  * flows. Pressure beyond the disconnected joint is unknown.
  */
 export function solveScenario(scenario: Scenario, methodId: MethodId = scenario.methodId): SeriesResult {
+  if (scenario.discharges) return solveScenarioTree(scenario, methodId).root.result;
+  if (scenario.source.tank?.remainingGal === 0) {
+    return emptySupplyResult(solveScenario({ ...scenario, source: { ...scenario.source, tank: undefined, pump: undefined, pressurePsi: 0 } }, methodId));
+  }
   if (scenario.source.pump) {
     const fixed = (pressurePsi: number) => solveScenario({ ...scenario,
       source: { ...scenario.source, pump: undefined, pressurePsi } }, methodId);

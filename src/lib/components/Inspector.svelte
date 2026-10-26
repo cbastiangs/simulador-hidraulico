@@ -54,7 +54,7 @@
     onLine?: (path: string[]) => void;
   } = $props();
 
-  const unavailable = $derived(result.pump?.pressurePsi === null);
+  const unavailable = $derived(result.pump?.pressurePsi === null && result.pump?.status !== "empty");
   const last = $derived(scenario.sections.length - 1);
   const floorOf = (m: number) => {
     const n = Math.round((m / floorM) * 1000) / 1000;
@@ -127,12 +127,12 @@
     <header class:sticky={selection !== null}>
       {@render closeSelection()}
       <h3>Bomba · descargas</h3>
-      <p>Descarga 1 → línea de {scenario.sections.length} {scenario.sections.length === 1 ? "tramo" : "tramos"} · la presión, arriba</p>
+      <p>{tree?.discharges ? "Descarga seleccionada" : "Descarga 1"} → línea de {scenario.sections.length} {scenario.sections.length === 1 ? "tramo" : "tramos"} · la presión, arriba</p>
     </header>
     <div>
       <div class="label">Tamaño de la salida</div>
       <div class="seg" role="radiogroup" aria-label="Tamaño de la salida">
-        <button type="button" role="radio" aria-checked={outlet === undefined} class:on={outlet === undefined} onclick={() => onchange(edit.setOutletSize(scenario, undefined))}>Igual a la manguera</button>
+        {#if !tree?.discharges}<button type="button" role="radio" aria-checked={outlet === undefined} class:on={outlet === undefined} onclick={() => onchange(edit.setOutletSize(scenario, undefined))}>Igual a la manguera</button>{/if}
         {#each [1.5, 2.5, 3] as d (d)}
           <button type="button" role="radio" aria-checked={outlet === d} class:on={outlet === d} onclick={() => onchange(edit.setOutletSize(scenario, d))}>{d.toString().replace(".5", "½")}″</button>
         {/each}
@@ -238,6 +238,7 @@
     {/if}
 
     <!-- The force on the hands at the solved flow (MODEL.md §3.6, §7): the engine's numbers, formula substituted. -->
+    {#if result.pump?.status === "empty"}<p class="warn" role="status">Tanque vacío · 0 gpm. Rellena el tanque en Abastecimiento; la presión aguas abajo es desconocida.</p>{/if}
     {#if unavailable}
       <p class="warn" role="status">Sin resultado hidráulico: la tendida está fuera del modelo de bomba disponible.</p>
     {:else}
@@ -313,7 +314,7 @@
     {/if}
 
     <JointControls {scenario} flowGpm={result.flowGpm} joint={last + 1} onToggle={(kind) => onchange(edit.toggleFitting(scenario, last + 1, kind))} />
-  {:else if selection.kind === "joint" && tree && onTree && onLine && junctionAt(scenario, selection.index)}
+  {:else if selection.kind === "joint" && tree && onTree && onLine && junctionAt(scenario, selection.index) && !junctionAt(scenario, selection.index)?.pump}
     {@const wye = junctionAt(scenario, selection.index)!}
     <header class:sticky={selection !== null}>
       {@render closeSelection()}

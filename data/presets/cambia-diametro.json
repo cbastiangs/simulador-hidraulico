@@ -1,0 +1,28 @@
+{
+  "schema": "simulador-hidraulico/scenario",
+  "version": 1,
+  "name": "Cambia el diámetro",
+  "methodId": "physical",
+  "source": {
+    "kind": "fixed-pressure",
+    "pressurePsi": 125
+  },
+  "sections": [
+    {
+      "hoseSizeId": "1-1/2",
+      "diameterIn": 1.5,
+      "frictionCoefficient": 24,
+      "lengthM": 30,
+      "endElevationM": 0
+    }
+  ],
+  "nozzle": {
+    "kind": "fixed-orifice",
+    "specId": "fog-100",
+    "settingsGpm": [],
+    "ratedFlowGpm": 100,
+    "ratedPressurePsi": 100,
+    "pattern": 0.25,
+    "open": true
+  }
+}

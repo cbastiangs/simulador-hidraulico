@@ -40,3 +40,23 @@ test('pump/lay balance: governor, RPM, shared branches, closed nozzle and domain
   const copy=JSON.parse(JSON.stringify(s));copy.source.pump.curve.id='archived-curve';
   near(solveScenario(parseScenario(copy)).pump.pressurePsi,202);
 });
+
+test('independent discharges conserve total flow without a wye loss at the manifold',()=>{
+  // Two 500 gpm @ 202 psi openings, with no hose loss: at the CX chart's
+  // (1000,202) node each delivers 500. CGBVP would charge 5 psi for a wye,
+  // but a pump manifold is not a wye. Closing one outlet raises the head.
+  const outlet=id=>({id,name:id,open:true,outletSizeIn:2.5,sections:[hose],nozzle:{...nozzle,ratedFlowGpm:500}});
+  const s=parseScenario({...lay(),methodId:'cgbvp-2019',sections:[],discharges:[outlet('a'),outlet('b')]});
+  const both=solveScenarioTree(s);
+  near(both.totalFlowGpm,1000);near(both.root.inletPressurePsi,202);near(both.root.wyeLossPsi,0);
+  near(both.root.branches[0].flowGpm,500);near(both.root.branches[1].flowGpm,500);
+  const one=solveScenarioTree({...s,discharges:[s.discharges[0],{...s.discharges[1],open:false}]});
+  assert.ok(one.root.inletPressurePsi>202);assert.equal(one.root.branches[1].inletPressurePsi,null);
+  near(one.totalFlowGpm,one.root.branches[0].flowGpm);
+  // An empty 2½″ pump port uses its own bore (not a wye's 1½″ port):
+  // 29.84 × 0.90 × 2.5² × sqrt(100) = 1678.5 gpm.
+  const spill=solveScenarioTree({...s,source:{kind:'fixed-pressure',pressurePsi:100},discharges:[
+    {...s.discharges[0],open:false,sections:[],nozzle:{...nozzle,design:"open-end"}},
+    {...s.discharges[1],sections:[],nozzle:{...nozzle,design:'open-end'}}]});
+  near(spill.totalFlowGpm,1678.5);
+});

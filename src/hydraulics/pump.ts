@@ -3,7 +3,7 @@ export type PumpPoint = { flowGpm: number; pressurePsi: number };
 export type PumpCurve = { id: string; referenceRpm: number; minRpm: number; maxRpm: number; points: PumpPoint[] };
 export type PumpConfig = { curve: PumpCurve; mode: "pressure" | "rpm"; speedRpm: number };
 export type PumpOperation = {
-  status: "holding" | "limited" | "rpm" | "stopped" | "outside-curve" | "unbalanced";
+  status: "holding" | "limited" | "rpm" | "stopped" | "outside-curve" | "unbalanced" | "empty";
   pressurePsi: number | null;
   flowGpm: number | null;
   curve: PumpPoint[];

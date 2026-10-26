@@ -1,0 +1,35 @@
+{
+  "schema": "simulador-hidraulico/scenario",
+  "version": 1,
+  "name": "Gira el selector",
+  "methodId": "physical",
+  "source": {
+    "kind": "fixed-pressure",
+    "pressurePsi": 125
+  },
+  "sections": [
+    {
+      "hoseSizeId": "1-1/2",
+      "diameterIn": 1.5,
+      "frictionCoefficient": 24,
+      "lengthM": 30,
+      "endElevationM": 0
+    }
+  ],
+  "nozzle": {
+    "kind": "selectable",
+    "specId": "TFT-GF3C2S",
+    "settingsGpm": [
+      30,
+      60,
+      95,
+      125,
+      150
+    ],
+    "ratedFlowGpm": 95,
+    "ratedPressurePsi": 100,
+    "pattern": 0.25,
+    "open": true,
+    "inletIn": 1.5
+  }
+}

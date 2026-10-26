@@ -196,8 +196,9 @@ discharge, with what the engine has today); each M3 section joins it when
 its engine work lands, never shown greyed out before.
 
 M11-5's pump plate is now known (Waterous CXVC22C, 1500 gpm; see below).
-M11-1's pump plate is still wanted. A generic 1000 gpm pump ships first,
-labelled generic.
+M11-1's pump plate is still wanted. The initial generic 1000 gpm proposal
+was superseded by the sourced Waterous CX family model (§10f). The current
+three-outlet arrangement is explicitly generic, not a station truck file.
 
 **The owner's truck (owner, 2026-10-16, from memory).** A Spartan Metro
 Star pumper of the CGBVP fleet: 70 units (56, then 14) built by Spartan ERV
@@ -221,8 +222,9 @@ procurement for the 70 units, or the unit's own pump plate.
 | Rear discharge | 1 × 2½″ |
 | Tank | 1000 US gal |
 
-This is the first built-in truck file when M3 lands, and the layout the
-pump close-up (UX.md §10.6) draws: 8 discharges, 4 intakes.
+This was the proposed first built-in truck file and pump close-up layout
+(UX.md §10.6): 8 discharges, 4 intakes. Its unverified details remain
+reference-only; the current generic outlet arrangement makes no such claim.
 
 **M11-5 (owner handoff, 2026-10-24).** Distinct from the remembered
 Spartan/Darley record above, which is not evidence for this unit. Pump:
@@ -529,8 +531,8 @@ Agreed, in this order; each is usable on its own. Before M3 unless noted.
 4. **Desktop keyboard**: Delete removes the selection (✅ 2026-10-18, with
    removing in place, UX.md §2 "Pieces"), arrows nudge a
    coupling, Tab steps through the parts (Ctrl+Z / Ctrl+Y exist).
-5. **"Mis líneas"**: the person's own lays saved in the browser beside the
-   presets (builds on 2).
+5. ✅ **"Mis líneas"** (2026-10-26): named local copies, rename/duplicate/delete
+   with deletion undo, autosave, and JSON file export/import beside presets.
 6. **Display units**: bar, L/min, ft at the screen's edge (M1).
 7. **Leader lines** from a lifted gauge to its coupling (crowded phone
    views).
@@ -573,15 +575,49 @@ redesign; verify remaining friction against the fixes recorded in UX §10.9.
    Built: source selection, pressure governor/RPM controls, bounded curve
    solve for series and trees, operating-point chart and demonstration preset.
    Curve digitization and affinity limits are in MODEL §3.8. It is not an
-   M11-5 calibration. Truck-specific outlets and tank remain next.
+   M11-5 calibration. Generic independent discharges and tank endurance/clock
+   followed on 2026-10-26 (§10g). Verified truck-specific files remain next.
 
 Before/after comparison is backlog (owner, 2026-10-24): existing branches
 already support useful simultaneous comparisons; pinning a previous result
 is not a prerequisite for real equipment. Personal saved lays ("Mis líneas")
-remain a small follow-up. Automatic nozzles await verified operating behavior; simulated reach awaits a defined
+are built (§10g). Automatic nozzles await verified operating behavior; simulated reach awaits a defined
 use case and measurement conditions. Neither blocks the sequence above.
 
+## 10g. Operating and keeping a lay (built 2026-10-26)
+
+- Independent pump discharges on a common manifold, with individual gates,
+  pressure/flow readings, and hoses placed with Piezas. A generic three-port
+  configuration preserves the existing lay on its first outlet; all outlets
+  can be empty and reconnected on the pump-only drawing. No artificial wye
+  loss is added. Numeric outlet settings travel with shared scenarios.
+- Explicit tank capacity and remaining water, endurance from total delivery,
+  a running teaching clock, pause/refill and empty-supply behavior. Clock
+  pauses on hiding/loading and never restarts from a saved document.
+- Named browser-local lays and autosave; rename, duplicate, delete/undo,
+  file export/import. Links take precedence over the previous working lay.
+- Four question/action presets for a second discharge, diameter, elevation
+  and the selectable ring, plus explanations of pump operating limits.
+- Install manifest/icons and a versioned service-worker cache of the static
+  app, including lazy nozzle artwork. Personal lays can reopen offline.
+- Exact dependency pins, including TypeScript and Node type definitions.
+
+Remaining M3 work is verified truck files/configuration and actual internal
+plumbing/supply limits. M11-5's tank and LDH bore are still unknown. Partial
+valves need their own sourced law. Display-unit options and the other
+remaining §10e items stay in the backlog; automatic nozzles, measured reach
+and the aerial module are not prerequisites for this delivery.
+
 ## 11. Decisions (owner, 2026-10-14)
+
+**Next release approved (2026-10-25).** Complete multiple independently
+operated pump discharges, explicit tank endurance and an optional teaching
+clock; add local autosave and named personal lays with file import/export;
+give presets a question and action, clarify pump limitations, and support
+installation and offline reopening. Follow §10f's existing UX and equipment
+work. Generic outlet arrangements and user-entered tank capacity must not
+claim M11-5 calibration. Existing share documents remain compatible.
+Automatic nozzles, reach and the aerial module remain later work.
 
 1. **Kinks:** out of scope (§7.5).
 2. **Equipment:** built-in default specs (generic truck, hoses, nozzles),

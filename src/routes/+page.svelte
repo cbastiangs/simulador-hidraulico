@@ -6,6 +6,7 @@
   import { powerSplit } from "$hydraulics/power.ts";
   import { reading } from "$lib/readings.ts";
   import { untrack } from "svelte";
+  import EmptyPumpCanvas from "$lib/components/EmptyPumpCanvas.svelte";
   import Canvas from "$lib/components/Canvas.svelte";
   import Concepts from "$lib/components/Concepts.svelte";
   import Inspector from "$lib/components/Inspector.svelte";
@@ -25,6 +26,13 @@
   import TreeResults from "$lib/components/TreeResults.svelte";
   import * as branch from "$lib/branch-edit.ts";
   import { leafColor } from "$lib/line-colors.ts";
+  import DischargesPanel from "$lib/components/DischargesPanel.svelte";
+  import TankPanel from "$lib/components/TankPanel.svelte";
+  import SavedLays from "$lib/components/SavedLays.svelte";
+  import Offline from "$lib/components/Offline.svelte";
+  import { drainTank, tankMinutes } from "$hydraulics/tank.ts";
+  import { workingLay, saveWorking, downloadScenario } from "$lib/library.ts";
+  import { LESSONS } from "$lib/lessons.ts";
   import * as pieces from "$lib/pieces.ts";
 
   // Built to docs/design/main-screen.html (UX.md §6).
@@ -84,7 +92,7 @@
   // one undo step, then the selection it names.
   let fitSignal = $state(0);
   function runAction(action: Action, target: Target) {
-    if (scenario.wye && action.id === "pump.apply-required") return;
+    if ((scenario.wye || scenario.discharges) && action.id === "pump.apply-required") return;
     const c = { scenario: lineScenario, target, requiredPsi: result.requiredPumpPressurePsi };
     if (action.blocked?.(c)) return;
     const out = action.run(c);
@@ -124,6 +132,9 @@
 
   function apply(next: Scenario, key = "") {
     if (next === scenario) return;
+    const oldTank = scenario.source.tank;
+    advanceClock();
+    if (oldTank && next.source.tank === oldTank) next = { ...next, source: { ...next.source, tank: scenario.source.tank } };
     const now = performance.now();
     const sameBurst = key !== "" && key === burst.key && now - burst.at < BURST_MS;
     if (!sameBurst) past = [...past.slice(-(HISTORY_MAX - 1)), scenario];
@@ -166,6 +177,7 @@
   }
 
   function undo() {
+    pauseClock();
     if (past.length === 0) return;
     future = [scenario, ...future];
     scenario = past[past.length - 1];
@@ -175,6 +187,7 @@
   }
 
   function redo() {
+    pauseClock();
     if (future.length === 0) return;
     past = [...past, scenario];
     scenario = future[0];
@@ -200,8 +213,8 @@
   // A branched lay is drawn, edited and split one pump-to-nozzle line at a
   // time (UX.md §2): `lineScenario` is that line as an ordinary one-line
   // scenario, `result` its reading from the tree solve; the pump shows the total.
-  const network = $derived(scenario.wye ? solveScenarioTree(scenario) : null);
-  const view = $derived(scenario.wye ? branch.pathView(scenario, selectedPath) : null);
+  const network = $derived((scenario.wye || scenario.discharges) ? solveScenarioTree(scenario) : null);
+  const view = $derived((scenario.wye || scenario.discharges) ? branch.pathView(scenario, selectedPath) : null);
   const lineScenario = $derived(view?.scenario ?? scenario);
   const result = $derived(network && view ? pathResult(network.root, view.path) : solveScenario(scenario));
   const pumpResult = $derived(network?.root.result ?? result);
@@ -298,7 +311,7 @@
 
   function choosePreset(id: string) {
     if (scenarioMenu) scenarioMenu.open = false;
-    if (id === presetId) return;
+    pauseClock();
     presetId = id;
     loads += 1;
     scenario = base = presets.find((p) => p.id === id)!.scenario;
@@ -315,6 +328,7 @@
   /** Changed since the preset was loaded: what "Reiniciar" would undo. */
   const edited = $derived(scenario !== base);
   function newLine() {
+    pauseClock();
     apply(edit.blankLine(scenario));
     selectedPath = [];
     loads += 1;
@@ -322,6 +336,7 @@
     if (scenarioMenu) scenarioMenu.open = false;
   }
   function resetPreset() {
+    pauseClock();
     apply(base);
     selectedPath = [];
     loads += 1;
@@ -342,6 +357,7 @@
   }
   /** A scenario from outside becomes what Reiniciar returns to; a paste is an undo step, a link opens fresh. */
   function loadShared(next: Scenario, undoable: boolean) {
+    pauseClock();
     if (undoable) apply(next);
     else {
       scenario = next;
@@ -358,10 +374,12 @@
   async function openLink(undoable: boolean) {
     const fragment = location.hash;
     if (!fragment) return false;
+    let opened = false;
     try {
       const next = await share.fromFragment(fragment);
       if (!next) return false;
       loadShared(next, undoable);
+      opened = true;
       // A first visit by a link is offered the tour rather than shown it over the lay it was sent (UX.md §8.4).
       say(`Abierto desde el enlace: ${next.name}`, tourSeen() ? null : { label: "¿Primera vez? Ver recorrido", run: startTour });
     } catch (error) {
@@ -369,7 +387,7 @@
     }
     // The address stops naming the lay once it is open: edits would make it stale.
     history.replaceState(history.state, "", location.pathname + location.search);
-    return true;
+    return opened;
   }
   // The welcome tour (UX.md §8.4): on a first visit, unless a link opened a lay.
   let touring = $state(false);
@@ -381,7 +399,14 @@
   }
   $effect(() => {
     untrack(async () => {
-      if (!(await openLink(false)) && !tourSeen()) startTour();
+      const linked = await openLink(false);
+      let restored = false;
+      if (!linked) {
+        try { const saved = workingLay(); if (saved) { loadShared(saved, false); restored = true; } }
+        catch { autoSaveEnabled = false; saveStatus = "No se pudo recuperar la última tendida. No se sobrescribirá: guarda una copia en Mis líneas o exporta tu trabajo."; }
+      }
+      storageReady = true;
+      if (!linked && !restored && !tourSeen()) startTour();
     });
     const changed = () => openLink(true);
     addEventListener("hashchange", changed);
@@ -416,6 +441,67 @@
       pasteError = error instanceof share.ShareError ? error.message : "No se pudo abrir.";
     }
   }
+  let pumpTab = $state<"discharges" | "tank" | "curve">("discharges");
+  let libraryOpen = $state(false);
+  let fileInput: HTMLInputElement | undefined;
+  let storageReady = $state(false);
+  let saveStatus = $state("Recuperando la última tendida…");
+  let lastSavedAt = 0;
+  let autoSaveEnabled = true;
+  $effect(() => {
+    if (!storageReady) return;
+    const current = scenario;
+    const timer = setTimeout(() => persist(current), Math.max(100, 1000 - (Date.now() - lastSavedAt)));
+    return () => clearTimeout(timer);
+  });
+  function persist(current = scenario) {
+    if (!storageReady || !autoSaveEnabled) return;
+    try { saveWorking(current); lastSavedAt = Date.now(); saveStatus = "Última tendida guardada automáticamente en este navegador"; }
+    catch { saveStatus = "No se pudo guardar automáticamente. Exporta un archivo para conservar tu trabajo."; }
+  }
+  async function importFile(file?: File) {
+    if (!file) return;
+    try {
+      if (file.size > 1_000_000) throw new Error("El archivo supera 1 MB.");
+      const next = parseScenario(JSON.parse(await file.text()));
+      loadShared(next, true); say(`Archivo abierto: ${next.name}`);
+    } catch { say("No se pudo abrir: el archivo debe contener un escenario JSON válido de hasta 1 MB."); }
+    if (fileInput) fileInput.value = "";
+  }
+
+  let clockRunning = $state(false);
+  let lastTick = 0;
+  const totalFlow = $derived(pumpResult.pump?.status === "empty" ? 0 :
+    (pumpResult.pump?.pressurePsi === null || (network ? !network.balanced : pumpResult.issues.length > 0)) ? null : pumpResult.flowGpm);
+  const endurance = $derived(scenario.source.tank ? tankMinutes(scenario.source.tank, totalFlow) : null);
+  function advanceClock() {
+    if (!clockRunning) return;
+    const now = performance.now();
+    const tank = scenario.source.tank;
+    if (!tank || totalFlow === null) { clockRunning = false; return; }
+    const next = drainTank(tank, totalFlow, (now - lastTick) / 1000);
+    lastTick = now;
+    scenario = { ...scenario, source: { ...scenario.source, tank: next } };
+    if (next.remainingGal === 0) clockRunning = false;
+  }
+  function pauseClock() { advanceClock(); clockRunning = false; }
+  function toggleClock() {
+    if (clockRunning) return pauseClock();
+    if (!scenario.source.tank?.remainingGal || totalFlow === null || totalFlow <= 0) return;
+    past = [...past.slice(-(HISTORY_MAX - 1)), scenario]; future = [];
+    lastTick = performance.now(); clockRunning = true;
+  }
+  function changeTank(next: Scenario) { pauseClock(); apply(next); }
+  $effect(() => {
+    const timer = setInterval(advanceClock, 500);
+    const hidden = () => { if (document.hidden) { pauseClock(); persist(); } };
+    const leaving = () => { pauseClock(); persist(); };
+    document.addEventListener("visibilitychange", hidden);
+    addEventListener("pagehide", leaving);
+    return () => { clearInterval(timer); document.removeEventListener("visibilitychange", hidden); removeEventListener("pagehide", leaving); };
+  });
+  const lesson = $derived(presetId ? LESSONS[presetId] : undefined);
+
 </script>
 
 <svelte:head><title>Simulador hidráulico</title></svelte:head>
@@ -427,6 +513,7 @@
 
 {#snippet line()}
   <section class="line-tools" aria-label="Línea">
+    {#if lesson}<aside class="lesson"><strong>{lesson.question}</strong><p>{lesson.action}</p></aside>{/if}
     <h2>Línea</h2>
     <label class="field">
       <span>Nombre</span>
@@ -437,7 +524,21 @@
 
 {#snippet side()}
   {#if selection === null}{@render line()}{/if}
-  {#if selection?.kind === "pump"}<PumpCurvePanel {scenario} operation={pumpResult.pump} onchange={applyTree} />{/if}
+  {#if selection?.kind === "pump"}
+    <nav class="pump-tabs" aria-label="Panel de bomba">
+      <button type="button" aria-pressed={pumpTab === "discharges"} onclick={() => pumpTab = "discharges"}>Descargas</button>
+      <button type="button" aria-pressed={pumpTab === "tank"} onclick={() => pumpTab = "tank"}>Tanque</button>
+      <button type="button" aria-pressed={pumpTab === "curve"} onclick={() => pumpTab = "curve"}>Curva y control</button>
+    </nav>
+    {#if pumpTab === "discharges"}
+      <DischargesPanel {scenario} {network} onchange={applyTree} onLine={path => { selectLine(path); select({ kind: "section", index: 0 }); }} />
+    {:else if pumpTab === "tank"}
+      <TankPanel {scenario} flowGpm={totalFlow} running={clockRunning} onchange={changeTank} onToggle={toggleClock} />
+    {:else}
+      <PumpCurvePanel {scenario} operation={pumpResult.pump} onchange={applyTree} />
+    {/if}
+  {/if}
+  {#if lineScenario.sections.length && (selection?.kind !== "pump" || pumpTab === "discharges")}
   <Inspector
     scenario={lineScenario}
     {selection}
@@ -454,11 +555,14 @@
     onTree={applyTree}
     onLine={selectLine}
   />
+  {/if}
 {/snippet}
 
 {#snippet results()}
   {#if pumpResult.pump?.pressurePsi === null}
-    <p class="card" role="status">No hay un punto de operación disponible. Revisa la curva de la bomba y la tendida; no se extrapolan caudales.</p>
+    <p class="card" role="status">{#if pumpResult.pump.status === "empty"}Tanque vacío: sin entrega. Rellena el tanque en Abastecimiento; la presión aguas abajo es desconocida.{:else}No hay un punto de operación disponible. Revisa la curva de la bomba y la tendida; no se extrapolan caudales.{/if}</p>
+  {:else if !lineScenario.sections.length && network}
+    <TreeResults {scenario} {network} reference={referenceNetwork} referenceLabel={refName} />
   {:else}
   <div bind:this={budgetEl} data-tour="budget"><BudgetBar {result} {reference} referenceLabel={refName} openEnd={lineScenario.nozzle.design === "open-end"} line={budgetLine} lines={budgetLines} onPickLine={(key) => selectLine(key.split("/"))} /></div>
   {#if network}<PowerSplit split={power} flowGpm={network.totalFlowGpm} pumpPsi={pumpResult.pump?.pressurePsi ?? scenario.source.pressurePsi} lines={budgetLines} reference={referencePower} referenceLabel={refName} />{/if}
@@ -483,10 +587,18 @@
 
 {#snippet pumpPanel(mode: "strip" | "head" | "full" | "bar")}
   <PumpPanel {scenario} result={pumpResult} branched={!!network} balanced={network?.balanced ?? pumpResult.issues.length === 0} onchange={(s) => apply(s, "pump")} strip={mode === "strip"} head={mode === "head"} full={mode === "full"} onOpen={() => select({ kind: "pump" })} />
+  {#if scenario.source.tank && mode !== "full"}
+    <div class="tank-strip"><button type="button" onclick={() => { pumpTab = "tank"; select({ kind: "pump" }); }}>Tanque · {scenario.source.tank.remainingGal.toFixed(0)} gal · {scenario.source.tank.remainingGal === 0 ? "vacío" : totalFlow === null ? "autonomía —" : totalFlow === 0 ? "sin consumo" : `${endurance!.toFixed(1)} min`}</button>
+      {#if clockRunning}<button type="button" onclick={pauseClock}>Pausar</button>{/if}</div>
+  {/if}
 {/snippet}
 
 {#snippet summary()}
+  {#if !lineScenario.sections.length && network}
+    <div class="empty-summary"><strong>Bomba · {totalFlow === null ? "—" : totalFlow.toFixed(0)} gpm</strong><span>{reading(pumpResult.nodes[0]?.pressurePsi ?? null, 0)} psi · salidas sin manguera</span></div>
+  {:else}
   <div data-tour="budget"><BudgetBar {result} {reference} referenceLabel={refName} openEnd={lineScenario.nozzle.design === "open-end"} line={budgetLine} compact /></div>
+  {/if}
 {/snippet}
 
 <div class="app" class:phone class:wide style:--sheet-closed={`${closedSheetHeight}px`}>
@@ -499,6 +611,9 @@
     <details class="scenario" bind:this={scenarioMenu}>
       <summary data-tour="escenario" aria-label={`Escenario: ${scenario.name}`} title="Escenario: elegir otro, copiar, pegar, reiniciar"><span class="name">{scenario.name}</span><span class="caret" aria-hidden="true">▾</span></summary>
       <div class="scenario-menu">
+        <button type="button" onclick={() => { scenarioMenu!.open = false; libraryOpen = true; }}>Mis líneas…</button>
+        <p class="save-status">{saveStatus}</p>
+        <hr />
         <span class="menu-title">Empezar desde</span>
         {#each presets as p (p.id)}
           <button type="button" class:on={p.id === presetId} aria-current={p.id === presetId} onclick={() => choosePreset(p.id)}>{p.scenario.name}</button>
@@ -508,6 +623,8 @@
         <button type="button" onclick={() => copy("link")}>Copiar enlace</button>
         <button type="button" onclick={() => copy("text")}>Copiar como texto</button>
         <button type="button" onclick={paste}>Pegar escenario…</button>
+        <button type="button" onclick={() => downloadScenario(scenario)}>Exportar archivo (.json)</button>
+        <button type="button" onclick={() => { scenarioMenu!.open = false; fileInput?.click(); }}>Importar archivo…</button>
         <hr />
         <button type="button" disabled={!edited} title={edited ? undefined : "Sin cambios desde que se cargó"} onclick={resetPreset}>Reiniciar este escenario</button>
         {#if phone}
@@ -515,6 +632,7 @@
           <hr />
           <button type="button" data-tour="help-item" onclick={startTour}>Ver recorrido</button>
         {/if}
+        <hr /><Offline />
       </div>
     </details>
     {#if !phone}<button type="button" class="gear" data-tour="help" aria-label="Ver recorrido" title="Ver recorrido: cómo se usa" onclick={startTour}>?</button>{/if}
@@ -526,6 +644,11 @@
   {/if}
 
   <div class="canvas" data-tour="canvas">
+    {#if !lineScenario.sections.length && network}
+      <EmptyPumpCanvas {scenario} {network} onPump={() => select({ kind: "pump" })}
+        onGate={id => applyTree(branch.toggleGate(scenario, [id]))}
+        onConnect={(id, size) => { applyTree(branch.connectOutlet(scenario, [id], size)); selectedPath = [id]; loads += 1; deselect(); }} />
+    {:else}
     <Canvas
       scenario={lineScenario}
       {result}
@@ -562,6 +685,7 @@
       {trueScale}
       onOtherNozzle={(path) => applyTree(branch.editSegment(scenario, path, (s) => ({ ...s, nozzle: { ...s.nozzle, open: !s.nozzle.open } })))}
     />
+    {/if}
   </div>
 
   {#if !phone}
@@ -573,6 +697,8 @@
   {/if}
 </div>
 
+<input class="file-input" type="file" accept=".json,application/json" bind:this={fileInput} onchange={e => importFile(e.currentTarget.files?.[0])} aria-label="Importar archivo de escenario" />
+<SavedLays open={libraryOpen} {scenario} onOpen={s => loadShared(s, true)} onClose={() => libraryOpen = false} />
 <ScenarioText mode={textMode} text={textMode === "copy" ? textCopy : ""} error={pasteError} onOpen={openPasted} onClose={() => (textMode = null)} />
 {#if notice}
   <div class="notice" role="status">
@@ -603,11 +729,19 @@
     {@render side()}
     {@render results()}
   </Sheet>
-{:else if !budgetVisible}
+{:else if !budgetVisible && lineScenario.sections.length}
   <div class="dock" data-tour="budget"><BudgetBar {result} {reference} referenceLabel={refName} openEnd={lineScenario.nozzle.design === "open-end"} line={budgetLine} compact /></div>
 {/if}
 
 <style>
+  .empty-summary { display: grid; gap: 6px; padding: 12px; border-radius: 8px; background: var(--surface); font-size: 13px; }.empty-summary span { color: var(--muted); }
+  .pump-tabs { display: flex; gap: 4px; }
+  .pump-tabs button { flex: 1; min-height: 44px; padding: 8px 4px; font: inherit; font-size: 13px; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; cursor: pointer; }
+  .pump-tabs button[aria-pressed=true] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+  .file-input { display: none; }.save-status { padding: 4px 12px; margin: 0; font-size: 12px; color: var(--muted); max-width: 310px; }
+  .lesson { padding: 10px; border-left: 3px solid var(--accent); background: var(--accent-soft); font-size: 14px; }.lesson p { margin: 6px 0 0; font-size: 13px; }
+  .tank-strip { display: flex; gap: 4px; background: var(--surface); border-radius: 8px; }
+  .tank-strip button { min-height: 44px; padding: 6px 10px; background: transparent; border: 0; color: var(--ink); font: inherit; font-size: 12px; cursor: pointer; }.tank-strip button:first-child { flex: 1; text-align: left; }
   /* Layout by width: docs/UX.md §4. */
   .app {
     display: grid;
@@ -648,7 +782,7 @@
   .scenario summary::-webkit-details-marker { display: none; }
   .scenario .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .scenario .caret { margin-left: auto; color: var(--muted); }
-  .scenario-menu { position: absolute; right: 0; top: 50px; z-index: 30; width: max-content; min-width: 100%; max-width: min(420px, calc(100vw - 16px)); display: grid; padding: 6px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2); }
+  .scenario-menu { max-height: calc(100dvh - 130px); overflow-y: auto; position: absolute; right: 0; top: 50px; z-index: 30; width: max-content; min-width: 100%; max-width: min(420px, calc(100vw - 16px)); display: grid; padding: 6px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2); }
   .scenario-menu .menu-title { padding: 6px 12px 4px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
   .scenario-menu button { min-height: 44px; padding: 0 12px 0 30px; text-align: left; border: 0; border-radius: 6px; background: transparent; color: var(--ink); font-size: 14px; cursor: pointer; position: relative; }
   .scenario-menu button:hover:not(:disabled) { background: var(--accent-soft); }

@@ -46,14 +46,15 @@
     onEnd: () => void;
   } = $props();
 
-  type Segment = Pick<ScenarioBranch, "sections" | "nozzle" | "wye">;
-  const leaves = (s: Segment): Segment[] => (s.wye ? s.wye.branches.flatMap(leaves) : [s]);
+  type Segment = Pick<ScenarioBranch, "sections" | "nozzle" | "wye"> & { discharges?: ScenarioBranch[] };
+  const childrenOf = (s: Segment) => s.discharges ?? s.wye?.branches ?? [];
+  const leaves = (s: Segment): Segment[] => (childrenOf(s).length ? childrenOf(s).flatMap(leaves) : [s]);
   /** Nozzles with a bale that are open: what steps 3 and 4 count. */
   const openBales = (s: Scenario) => leaves(s).filter((l) => l.nozzle.design !== "open-end" && l.nozzle.open).length;
   const hasBale = (s: Scenario) => leaves(s).some((l) => l.nozzle.design !== "open-end");
   /** Every coupling's place: changes when anything is moved. */
   const geometry = (s: Segment): string =>
-    s.sections.map((x) => `${x.endElevationM}/${x.runM ?? ""}`).join(",") + (s.wye ? `[${s.wye.branches.map(geometry).join("|")}]` : "");
+    s.sections.map((x) => `${x.endElevationM}/${x.runM ?? ""}`).join(",") + (childrenOf(s).length ? `[${childrenOf(s).map(geometry).join("|")}]` : "");
 
   /** Laid out, and not in a closed sheet. */
   function shown(el: Element) {
@@ -89,7 +90,7 @@
 
   // What the person had when the step opened, for the action steps to compare against.
   let start: { open: number; geometry: string; selection: Selection | null } = { open: 0, geometry: "", selection: null };
-  const branched = $derived(!!scenario.wye);
+  const branched = $derived(!!scenario.wye || !!scenario.discharges);
 
   const steps: Step[] = [
     {
@@ -116,7 +117,7 @@
     },
     {
       title: "La bomba",
-      text: () => "Su presión: súbela o bájala. «Ideal» marca la que pide el pitón; tócala para ponerla.",
+      text: () => scenario.source.pump ? "Ajusta la presión solicitada y observa la descarga real: la capacidad de la bomba puede limitarla." : branched ? "Ajusta la presión común y observa el caudal de cada salida." : "Su presión: súbela o bájala. «Ideal» marca la que pide el pitón; tócala para ponerla.",
       target: () => find("pump"),
     },
     {
@@ -150,6 +151,7 @@
       target: () => find("coupling") ?? find("nozzle-handle"),
       enter: () => (onDeselect(), onFit()),
       done: () => geometry(scenario) !== start.geometry,
+      applies: () => leaves(scenario).some(l => l.sections.length > 0),
     },
     {
       title: "Mangueras",
@@ -159,6 +161,7 @@
       enter: () => (onDeselect(), onFit()),
       // A new selection: dragging a coupling, the step before, already selects its hose.
       done: () => selection?.kind === "section" && selection !== start.selection,
+      applies: () => leaves(scenario).some(l => l.sections.length > 0),
     },
     {
       title: "Dónde se gasta la presión",

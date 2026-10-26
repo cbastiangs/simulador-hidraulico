@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { PIECES, type PieceId } from "$lib/pieces.ts";
+  import { PIECES, type PieceId, type Piece } from "$lib/pieces.ts";
 
   // The "Piezas" strip (UX.md §2 "Pieces"): a column on the canvas's left
   // edge on wider screens, a row in the phone's tray. Tapping a piece picks
@@ -8,11 +8,13 @@
     armed,
     onPick,
     row = false,
+    available = PIECES,
   }: {
     armed: PieceId | null;
     onPick: (piece: PieceId | null) => void;
     /** The phone's tray: one scrolling row instead of a column. */
     row?: boolean;
+    available?: readonly Piece[];
   } = $props();
 </script>
 
@@ -42,9 +44,9 @@
   </svg>
 {/snippet}
 
-<div class="strip" class:row role="toolbar" aria-label="Piezas: elige una y toca dónde ponerla">
+<div class="strip" style:--piece-count={available.length} class:row role="toolbar" aria-label="Piezas: elige una y toca dónde ponerla">
   {#if !row}<span class="title">Piezas</span>{/if}
-  {#each PIECES as p (p.id)}
+  {#each available as p (p.id)}
     <button
       type="button"
       class="piece"
@@ -63,7 +65,7 @@
 <style>
   .strip { display: flex; flex-direction: column; gap: 4px; padding: 6px 4px; width: 78px; flex: none; overflow-y: auto; border-right: 1px solid var(--line); background: var(--surface); }
   /* The phone's tray: every piece in one row, no scrolling (390 px fits seven). */
-  .strip.row { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); width: auto; overflow: hidden; padding: 6px 4px; border-right: 0; border-top: 1px solid var(--line); }
+  .strip.row { display: grid; grid-template-columns: repeat(var(--piece-count, 7), minmax(0, 1fr)); width: auto; overflow: hidden; padding: 6px 4px; border-right: 0; border-top: 1px solid var(--line); }
   .row .piece { min-width: 0; font-size: 10px; padding: 4px 0; }
   .row svg { width: 32px; }
   .title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); text-align: center; padding: 2px 0; }

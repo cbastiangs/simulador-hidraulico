@@ -1198,3 +1198,53 @@ digits; desktop scrolling reserves space for the sticky pump header. Tests,
 typecheck (zero errors/warnings) and static build pass. Screenshots:
 `/tmp/sim-pump/chart-390.png`, `chart-1024.png`, `outside-390.png`, and
 `outside-1024.png`. Browser emulation, not a real-device study.
+
+### 10.13 Operating and keeping a lay (built 2026-10-26)
+
+Pump discharges share the solved manifold pressure and show independent
+open/shut controls, flow and downstream pressure. Empty ports are explicit;
+connect hoses using the Piezas strip's lit outlet spots on the drawing.
+A pump-only drawing also permits every port to be empty, with hose
+placement targets and independent gate controls. Configuration chooses a
+generic outlet arrangement; no unverified M11-5
+layout or capacity is supplied. Selecting a connected discharge selects its
+line. Keep the selected outlet's size/fittings in its inspector. Pump details
+use Descargas / Tanque / Curva y control tabs below the existing pump header
+so operating outlets does not require scrolling past the curve.
+
+Abastecimiento accepts an explicit tank capacity, reports remaining gallons
+and minutes at the current solved flow, and offers Start/Pause and Refill.
+An empty tank stops delivery and says pressure is unknown. Pause on hidden
+tabs, undo/redo and scenario changes; reopening never starts the clock.
+
+Escenario offers Mis líneas, autosave status and JSON file import/export.
+Named local copies can be opened, renamed, duplicated and deleted; deletion
+offers undo. A share link takes precedence over the last local working lay.
+Storage failure is visible and leaves file export available. These are
+browser-local saves, not accounts or cloud storage. Teaching presets show
+one question and one suggested action in the line panel. Installation and
+offline readiness are explained in the scenario menu after caching succeeds.
+Cache activation waits for every app asset and prerendered page; updates
+wait until old app windows close to avoid mixing versions. External source
+links need a connection. A malformed local working document is preserved
+rather than overwritten by a default lay; automatic saving stays suspended
+for that visit, with named saves and file export available.
+
+Verified 2026-10-26 in Chromium at 390×844 (touch emulation) and 1024×844:
+conversion preserves the original bifurcada on discharge 1; Piezas connects
+another discharge and its length can be edited independently. Empty pumps
+render and reconnect; an ideal 100 psi source with one empty 2½″ port shows
+1679 gpm (the adopted open-end approximation). The second-discharge preset
+changes discharge 1 from 279.1 gpm at 140 psi to 275.7 gpm at 136.6 psi when
+discharge 2 opens. Tank start/pause, depletion, refill, saved copies,
+rename/duplicate/delete/undo and autosave reload work without page errors or
+horizontal overflow. JSON files and compressed links retain outlets and tank.
+A production Chromium profile was closed and restarted offline: its working
+lay and remaining water survived, the clock stayed paused, named saves opened,
+and `/boquillas` loaded from the cache. Tests, typecheck (zero errors/warnings)
+and static build pass. No real-device or OS installation study.
+Evidence: `/tmp/sim-release/discharges-390.png`, `discharges-1024.png`,
+`tank-390.png`, `saved-390.png`, `empty-pump-390.png`, `offline-390.png`,
+and `offline-1024.png`.
+Final current-build captures: `/tmp/sim-release/final-390.png` (tank controls)
+and `/tmp/sim-release/final-1024.png` (independent discharge controls).
