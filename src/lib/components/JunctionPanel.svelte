@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { u } from "$lib/display-units.svelte.ts";
   import type { Scenario } from "$hydraulics/scenario.ts";
   import * as branch from "$lib/branch-edit.ts";
   import { leafColor } from "$lib/line-colors.ts";
@@ -32,7 +33,7 @@
   const readingOf = (o: { open: boolean; path: string[]; empty: boolean }) => {
     const r = outlets[o.path.join("/")];
     const what = o.empty ? "Vacía · " : "";
-    return !o.open ? `${what}Válvula cerrada` : r?.isolated ? "Aislada" : r ? `${what}${r.flowGpm.toFixed(0)} gpm` : "";
+    return !o.open ? `${what}Válvula cerrada` : r?.isolated ? "Aislada" : r ? `${what}${u.q(r.flowGpm, 0)} ${u.flow}` : "";
   };
 </script>
 
@@ -60,13 +61,13 @@
           <b>Salida vacía</b>
           <span>Nada conectado · boca de 1½″</span>
           <span class="reading" class:spill={o.open && (r?.flowGpm ?? 0) > 0}>
-            {#if !o.open}Válvula cerrada · tapada{:else if r?.isolated}Aislada aguas arriba{:else if r}⚠ Abierta sin manguera: {r.flowGpm.toFixed(0)} gpm al suelo{/if}
+            {#if !o.open}Válvula cerrada · tapada{:else if r?.isolated}Aislada aguas arriba{:else if r}⚠ Abierta sin manguera: {u.q(r.flowGpm, 0)} {u.flow} al suelo{/if}
           </span>
         {:else}
           <b>{#if !o.segment.wye}<span class="line-dot" style:background={leafColor(tree, o.path)}></span>{/if}{o.name}</b>
           <span>{branch.branchLabel(o.segment).slice(o.name.length + 3)}</span>
           <span class="reading">
-            {#if !o.open}Válvula cerrada · 0 gpm{:else if r?.isolated}Aislada aguas arriba{:else if r}{r.flowGpm.toFixed(0)} gpm{r.nozzlePsi !== null ? ` · pitón ${r.nozzlePsi.toFixed(0)} psi` : ""}{/if}
+            {#if !o.open}Válvula cerrada · 0 {u.flow}{:else if r?.isolated}Aislada aguas arriba{:else if r}{u.q(r.flowGpm, 0)} {u.flow}{r.nozzlePsi !== null ? ` · pitón ${u.p(r.nozzlePsi, 0)} ${u.pressure}` : ""}{/if}
           </span>
         {/if}
       </div>

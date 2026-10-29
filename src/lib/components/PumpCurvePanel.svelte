@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { u } from "$lib/display-units.svelte.ts";
   import { WATEROUS_CX, type PumpOperation, type PumpPoint } from "$hydraulics/pump.ts";
   import type { Scenario } from "$hydraulics/scenario.ts";
   import NumberField from "./NumberField.svelte";
@@ -32,7 +33,7 @@
     <option value="cx">Waterous CX · familia</option>
   </select>
   {#if pump}
-    <p>Familia CX · no calibrada a M11-5. Admisión a 0 psi; sin límite de potencia del motor ni de caudal de admisión.</p>
+    <p>Familia CX · no calibrada a M11-5. Admisión a {u.p(0, 0)} {u.pressure}; sin límite de potencia del motor ni de caudal de admisión.</p>
     <div class="modes" role="group" aria-label="Control de la bomba">
       <button type="button" aria-pressed={pump.mode === "pressure"} onclick={() => control({ mode: "pressure" })}>Presión</button>
       <button type="button" aria-pressed={pump.mode === "rpm"} onclick={() => control({ mode: "rpm" })}>RPM fijas</button>
@@ -44,8 +45,8 @@
     {#if operation}
       <strong class="status" role="status">{status}</strong>
       <div class="readings">
-        <span>Solicitada: {pump.mode === "pressure" ? `${scenario.source.pressurePsi.toFixed(0)} psi` : "control por RPM"}</span>
-        <b>Descarga: {operation.pressurePsi?.toFixed(1) ?? "—"} psi · {operation.flowGpm?.toFixed(1) ?? "—"} gpm</b>
+        <span>Solicitada: {pump.mode === "pressure" ? `${u.p(scenario.source.pressurePsi, 0)} ${u.pressure}` : "control por RPM"}</span>
+        <b>Descarga: {u.p(operation.pressurePsi)} {u.pressure} · {u.q(operation.flowGpm)} {u.flow}</b>
       </div>
       {#if operation.status === "limited"}<p>La tendida demanda más agua de la que la bomba sostiene a la presión solicitada. La descarga real baja hasta equilibrarse. Cerrar una salida o cambiar el límite de giro cambia ese equilibrio.</p>
       {:else if operation.status === "outside-curve"}<p>La tendida exige un punto fuera de los datos disponibles. Reduce la demanda cerrando una salida o elige otra configuración; el modelo no puede afirmar cuánto entregaría aquí.</p>
@@ -54,10 +55,10 @@
       {#if pump.speedRpm > 0 && operation.status !== "empty"}
         <svg viewBox="0 0 340 212" role="img" aria-label="Curva de bomba y demanda de la tendida, con el punto de operación">
           <path d="M44 28 V174 H312" class="axis" />
-          <text x="8" y="22">psi</text><text x="282" y="205">gpm</text>
+          <text x="8" y="22">{u.pressure}</text><text x="282" y="205">{u.flow}</text>
           <text x="36" y="178" text-anchor="end">0</text>
-          <text x="36" y="38" text-anchor="end">{maxP.toFixed(0)}</text>
-          <text x="304" y="190" text-anchor="end">{maxQ.toFixed(0)}</text>
+          <text x="36" y="38" text-anchor="end">{u.p(maxP, 0)}</text>
+          <text x="304" y="190" text-anchor="end">{u.q(maxQ, 0)}</text>
           <polyline class="supply" points={points(operation.curve)} />
           <path class="system" d={systemPath(operation.system)} />
           {#if pump.mode === "pressure" && scenario.source.pressurePsi <= maxP}

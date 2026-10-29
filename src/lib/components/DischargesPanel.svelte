@@ -1,7 +1,7 @@
 <script lang="ts">
+  import { u } from "$lib/display-units.svelte.ts";
   import type { Scenario, ScenarioTreeResult } from "$hydraulics/scenario.ts";
   import { toggleGate } from "$lib/branch-edit.ts";
-  import { reading } from "$lib/readings.ts";
   let { scenario, network, onchange, onLine, onConfigure }: {
     scenario: Scenario; network: ScenarioTreeResult | null;
     onchange: (s: Scenario) => void; onLine: (path: string[]) => void;
@@ -23,7 +23,7 @@
         <div class="row"><strong>{d.name} · {d.outletSizeIn.toString().replace(".5", "½")}″</strong>
           <button type="button" class:open={d.open} aria-label={`${d.open ? "Cerrar" : "Abrir"} ${d.name}`} aria-pressed={d.open} onclick={() => onchange(toggleGate(scenario, [d.id]))}>{d.open ? "Abierta" : "Cerrada"}</button>
         </div>
-        <div class="readings"><b>{unavailable ? "—" : reading(r?.flowGpm ?? null)} gpm</b><span>{reading(r?.inletPressurePsi ?? null)} psi tras la compuerta</span></div>
+        <div class="readings"><b>{unavailable ? "—" : u.q(r?.flowGpm)} {u.flow}</b><span>{u.p(r?.inletPressurePsi ?? null)} {u.pressure} tras la compuerta</span></div>
         {#if d.sections.length}
           <button type="button" class="line" onclick={() => onLine([d.id])}>Ver línea de {d.name}</button>
         {:else}

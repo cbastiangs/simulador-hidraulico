@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { u } from "$lib/display-units.svelte.ts";
   import type { Scenario, ScenarioBranch, ScenarioTreeResult, TreeSegmentResult } from "$hydraulics/scenario.ts";
   import * as branch from "$lib/branch-edit.ts";
   import { leafColor } from "$lib/line-colors.ts";
@@ -42,25 +43,24 @@
 
   const refApprox = $derived(reference && !reference.balanced ? "≈ " : "");
 
-  const number = (value: number | null | undefined, decimals = 1) =>
-    value === null || value === undefined || !Number.isFinite(value) ? "—" : value.toLocaleString("es-PE", { maximumFractionDigits: decimals });
-  const pressure = (value: number | null | undefined) => (value === null || value === undefined || !Number.isFinite(value) ? "presión —" : `${number(value)} psi`);
+  const number = u.q;
+  const pressure = (value: number | null | undefined) => (value === null || value === undefined || !Number.isFinite(value) ? "presión —" : `${u.p(value)} ${u.pressure}`);
   const gateState = (segment: Scenario | ScenarioBranch, depth: number) =>
     depth === 0 ? "Alimentación" : (segment as ScenarioBranch).open ? "Compuerta abierta" : "Compuerta cerrada";
 
   const issueText = (issue: { code: string; segmentId: string | null; residualPsi: number }) => {
     const who = issue.segmentId ? branch.flattenSegments(scenario).find((e) => e.path.at(-1) === issue.segmentId)?.segment.name ?? issue.segmentId : "Alimentación";
-    if (issue.code === "high-point") return `${who}: el caudal exigiría presión negativa en un acople (${issue.residualPsi.toFixed(1)} psi); la línea no entrega agua.`;
-    if (issue.code === "pressure-balance") return `${who}: no hay un caudal que equilibre la malla (residuo ${issue.residualPsi.toFixed(1)} psi); el resultado es aproximado.`;
-    return `${who}: el caudal queda atrapado en un escalón de la pérdida por accesorios (residuo ${issue.residualPsi.toFixed(1)} psi); revisa la presión.`;
+    if (issue.code === "high-point") return `${who}: el caudal exigiría presión negativa en un acople (${u.p(issue.residualPsi, 1)} ${u.pressure}); la línea no entrega agua.`;
+    if (issue.code === "pressure-balance") return `${who}: no hay un caudal que equilibre la malla (residuo ${u.p(issue.residualPsi, 1)} ${u.pressure}); el resultado es aproximado.`;
+    return `${who}: el caudal queda atrapado en un escalón de la pérdida por accesorios (residuo ${u.p(issue.residualPsi, 1)} ${u.pressure}); revisa la presión.`;
   };
 </script>
 
 <section class="tree-results">
   <div class="total">
-    <div><b>{network.balanced ? "" : "≈ "}{number(network.totalFlowGpm)}</b> <span>gpm total</span></div>
+    <div><b>{network.balanced ? "" : "≈ "}{number(network.totalFlowGpm)}</b> <span>{u.flow} total</span></div>
     {#if reference}
-      <div class="ref"><b>{refApprox}{number(reference.totalFlowGpm)}</b> <span>gpm · {referenceLabel}</span></div>
+      <div class="ref"><b>{refApprox}{number(reference.totalFlowGpm)}</b> <span>{u.flow} · {referenceLabel}</span></div>
     {/if}
   </div>
   {#if !network.balanced}
@@ -82,7 +82,7 @@
           </span>
           <span class="state">{gateState(entry.segment, entry.depth)}{#if branch.isEmptyOutlet(entry.segment)} · nada conectado{#if r.flowGpm > 0} · <b class="spill">⚠ al suelo</b>{/if}{:else if !entry.segment.wye} · {entry.segment.nozzle.open ? "pitón abierto" : "pitón cerrado"}{:else} · {entry.segment.wye.device === "trifurca" ? "trifurco" : "bifurco"}{/if}</span>
           <span class="numbers">
-            <span><b>{number(r.flowGpm)}</b> gpm{#if ref} <i>({referenceLabel} {refApprox}{number(ref.flowGpm)})</i>{/if}</span>
+            <span><b>{number(r.flowGpm)}</b> {u.flow}{#if ref} <i>({referenceLabel} {refApprox}{number(ref.flowGpm)})</i>{/if}</span>
             <span class="p">{r.isolated ? "presión —" : `${pressure(r.inletPressurePsi)} → ${pressure(r.outletPressurePsi)}`}</span>
           </span>
         </div>

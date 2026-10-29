@@ -1,8 +1,10 @@
 <script lang="ts">
+  import { u } from "$lib/display-units.svelte.ts";
   import { hoseSizeName, jointName } from "$lib/names.ts";
   import { NOZZLE_SPECS } from "$hydraulics/catalog.ts";
   import { HOSE_SIZES, SOURCES, type Source } from "$hydraulics/references.ts";
-  import { couplingOf, endBoreIn, reactionAt, type Scenario } from "$hydraulics/scenario.ts";
+  import { couplingOf, endBoreIn, reactionAt, resolvedNozzle, type Scenario } from "$hydraulics/scenario.ts";
+  import { sectionFlowGpm, jointFlowGpm } from "$lib/readings.ts";
   import type { SeriesResult } from "$hydraulics/series.ts";
   import * as edit from "$lib/edit.ts";
   import { runsOf } from "$lib/geometry/world.ts";
@@ -65,9 +67,10 @@
     spec.design === "open-end"
       ? scenario.nozzle.design === "open-end" ? "Punta abierta" : "Quitar pitón"
       : spec.design === "smooth-bore"
-        ? `${tipName(spec.tipIn ?? 0)} · ${spec.ratedFlowGpm} gpm`
-        : spec.kind === "selectable" ? `Selector ${spec.settingsGpm[0]}–${spec.settingsGpm[spec.settingsGpm.length - 1]}` : `${spec.ratedFlowGpm} gpm`;
+        ? `${tipName(spec.tipIn ?? 0)} · ${u.q(spec.ratedFlowGpm)} ${u.flow}`
+        : spec.kind === "selectable" ? `Selector ${u.q(spec.settingsGpm[0], 0)}–${u.q(spec.settingsGpm.at(-1), 0)} ${u.flow}` : `${u.q(spec.ratedFlowGpm)} ${u.flow}`;
   const design = $derived(scenario.nozzle.design ?? "fog");
+  const displayNozzle = $derived(resolvedNozzle(scenario.sections, scenario.nozzle));
   const nozzleSpec = $derived(NOZZLE_SPECS.find((spec) => spec.id === scenario.nozzle.specId));
   const manufacturer: Source | null = $derived(nozzleSpec?.manufacturerSource ? SOURCES[nozzleSpec.manufacturerSource] : null);
   const nozzleInlet = $derived(scenario.nozzle.inletIn ?? nozzleSpec?.inletIn);
@@ -80,7 +83,7 @@
   );
   const nozzleKind = $derived(
     design === "smooth-bore"
-      ? `Boquilla ${tipName(scenario.nozzle.tipIn ?? 0)} · ${scenario.nozzle.ratedFlowGpm} gpm`
+      ? `Boquilla ${tipName(scenario.nozzle.tipIn ?? 0)} · ${u.q(displayNozzle.ratedFlowGpm)} ${u.flow}`
       : scenario.nozzle.kind === "selectable" ? "Selector de caudal" : "Caudal fijo",
   );
   /** The engine's reaction at the solved flow (MODEL.md §3.6); the panel only formats it. */
@@ -94,11 +97,11 @@
     const frac = rest === 0 ? "" : `${rest / g}/${16 / g}`;
     return `${whole ? whole + (frac ? " " : "") : ""}${frac}″`;
   }
-  const specGroups = [
+  const specGroups = $derived([
     { label: "Combinado", design: "fog" },
-    { label: "Chorro sólido · 50 psi", design: "smooth-bore" },
+    { label: `Chorro sólido · ${u.p(50, 0)} ${u.pressure}`, design: "smooth-bore" },
     { label: "Sin pitón", design: "open-end" },
-  ] as const;
+  ] as const);
 </script>
 
 {#snippet closeSelection()}
@@ -117,7 +120,7 @@
     <nav class="parts" aria-label="Partes de la línea">
       <button type="button" onclick={() => onSelect({ kind: "pump" })}>Bomba · descargas</button>
       {#each scenario.sections as s, i (i)}
-        <button type="button" onclick={() => onSelect({ kind: "section", index: i })}>Tramo {i + 1} · {s.lengthM} m de {s.diameterIn.toString().replace(".5", "½")}″</button>
+        <button type="button" onclick={() => onSelect({ kind: "section", index: i })}>Tramo {i + 1} · {u.l(s.lengthM)} {u.length} de {s.diameterIn.toString().replace(".5", "½")}″</button>
         {#if i < last}<button type="button" class="joint" onclick={() => onSelect({ kind: "joint", index: i + 1 })}>{jointName(scenario, i + 1)}</button>{/if}
       {/each}
       {#if !scenario.wye}<button type="button" onclick={() => onSelect({ kind: "nozzle" })}>{scenario.nozzle.design === "open-end" ? "Punta abierta · sin pitón" : `Pitón · ${scenario.nozzle.open ? "abierto" : "cerrado"}`}</button>{/if}
@@ -138,9 +141,9 @@
         {/each}
       </div>
     </div>
-    <JointControls {scenario} flowGpm={result.flowGpm} joint={0} onToggle={(kind) => onchange(edit.toggleFitting(scenario, 0, kind))} />
+    <JointControls {scenario} flowGpm={jointFlowGpm(result, 0)} joint={0} onToggle={(kind) => onchange(edit.toggleFitting(scenario, 0, kind))} />
   {:else if selection.kind === "nozzle"}
-    {@const n = scenario.nozzle}
+    {@const n = displayNozzle}
     <header class:sticky={selection !== null}>
       {@render closeSelection()}
       {#if design === "open-end"}
@@ -148,7 +151,7 @@
         <p>Punta abierta · el agua sale por el acople de {tipName(endBoreIn(scenario.sections))}</p>
       {:else}
         <h3>{manufacturer ? nozzleSpec?.label : design === "smooth-bore" ? "Pitón de chorro sólido" : n.kind === "selectable" ? "Pitón combinado" : "Pitón"}</h3>
-        <p>{nozzleKind} · {n.ratedPressurePsi} psi nominal{manufacturer ? " · ficha del fabricante" : n.specId === null || !nozzleSpec ? " · personalizado" : " · genérico"}</p>
+        <p>{nozzleKind} · {u.p(n.ratedPressurePsi)} {u.pressure} nominal{manufacturer ? " · ficha del fabricante" : n.specId === null || !nozzleSpec ? " · personalizado" : " · genérico"}</p>
       {/if}
     </header>
     {#if design === "open-end"}
@@ -192,10 +195,10 @@
 
       {#if n.kind === "selectable"}
         <div>
-          <div class="label">Caudal (anillo) · gpm</div>
+          <div class="label">Caudal (anillo) · {u.flow}</div>
           <div class="seg" role="radiogroup" aria-label="Caudal">
             {#each n.settingsGpm as q (q)}
-              <button type="button" role="radio" aria-checked={q === n.ratedFlowGpm} class:on={q === n.ratedFlowGpm} onclick={() => onchange(edit.setNozzleSetting(scenario, q))}>{q}</button>
+              <button type="button" role="radio" aria-checked={q === n.ratedFlowGpm} class:on={q === n.ratedFlowGpm} onclick={() => onchange(edit.setNozzleSetting(scenario, q))}>{u.q(q, 0)}</button>
             {/each}
           </div>
         </div>
@@ -224,33 +227,34 @@
 
     {#if manufacturer && nozzleSpec && design !== "open-end"}
       <section class="equipment-rating" aria-label="Ficha del pitón">
-        <div><span>Nominal seleccionado</span><b>{n.ratedFlowGpm} gpm a {n.ratedPressurePsi} psi</b></div>
-        <div><span>Entrega calculada</span><b>{unavailable ? "—" : fmt(result.flowGpm, 1)} gpm · {result.nozzlePressurePsi === null ? "—" : fmt(result.nozzlePressurePsi, 1)} psi</b></div>
+        <div><span>Nominal seleccionado</span><b>{u.q(n.ratedFlowGpm)} {u.flow} a {u.p(n.ratedPressurePsi)} {u.pressure}</b></div>
+        <div><span>Entrega calculada</span><b>{unavailable ? "—" : u.q(result.flowGpm)} {u.flow} · {u.p(result.nozzlePressurePsi)} {u.pressure}</b></div>
         <div><span>Entrada</span><b>{tipName(nozzleInlet ?? nozzleSpec.inletIn)} · {nozzleInlet === hoseCoupling ? "acople directo" : "requiere adaptador"}</b></div>
         <details>
           <summary>Ficha y alcance del modelo</summary>
           <p><a href={manufacturer.url} target="_blank" rel="noreferrer">{manufacturer.publisher}: {manufacturer.title}</a></p>
           <p>Fuera del punto nominal, el caudal se aproxima con Q ∝ √NP; no es una curva medida de este pitón. El patrón es visual y la reacción es calculada.</p>
-          {#if n.kind === "selectable"}<p>Al elegir el modelo, el simulador inicia en 95 gpm; no indica una posición de fábrica.</p>{/if}
+          {#if n.kind === "selectable"}<p>Al elegir el modelo, el simulador inicia en {u.q(95, 0)} {u.flow}; no indica una posición de fábrica.</p>{/if}
           <p>La conexión compara diámetros; no verifica el tipo de rosca.</p>
         </details>
       </section>
     {/if}
 
     <!-- The force on the hands at the solved flow (MODEL.md §3.6, §7): the engine's numbers, formula substituted. -->
-    {#if result.pump?.status === "empty"}<p class="warn" role="status">Tanque vacío · 0 gpm. Rellena el tanque en Abastecimiento; la presión aguas abajo es desconocida.</p>{/if}
+    {#if result.pump?.status === "empty"}<p class="warn" role="status">Tanque vacío · 0 {u.flow}. Rellena el tanque en Abastecimiento; la presión aguas abajo es desconocida.</p>{/if}
     {#if unavailable}
       <p class="warn" role="status">Sin resultado hidráulico: la tendida está fuera del modelo de bomba disponible.</p>
     {:else}
     <div class="reaction" role="status">
       <div><span class="label">Reacción</span> <b>{fmt(reaction.lbf, 0)} lbf</b> · {fmt(reaction.kgf, 0)} kgf</div>
       <div class="formula">
+        <small>Fórmula de la fuente: diámetros en in, Q en US gpm, presión en psi.</small><br />
         {#if reaction.law === "smooth-bore"}
           NR = 1.57 · d² · NP = 1.57 × {fmt(reaction.inputs.tipIn, 4)}² × {fmt(reaction.inputs.nozzlePressurePsi, 1)} · Task Force Tips
         {:else if reaction.law === "fog"}
           NR = 0.0505 · Q · √NP = 0.0505 × {fmt(reaction.inputs.flowGpm, 1)} × √{fmt(reaction.inputs.nozzlePressurePsi, 1)} · Task Force Tips
         {:else if reaction.law === "fog-kg-per-gpm"}
-          kg ≈ {fmt(reaction.inputs.kgfPerGpm)} × Q = {fmt(reaction.inputs.kgfPerGpm)} × {fmt(reaction.inputs.flowGpm, 1)} · Manual de Hidráulica CGBVP 2019, p. 46, válida a {reaction.inputs.atPsi} psi
+          kg ≈ {fmt(reaction.inputs.kgfPerGpm)} × Q = {fmt(reaction.inputs.kgfPerGpm)} × {fmt(reaction.inputs.flowGpm, 1)} · Manual de Hidráulica CGBVP 2019, p. 46, válida a {u.p(reaction.inputs.atPsi)} {u.pressure}
         {:else}
           NR = 1.57 · c · d² · p = 1.57 × {fmt(reaction.inputs.coefficient)} × {fmt(reaction.inputs.boreIn, 3)}² × {fmt(reaction.inputs.pressurePsi, 1)} · cantidad de movimiento del chorro
         {/if}
@@ -262,8 +266,8 @@
     <!-- After the controls, so it appearing mid-turn doesn't move them under the finger. -->
     {#if short}
       <p class="warn" role="status">
-        ⚠ {result.nozzlePressurePsi?.toFixed(0) ?? "—"} psi en el pitón, por debajo de sus {n.ratedPressurePsi} psi nominales: da
-        {result.flowGpm.toFixed(0)} gpm, no {n.ratedFlowGpm}. {branched ? "Sube la presión de la bomba o revisa las líneas abiertas." : "Sube la presión o toca «Ideal» en la bomba."}
+        ⚠ {u.p(result.nozzlePressurePsi, 0)} {u.pressure} en el pitón, por debajo de sus {u.p(n.ratedPressurePsi)} {u.pressure} nominales: da
+        {u.q(result.flowGpm, 0)} {u.flow}, no {u.q(n.ratedFlowGpm, 0)} {u.flow}. {branched ? "Sube la presión de la bomba o revisa las líneas abiertas." : "Sube la presión o toca «Ideal» en la bomba."}
       </p>
     {/if}
 
@@ -313,7 +317,7 @@
     </details>
     {/if}
 
-    <JointControls {scenario} flowGpm={result.flowGpm} joint={last + 1} onToggle={(kind) => onchange(edit.toggleFitting(scenario, last + 1, kind))} />
+    <JointControls {scenario} flowGpm={jointFlowGpm(result, last + 1)} joint={last + 1} onToggle={(kind) => onchange(edit.toggleFitting(scenario, last + 1, kind))} />
   {:else if selection.kind === "joint" && tree && onTree && onLine && junctionAt(scenario, selection.index) && !junctionAt(scenario, selection.index)?.pump}
     {@const wye = junctionAt(scenario, selection.index)!}
     <header class:sticky={selection !== null}>
@@ -329,7 +333,7 @@
       <h3>{jointName(scenario, j)}</h3>
       <p>{j === 0 ? "Entre la bomba y el tramo 1" : `Entre el tramo ${j} y el tramo ${j + 1}`} · arrastra el acople para moverlo</p>
     </header>
-    <JointControls {scenario} flowGpm={result.flowGpm} joint={j} titled={false} onToggle={(kind) => onchange(edit.toggleFitting(scenario, j, kind))} />
+    <JointControls {scenario} flowGpm={jointFlowGpm(result, j)} joint={j} titled={false} onToggle={(kind) => onchange(edit.toggleFitting(scenario, j, kind))} />
   {:else}
     {@const i = selection.index}
     {@const s = scenario.sections[i]}
@@ -355,9 +359,9 @@
     {@const rise = s.endElevationM - (i === 0 ? 0 : scenario.sections[i - 1].endElevationM)}
     {@const slack = s.lengthM - Math.hypot(run, rise)}
     {@const loss = result.terms.find((t) => t.lawId === "hose.friction" && t.sectionIndex === i)}
-    {#if !unavailable}<p class="loss">Fricción en este tramo: <b>{(loss?.valuePsi ?? 0).toFixed(1)} psi</b> a {result.flowGpm.toFixed(0)} gpm</p>{/if}
+    {#if !unavailable}<p class="loss">Fricción en este tramo: <b>{u.p((loss?.valuePsi ?? 0), 1)} {u.pressure}</b> a {u.q(sectionFlowGpm(result, i), 0)} {u.flow}</p>{/if}
     <p class="note">
-      {floorOf(s.endElevationM)} · recorrido horizontal {run.toFixed(1)} m{slack >= 0.5 ? ` · holgura ${slack.toFixed(1)} m` : " · tenso"}
+      {floorOf(s.endElevationM)} · recorrido horizontal {u.l(run)} {u.length}{slack >= 0.5 ? ` · holgura ${u.l(slack, 1)} ${u.length}` : " · tenso"}
     </p>
     <p class="note">
       {edit.modeOf(s) === "tether"

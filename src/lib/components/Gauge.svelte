@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { u } from "$lib/display-units.svelte.ts";
   import { Tween } from "svelte/motion";
 
   // A pressure gauge (UX.md §3): 0–300 psi over 270°, a tick every 50 psi,
@@ -37,11 +38,11 @@
     <line class="tick" x1="0" y1={-(r - 3)} x2="0" y2={-(r - 7)} transform={`rotate(${t})`} />
   {/each}
   {#if mark !== undefined}
-    <path class="mark" d={`M 0 ${-(r + 1)} L -3 ${-(r + 6)} L 3 ${-(r + 6)} Z`} transform={`rotate(${-135 + (Math.min(Math.max(mark, 0), MAX) / MAX) * 270})`}><title>{markTitle} {mark.toFixed(0)} psi</title></path>
+    <path class="mark" d={`M 0 ${-(r + 1)} L -3 ${-(r + 6)} L 3 ${-(r + 6)} Z`} transform={`rotate(${-135 + (Math.min(Math.max(mark, 0), MAX) / MAX) * 270})`}><title>{markTitle} {u.p(mark, 0)} {u.pressure}</title></path>
   {/if}
   {#if psi !== null}<line class="needle" x1="0" y1="0" x2="0" y2={-(r - 6)} transform={`rotate(${angle})`} />{/if}
   <circle class="hub" r={r / 8} />
-  {#if label}<text class="value" y={r + 16}>{psi?.toFixed(0) ?? "—"} psi</text>{/if}
+  {#if label}<text class="value" y={r + 16}>{u.p(psi, 0)} {u.pressure}</text>{/if}
 </g>
 
 <style>

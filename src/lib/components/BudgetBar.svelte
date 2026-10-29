@@ -1,6 +1,9 @@
 <script lang="ts">
+  import { u } from "$lib/display-units.svelte.ts";
   import type { SeriesResult } from "$hydraulics/series.ts";
-  import { reading as f, balanceMessage } from "$lib/readings.ts";
+  import { balanceMessage } from "$lib/readings.ts";
+
+  const f = u.p;
 
   // Where the pump's pressure goes (ROADMAP §5): nozzle + friction + elevation,
   // from the engine's terms. A downhill line gains pressure; that shows as a
@@ -65,7 +68,7 @@
       {compact ? "Presión de la bomba" : "¿En qué se gasta la presión de la bomba?"}
       {#if line}<span class="which" title="La línea que muestra la barra">· <span class="line-dot" style:background={line.color}></span>{line.name}</span>{/if}
     </span>
-    <b>{f(result.nodes[0].pressurePsi)} psi</b>
+    <b>{u.p(result.nodes[0].pressurePsi)} {u.pressure}</b>
   </div>
   {#if lines.length > 1 && !compact}
     <!-- One row per line: each spends the whole pump pressure on its own path, so they don't add up. -->
@@ -74,13 +77,13 @@
         {@const sp = splitOf(l.result)}
         <li>
           <button type="button" class:edited={l.edited} aria-pressed={l.edited} onclick={() => onPickLine?.(l.key)}>
-            <span class="who"><span class="line-dot" style:background={l.color}></span>{l.name}<span class="q">{l.shut ? "cerrada" : l.result.state === "flowing" ? `${l.result.flowGpm.toFixed(0)} gpm` : "sin caudal"}</span></span>
+            <span class="who"><span class="line-dot" style:background={l.color}></span>{l.name}<span class="q">{l.shut ? "cerrada" : l.result.state === "flowing" ? `${u.q(l.result.flowGpm, 0)} ${u.flow}` : "sin caudal"}</span></span>
             <span class="bar mini">
               {#if l.result.state === "flowing"}
-                <span class="nozzle" style:width={sp.pct(sp.nozzle)} title={`${l.openEnd ? "Punta" : "Pitón"} ${f(sp.nozzle)} psi`}></span>
-                <span class="friction" style:width={sp.pct(sp.friction)} title={`Fricción ${f(sp.friction)} psi`}></span>
-                {#if sp.fittings > 0}<span class="fittings" style:width={sp.pct(sp.fittings)} title={`Accesorios ${f(sp.fittings)} psi`}></span>{/if}
-                {#if sp.elevation > 0}<span class="elevation" style:width={sp.pct(sp.elevation)} title={`Desnivel ${f(sp.elevation)} psi`}></span>{/if}
+                <span class="nozzle" style:width={sp.pct(sp.nozzle)} title={`${l.openEnd ? "Punta" : "Pitón"} ${u.p(sp.nozzle)} ${u.pressure}`}></span>
+                <span class="friction" style:width={sp.pct(sp.friction)} title={`Fricción ${u.p(sp.friction)} ${u.pressure}`}></span>
+                {#if sp.fittings > 0}<span class="fittings" style:width={sp.pct(sp.fittings)} title={`Accesorios ${u.p(sp.fittings)} ${u.pressure}`}></span>{/if}
+                {#if sp.elevation > 0}<span class="elevation" style:width={sp.pct(sp.elevation)} title={`Desnivel ${u.p(sp.elevation)} ${u.pressure}`}></span>{/if}
               {/if}
             </span>
           </button>
@@ -91,16 +94,19 @@
   {/if}
   {#if result.state === "flowing"}
     <div class="bar" bind:clientWidth={barWidth}>
-      <div class="nozzle" style:width={pct(parts.nozzle)} title={`${endName} ${f(parts.nozzle)} psi`}>{fit(pct(parts.nozzle), `${endName} ${f(parts.nozzle)}`, f(parts.nozzle))}</div>
-      <div class="friction" style:width={pct(parts.friction)} title={`Fricción ${f(parts.friction)} psi`}>{fit(pct(parts.friction), `Fricción ${f(parts.friction)}`, f(parts.friction))}</div>
-      {#if parts.fittings > 0}<div class="fittings" style:width={pct(parts.fittings)} title={`Accesorios ${f(parts.fittings)} psi`}>{fit(pct(parts.fittings), f(parts.fittings))}</div>{/if}
-      {#if parts.elevation > 0}<div class="elevation" style:width={pct(parts.elevation)} title={`Desnivel ${f(parts.elevation)} psi`}>{fit(pct(parts.elevation), f(parts.elevation))}</div>{/if}
+      <div class="nozzle" style:width={pct(parts.nozzle)} title={`${endName} ${u.p(parts.nozzle)} ${u.pressure}`}>{fit(pct(parts.nozzle), `${endName} ${f(parts.nozzle)}`, f(parts.nozzle))}</div>
+      <div class="friction" style:width={pct(parts.friction)} title={`Fricción ${u.p(parts.friction)} ${u.pressure}`}>{fit(pct(parts.friction), `Fricción ${f(parts.friction)}`, f(parts.friction))}</div>
+      {#if parts.fittings > 0}<div class="fittings" style:width={pct(parts.fittings)} title={`Accesorios ${u.p(parts.fittings)} ${u.pressure}`}>{fit(pct(parts.fittings), f(parts.fittings))}</div>{/if}
+      {#if parts.elevation > 0}<div class="elevation" style:width={pct(parts.elevation)} title={`Desnivel ${u.p(parts.elevation)} ${u.pressure}`}>{fit(pct(parts.elevation), f(parts.elevation))}</div>{/if}
     </div>
+    {#if compact && parts.elevation < 0}
+      <p class="small">La bajada aporta {u.p(-parts.elevation)} {u.pressure}; la barra incluye ese aporte además de la bomba.</p>
+    {/if}
     {#if result.unsatisfied && !compact}
       {@const g = result.unsatisfied}
       <p class="gap" role="status">
-        ⚠ Regla de 350 gpm: entre {g.lowPsi.toFixed(0)} y {g.highPsi.toFixed(0)} psi en la bomba no hay caudal exacto. A {g.stepGpm} gpm sobran
-        {f(g.sparePsi)} psi sin la pérdida de los acoples y faltan {f(g.stepPsi - g.sparePsi)} con ella; la barra no suma la bomba.
+        ⚠ Regla de 350 gpm: entre {u.p(g.lowPsi, 0)} y {u.p(g.highPsi, 0)} {u.pressure} en la bomba no hay caudal exacto. A {u.q(g.stepGpm)} {u.flow} sobran
+        {u.p(g.sparePsi)} {u.pressure} sin la pérdida de los acoples y faltan {f(g.stepPsi - g.sparePsi)} con ella; la barra no suma la bomba.
       </p>
     {:else if result.issues.length && !compact}
       <p class="gap" role="status">{balanceMessage(result.issues[0])} La barra muestra un resultado aproximado.</p>
@@ -108,18 +114,18 @@
     {#if !compact}<ul class="legend">
       <li>
         <span class="swatch nozzle"></span>
-        <span><b>{endName} {f(parts.nozzle)} psi</b> · {openEnd ? "la presión que queda en la punta abierta y empuja el chorro" : "la presión que llega al pitón y forma el chorro"}</span>
+        <span><b>{endName} {u.p(parts.nozzle)} {u.pressure}</b> · {openEnd ? "la presión que queda en la punta abierta y empuja el chorro" : "la presión que llega al pitón y forma el chorro"}</span>
       </li>
       <li>
         <span class="swatch friction"></span>
-        <span><b>Fricción {f(parts.friction)} psi</b> · lo que se pierde por rozamiento en las mangueras</span>
+        <span><b>Fricción {u.p(parts.friction)} {u.pressure}</b> · lo que se pierde por rozamiento en las mangueras</span>
       </li>
       {#if fittingCount > 0}
         <li>
           <span class="swatch fittings"></span>
           <span>
-            <b>Accesorios {noData ? "sin dato" : `${f(parts.fittings)} psi`}</b> ·
-            {fittingCount} {fittingCount === 1 ? "accesorio" : "accesorios"} (reducciones, válvulas){noData ? ": el método no tiene un valor publicado, cuenta 0" : ""}{#if step}: {step.stepPsi} psi cada uno solo por encima de {step.aboveGpm} gpm (regla de 350 gpm, Colorado); ahora {f(result.flowGpm)} gpm{/if}
+            <b>Accesorios {noData ? "sin dato" : `${u.p(parts.fittings)} ${u.pressure}`}</b> ·
+            {fittingCount} {fittingCount === 1 ? "accesorio" : "accesorios"} (reducciones, válvulas){noData ? ": el método no tiene un valor publicado, cuenta 0" : ""}{#if step}: {u.p(step.stepPsi)} {u.pressure} cada uno solo por encima de {u.q(step.aboveGpm)} {u.flow} (regla de 350 gpm, Colorado), según el caudal local de cada accesorio{/if}
             {#if reference}· {referenceLabel}: {f(reference.fittingLossPsi)}{/if}
           </span>
         </li>
@@ -127,7 +133,7 @@
       <li>
         <span class="swatch elevation"></span>
         <span>
-          <b>Desnivel {f(parts.elevation)} psi</b> ·
+          <b>Desnivel {u.p(parts.elevation)} {u.pressure}</b> ·
           {parts.elevation < 0
             ? "la bajada devuelve presión (no ocupa barra)"
             : "lo que cuesta subir el agua"}{#if reference} · {referenceLabel}: {f(reference.elevationPressurePsi)}{/if}
@@ -139,7 +145,7 @@
       {#if result.issues.length}{balanceMessage(result.issues[0])}
       {:else if result.state === "isolated"}Línea aislada: sin caudal y con presión desconocida aguas abajo.
       {:else if result.state === "no-pressure"}La bomba no alcanza el punto más alto de la línea: sin entrega de agua.
-      {:else}Pitón cerrado: sin caudal en esta línea. La presión en el pitón es {f(result.nozzlePressurePsi)} psi.{#if lines.length > 1} Otras salidas pueden seguir consumiendo presión en la alimentación común.{/if}
+      {:else}Pitón cerrado: sin caudal en esta línea. La presión en el pitón es {u.p(result.nozzlePressurePsi)} {u.pressure}.{#if lines.length > 1} Otras salidas pueden seguir consumiendo presión en la alimentación común.{/if}
       {/if}
     </p>
   {/if}

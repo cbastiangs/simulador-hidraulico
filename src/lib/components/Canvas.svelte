@@ -1,9 +1,9 @@
 <script lang="ts">
+  import { u } from "$lib/display-units.svelte.ts";
   import { tick, untrack } from "svelte";
   import { HOSE_SIZES, type FittingKind } from "$hydraulics/references.ts";
   import { joints, type Scenario } from "$hydraulics/scenario.ts";
   import type { SeriesResult } from "$hydraulics/series.ts";
-  import { reading } from "$lib/readings.ts";
   import {
     PX_PER_M,
     drawnHose,
@@ -31,6 +31,8 @@
   import PieceStrip from "./PieceStrip.svelte";
   import { PIECES, isAdding, removalFor, spotsFor, type PieceId, type Spot } from "$lib/pieces.ts";
   import { hoseVelocityMps } from "$hydraulics/velocity.ts";
+  import { createWaterMotion } from "$lib/water-motion.ts";
+  import { jointFlowGpm } from "$lib/readings.ts";
 
   // The canvas (UX.md §2, polish §10.8): one uniform scale, the lay auto-fitted
   // to the space available; gauges, labels, handles and the nozzle keep their
@@ -851,8 +853,8 @@
   /** "piso 4 · 9 m": the floor first, since its label hides at a fitted zoom (UX.md §10.3 T3). */
   const floorName = (m: number) => {
     const n = Math.round((m / floorM) * 1000) / 1000;
-    if (!Number.isInteger(n)) return m <= 0 ? `${m} m` : n < 1 ? `sobre piso 1 · ${m} m` : `sobre piso ${Math.floor(n) + 1} · ${m} m`;
-    return n < 0 ? `${m} m` : `piso ${n + 1} · ${m} m`;
+    if (!Number.isInteger(n)) return m <= 0 ? `${u.l(m)} ${u.length}` : n < 1 ? `sobre piso 1 · ${u.l(m)} ${u.length}` : `sobre piso ${Math.floor(n) + 1} · ${u.l(m)} ${u.length}`;
+    return n < 0 ? `${u.l(m)} ${u.length}` : `piso ${n + 1} · ${u.l(m)} ${u.length}`;
   };
   const sizeLabel = (d: number) => `${d.toString().replace(".5", "½").replace(".75", "¾")}″`;
   // Water particles (MODEL.md §3.7): one per GALLONS_PER_PARTICLE, moving at
@@ -868,6 +870,14 @@
     const t = r.terms.find((t) => t.lawId === "hose.friction" && t.sectionIndex === i);
     return t?.lawId === "hose.friction" ? t.inputs.flowGpm : r.flowGpm;
   };
+
+  // A flattened path retains its junction metadata. Use the owning segment,
+  // not the selected leaf, so switching leaves keeps the feed's clock.
+  function streamKey(line: Scenario, index: number) {
+    const upstream = junctionsOf(line).filter((j) => j.joint <= index).at(-1);
+    return JSON.stringify(upstream?.outlets.find((o) => o.active)?.path ?? []);
+  }
+  const waterPhase = createWaterMotion();
 
   const selectedHose = $derived(selection?.kind === "section" ? layout.hoses[selection.index] : undefined);
   // The nozzle joint's fittings are edited in the inspector: its handle works the bale.
@@ -1155,7 +1165,11 @@
     // Particle phase in dimensionless cycles, so it stays continuous across a
     // diameter (and therefore spacing) change: offset = gap · frac(cycles).
     let cycles = 0;
+    let previousStream = "";
     const hoses = layout.hoses.map((h, idx) => {
+      const stream = streamKey(scenario, h.index);
+      if (stream !== previousStream) cycles = 0;
+      previousStream = stream;
       const s = scenario.sections[h.index];
       const width = hoseWidth(h.thicknessPx, s.diameterIn);
       const start = attachment(jn[idx], jn[idx].afterX);
@@ -1177,7 +1191,11 @@
   /** Continuous spacing along each visible branch, just as on the edited path. */
   function branchHoses(o: (typeof otherLines)[number]) {
     let cycles = 0;
+    let previousStream = "";
     return o.layout.hoses.filter((h) => h.index >= o.from).map((h) => {
+      const stream = streamKey(o.scenario, h.index);
+      if (stream !== previousStream) cycles = 0;
+      previousStream = stream;
       const sec = o.scenario.sections[h.index];
       const { d, lengthPx } = drawnHose(h.geom, h.index === o.from && o.from > 0 ? 24 * k : 0);
       const q = sectionFlow(o.result, h.index);
@@ -1189,10 +1207,10 @@
   }
 
   function flowLabel(r: SeriesResult, nozzle: Scenario["nozzle"]) {
-    if (r.pump?.status === "empty") return "tanque vacío · 0 gpm";
+    if (r.pump?.status === "empty") return `tanque vacío · 0 ${u.flow}`;
     if (r.pump?.pressurePsi === null) return "sin resultado";
     if (r.state === "unbalanced") return "sin caudal exacto";
-    if (r.flowGpm > 0) return `${reading(r.flowGpm, r.flowGpm < 1 ? 1 : 0)} gpm`;
+    if (r.flowGpm > 0) return `${u.q(r.flowGpm, r.flowGpm < 1 ? 1 : 0)} ${u.flow}`;
     if (r.state === "isolated") return "línea aislada";
     if (!nozzle.open && nozzle.design !== "open-end") return "pitón cerrado";
     if (r.state === "no-pressure") return "presión insuficiente";
@@ -1205,9 +1223,9 @@
   // inspector shows; the DOM only renders it.
   const LABEL_PX_PER_CHAR = 7;
   const hoseLabelText = (s: Scenario["sections"][number], slackM: number) =>
-    `${s.lengthFree ? "🔓" : "🔒"} ${s.lengthM} m · ${sizeLabel(s.diameterIn)}${slackM >= 0.5 ? ` · holgura ${slackM.toFixed(1)} m` : ""}`;
+    `${s.lengthFree ? "🔓" : "🔒"} ${u.l(s.lengthM)} ${u.length} · ${sizeLabel(s.diameterIn)}${slackM >= 0.5 ? ` · holgura ${u.l(slackM, 1)} ${u.length}` : ""}`;
   // Shorter captions a crowded hose falls back to, longest first; the inspector keeps the rest.
-  const hoseLabelShort = (s: Scenario["sections"][number]) => [`${s.lengthM} m · ${sizeLabel(s.diameterIn)}`, `${s.lengthM} m`];
+  const hoseLabelShort = (s: Scenario["sections"][number]) => [`${u.l(s.lengthM)} ${u.length} · ${sizeLabel(s.diameterIn)}`, `${u.l(s.lengthM)} ${u.length}`];
   const measureLabel = (text: string) => LABEL_PX_PER_CHAR * text.length + 8;
 
   type HoseLabel = { index: number; text: string; x: number; y: number; angle: number };
@@ -1223,7 +1241,7 @@
       let w = measureLabel(full);
       if (w > maxW) {
         // Too wide for the canvas: compact, and let the inspector keep the rest.
-        text = `Tramo ${h.index + 1} · ${s.lengthM} m`;
+        text = `Tramo ${h.index + 1} · ${u.l(s.lengthM)} ${u.length}`;
         w = measureLabel(text);
       }
       const chord = Math.hypot(h.geom.b.x - h.geom.a.x, h.geom.b.y - h.geom.a.y);
@@ -1288,28 +1306,6 @@
     }
     return out;
   });
-
-  /**
-   * Aligns a particle path to the document timeline so all sections share one
-   * phase (UX.md §10.8). `startTime = 0` refers to the timeline origin, not the
-   * path's insertion time, so stream pieces stay in step; the rAF is cancelled
-   * on destroy and never runs per frame.
-   */
-  function waterPhase(node: SVGPathElement) {
-    let raf = 0;
-    const sync = () => {
-      const animations = node.getAnimations?.();
-      if (animations) for (const a of animations) a.startTime = 0;
-    };
-    raf = requestAnimationFrame(sync);
-    return {
-      update: () => {
-        cancelAnimationFrame(raf);
-        raf = requestAnimationFrame(sync);
-      },
-      destroy: () => cancelAnimationFrame(raf),
-    };
-  }
 
   // Floating overlays are clamped to the visible canvas in screen space, then
   // mapped back into stage coordinates (§10.8, UX-05). The old translate(-50%)
@@ -1590,7 +1586,7 @@
           x={(camX + viewWidth) / zoom - 12 * k}
           y={layout.groundY + 64 * k}
           text-anchor="end"
-        >Piso 1 · 0 m</text>
+        >Piso 1 · 0 {u.length}</text>
 
         <!-- Engine: tap to select the pump -->
         <g
@@ -1627,7 +1623,7 @@
               {#if peeked}<path class="peek-outline" {d} stroke-width={hoseWidth(h.thicknessPx, sec.diameterIn) + 6 * k} />{/if}
               <path class="hose-outline" {d} stroke-width={hoseWidth(h.thicknessPx, sec.diameterIn) + 2 * HOSE_BORDER * k} />
               <path class="hose" class:idle={!p} {d} stroke-width={hoseWidth(h.thicknessPx, sec.diameterIn)} />
-              {#if p}<path class="particles" {d} stroke-width={Math.max(2, hoseWidth(h.thicknessPx, sec.diameterIn) * 0.3)} style:--offset={`${offsetPx}px`} style:--gap={`${p.gapPx}px`} style:--period={`${p.seconds}s`} use:waterPhase />{/if}
+              {#if p}<path class="particles" {d} stroke-width={Math.max(2, hoseWidth(h.thicknessPx, sec.diameterIn) * 0.3)} style:--offset={`${offsetPx}px`} style:--gap={`${p.gapPx}px`} style:--period={`${p.seconds}s`} use:waterPhase={{ scope: resetKey, stream: streamKey(o.scenario, h.index), ...p, offsetPx, reduced: reducedMotion }} />{/if}
               <path
                 class="hit"
                 {d}
@@ -1636,7 +1632,7 @@
                 stroke-width={36 * k}
                 role="button"
                 tabindex="0"
-                aria-label={`${o.name}, tramo ${h.index - o.from + 1}: ${sec.lengthM} m de ${sizeLabel(sec.diameterIn)}. Tocar para editar esta línea`}
+                aria-label={`${o.name}, tramo ${h.index - o.from + 1}: ${u.l(sec.lengthM)} ${u.length} de ${sizeLabel(sec.diameterIn)}. Tocar para editar esta línea`}
                 onclick={tap(() => onPick?.(o.path, { kind: "section", index: h.index }))}
                 onkeydown={(e) => e.key === "Enter" && onPick?.(o.path, { kind: "section", index: h.index })}
                 oncontextmenu={(e) => (onPick?.(o.path, { kind: "section", index: h.index }), openMenu(e, { kind: "section", index: h.index }))}
@@ -1693,7 +1689,7 @@
               style:--offset={`${hd.offsetPx}px`}
               style:--gap={`${hd.gapPx}px`}
               style:--period={`${hd.seconds}s`}
-              use:waterPhase
+              use:waterPhase={{ scope: resetKey, stream: streamKey(scenario, hd.index), gapPx: hd.gapPx, seconds: hd.seconds, offsetPx: hd.offsetPx, reduced: reducedMotion }}
             />
           {/if}
           {#if isSection(hd.index)}<path class="hose-selected" d={hd.d} stroke-width={hd.width + 6 * k} />
@@ -1707,7 +1703,7 @@
             stroke-width={44 * k}
             role="button"
             tabindex="0"
-            aria-label={`Tramo ${hd.index + 1}: ${s.lengthM} m de ${sizeLabel(s.diameterIn)}`}
+            aria-label={`Tramo ${hd.index + 1}: ${u.l(s.lengthM)} ${u.length} de ${sizeLabel(s.diameterIn)}`}
             onclick={tap(() => onSelect({ kind: "section", index: hd.index }))}
             onkeydown={(e) => e.key === "Enter" && onSelect({ kind: "section", index: hd.index })}
             oncontextmenu={(e) => openMenu(e, { kind: "section", index: hd.index })}
@@ -1797,7 +1793,7 @@
               aria-label={i === last ? "Pitón: tocar selecciona, arrastrar mueve" : `${jointName(scenario, i)}: tocar selecciona, arrastrar mueve`}
               data-tour={i === last ? "nozzle-handle" : "coupling"}
               aria-valuenow={n.elevationM}
-              aria-valuetext={`${scenario.sections[i - 1].lengthM} m de largo, ${n.elevationM} m de altura`}
+              aria-valuetext={`${u.l(scenario.sections[i - 1].lengthM)} ${u.length} de largo, ${u.l(n.elevationM)} ${u.length} de altura`}
               onpointerdown={(e) => down(e, i)}
               onpointermove={move}
               onpointerup={up}
@@ -1807,9 +1803,9 @@
             />
             {#if dragging === i}
               <text class="drag-label" class:constrained x={n.x} y={n.y + 40 * k}>
-                {i === last ? "" : `${scenario.sections[i - 1].lengthM} m · `}{floorName(n.elevationM)}{constrained ? " · Límite de manguera" : ""}
+                {i === last ? "" : `${u.l(scenario.sections[i - 1].lengthM)} ${u.length} · `}{floorName(n.elevationM)}{constrained ? " · Límite de manguera" : ""}
               </text>
-              {#if i === last}<text class="drag-label secondary" x={n.x + 30 * k} y={n.y + 5 * k}>{scenario.sections[i - 1].lengthM} m</text>{/if}
+              {#if i === last}<text class="drag-label secondary" x={n.x + 30 * k} y={n.y + 5 * k}>{u.l(scenario.sections[i - 1].lengthM)} {u.length}</text>{/if}
             {/if}
           {/if}
         {/each}
@@ -1828,7 +1824,7 @@
 
                 <!-- The height axis (owner, 2026-10-16): pinned to the view's left edge, over the drawing (a halo keeps it legible on the truck), under the gauges, which float above it. -->
         {#each layout.floors as f (f.elevationM)}
-          {#if f.above > 0 && f.above % labelEvery === 0}<text class="floor-label axis" x={camX / zoom + 8 * k} y={f.y + 14 * k}>Piso {f.above + 1} · {f.elevationM} m</text>{/if}
+          {#if f.above > 0 && f.above % labelEvery === 0}<text class="floor-label axis" x={camX / zoom + 8 * k} y={f.y + 14 * k}>Piso {f.above + 1} · {u.l(f.elevationM)} {u.length}</text>{/if}
         {/each}
         <!-- Gauge tap targets stay under the nozzle, so its bale takes the tap; the dials are drawn after it (below). -->
         {#if showGauges}
@@ -1841,7 +1837,7 @@
                 r={Math.max(24, 22 / (gaugeK * zoom))}
                 role="button"
                 tabindex="0"
-                aria-label={`Manómetro: ${n.pressurePsi.toFixed(0)} psi, ver lectura`}
+                aria-label={`Manómetro: ${u.p(n.pressurePsi, 0)} ${u.pressure}, ver lectura`}
                 onclick={tap(() => (inspected = inspected === i ? null : i))}
                 onkeydown={(e) => e.key === "Enter" && (inspected = i)}
               />
@@ -1967,9 +1963,9 @@
             {/each}
           </div>
           <div class="chips">
-            <button type="button" aria-label="Acortar 15 m" onclick={() => onLength(i, s.lengthM - 15)}>−15 m</button>
-            <span class="len">{s.lengthM} m</span>
-            <button type="button" aria-label="Alargar 15 m" onclick={() => onLength(i, s.lengthM + 15)}>+15 m</button>
+            <button type="button" aria-label={`Acortar ${u.l(15)} ${u.length}`} onclick={() => onLength(i, s.lengthM - 15)}>−{u.l(15, 0)} {u.length}</button>
+            <span class="len">{u.l(s.lengthM)} {u.length}</span>
+            <button type="button" aria-label={`Alargar ${u.l(15)} ${u.length}`} onclick={() => onLength(i, s.lengthM + 15)}>+{u.l(15, 0)} {u.length}</button>
             <button type="button" class="lock" class:on={!s.lengthFree} aria-pressed={!s.lengthFree} onclick={() => onToggleLock(i)}>{s.lengthFree ? "🔓 Libre" : "🔒 Largo fijo"}</button>
           </div>
           <Actions target={{ kind: "section", index: i }} {scenario} requiredPsi={result.requiredPumpPressurePsi} place="quick" {onAction} />
@@ -1988,7 +1984,7 @@
           bind:clientHeight={jointBarH}
         >
           <button type="button" class="bar-close" aria-label="Quitar selección (Esc)" title="Quitar selección (Esc)" onclick={onDeselect}>×</button>
-          <JointControls {scenario} flowGpm={result.flowGpm} joint={selection.index} onToggle={(kind) => onToggleFitting(selection.index, kind)} />
+          <JointControls {scenario} flowGpm={jointFlowGpm(result, selection.index)} joint={selection.index} onToggle={(kind) => onToggleFitting(selection.index, kind)} />
           <Actions target={selection} {scenario} requiredPsi={result.requiredPumpPressurePsi} place="quick" {onAction} />
           {@render removeButton()}
         </div>
@@ -2017,16 +2013,16 @@
         >
           <button type="button" class="bar-close" aria-label="Quitar selección (Esc)" title="Quitar selección (Esc)" onclick={onDeselect}>×</button>
           {#if n.design === "open-end"}
-            <div class="chips"><span class="len">Sin pitón · {result.flowGpm.toFixed(0)} gpm</span></div>
+            <div class="chips"><span class="len">Sin pitón · {u.q(result.flowGpm, 0)} {u.flow}</span></div>
           {:else}
             <div class="chips" role="radiogroup" aria-label="Manija" data-tour="manija">
               <button type="button" role="radio" aria-checked={!n.open} class:on={!n.open} onclick={() => onEdit(edit.setNozzleOpen(scenario, false))}>Cerrado</button>
               <button type="button" role="radio" aria-checked={n.open} class:on={n.open} onclick={() => onEdit(edit.setNozzleOpen(scenario, true))}>Abierto</button>
             </div>
             {#if n.kind === "selectable"}
-              <div class="chips" role="radiogroup" aria-label="Caudal (anillo), gpm">
+              <div class="chips" role="radiogroup" aria-label={`Caudal (anillo), ${u.flow}`}>
                 {#each n.settingsGpm as q (q)}
-                  <button type="button" role="radio" aria-checked={q === n.ratedFlowGpm} class:on={q === n.ratedFlowGpm} onclick={() => onEdit(edit.setNozzleSetting(scenario, q))}>{q}</button>
+                  <button type="button" role="radio" aria-checked={q === n.ratedFlowGpm} class:on={q === n.ratedFlowGpm} onclick={() => onEdit(edit.setNozzleSetting(scenario, q))}>{u.q(q, 0)}</button>
                 {/each}
               </div>
             {/if}
@@ -2061,12 +2057,12 @@
         >
           <button type="button" class="bar-close" aria-label="Cerrar lectura" onclick={() => (inspected = null)}>×</button>
           <span>Presión en {nodeName(i)}</span>
-          <b>{reading(currentPressure)} psi</b>
+          <b>{u.p(currentPressure)} {u.pressure}</b>
           {#if i > 0 && previousPressure != null && currentPressure !== null}
-            <span>{reading(previousPressure - currentPressure)} psi menos que en {nodeName(i - 1)}</span>
-            {#if friction}<span>Fricción del tramo {i}: {friction.valuePsi.toFixed(1)} psi; el resto, desnivel y accesorios</span>{/if}
+            <span>{u.p(previousPressure - currentPressure)} {u.pressure} menos que en {nodeName(i - 1)}</span>
+            {#if friction}<span>Fricción del tramo {i}: {u.p(friction.valuePsi, 1)} {u.pressure}; el resto, desnivel y accesorios</span>{/if}
           {/if}
-          {#if i === last}<span>Nominal del pitón: {scenario.nozzle.ratedPressurePsi} psi (marca en el dial)</span>{/if}
+          {#if i === last}<span>Nominal del pitón: {u.p(scenario.nozzle.ratedPressurePsi)} {u.pressure} (marca en el dial)</span>{/if}
         </div>
       {/if}
     </div>
@@ -2191,11 +2187,7 @@
   .missing text { fill: #fff; font-size: 14px; font-weight: 800; text-anchor: middle; }
   .hose { stroke: var(--hose); stroke-linecap: butt; fill: none; }
   .hose-outline { stroke: #000; stroke-linecap: butt; fill: none; pointer-events: none; }
-  .particles { fill: none; stroke: #fff; stroke-opacity: 0.85; stroke-linecap: round; stroke-dasharray: 0 var(--gap); animation: water var(--period) linear infinite; pointer-events: none; }
-  @keyframes water {
-    from { stroke-dashoffset: var(--offset, 0px); }
-    to { stroke-dashoffset: calc(var(--offset, 0px) - var(--gap)); }
-  }
+  .particles { fill: none; stroke: #fff; stroke-opacity: 0.85; stroke-linecap: round; stroke-dasharray: 0 var(--gap); pointer-events: none; }
   @media (prefers-reduced-motion: reduce) { .particles { display: none; animation: none; } .stage.glide { transition: none; } }
   .hose-selected { fill: none; stroke: var(--accent); stroke-opacity: 0.35; stroke-linecap: round; pointer-events: none; }
   .hose-hover { fill: none; stroke: var(--accent); stroke-opacity: 0.22; pointer-events: none; }

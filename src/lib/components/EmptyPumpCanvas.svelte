@@ -1,8 +1,8 @@
 <script lang="ts">
+  import { u } from "$lib/display-units.svelte.ts";
   import type { Scenario, ScenarioTreeResult } from "$hydraulics/scenario.ts";
   import { PIECES, type PieceId } from "$lib/pieces.ts";
   import PieceStrip from "./PieceStrip.svelte";
-  import { reading } from "$lib/readings.ts";
   let { scenario, network, onConnect, onGate, onPump }: {
     scenario: Scenario; network: ScenarioTreeResult;
     onConnect: (id: string, size: string) => void; onGate: (id: string) => void; onPump: () => void;
@@ -23,7 +23,7 @@
         <button type="button" class="connection" class:armed={!!armed} aria-label={armed ? `Conectar una manguera a ${d.name}` : `${d.name}: salida vacía`} onclick={() => armed ? onConnect(d.id, armed === "hose-2-1/2" ? "2-1/2" : "1-1/2") : onPump()}>
           <span class="ring">{armed ? "+" : "○"}</span><b>{d.name}</b><span>{d.outletSizeIn.toString().replace(".5", "½")}″</span>
         </button>
-        <span>{r?.result.pump?.pressurePsi === null && r?.result.pump?.status !== "empty" ? "—" : reading(r?.flowGpm ?? null, 0)} gpm</span>
+        <span>{r?.result.pump?.pressurePsi === null && r?.result.pump?.status !== "empty" ? "—" : u.q(r?.flowGpm, 0)} {u.flow}</span>
         <button type="button" aria-label={`${d.open ? "Cerrar" : "Abrir"} ${d.name}`} aria-pressed={d.open} onclick={() => onGate(d.id)}>{d.open ? "Abierta" : "Cerrada"}</button>
       </div>
     {/each}

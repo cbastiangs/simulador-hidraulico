@@ -98,7 +98,7 @@
         </tbody>
       </table>
       <p class="formula">
-        W = Q · P / {GPM_PSI_PER_HORSEPOWER.toFixed(0)} = {flowGpm.toFixed(1)} gpm × {pumpPsi.toFixed(1)} psi / {GPM_PSI_PER_HORSEPOWER.toFixed(0)} = {hp(split.pumpHp)} hp.
+        Fórmula en US gpm y psi: W = Q · P / {GPM_PSI_PER_HORSEPOWER.toFixed(0)} = {flowGpm.toFixed(1)} gpm × {pumpPsi.toFixed(1)} psi / {GPM_PSI_PER_HORSEPOWER.toFixed(0)} = {hp(split.pumpHp)} hp.
         Cada parte, igual con el caudal que pasa por ella. 1 hp = 0,7457 kW.{#if approx} Con la regla de 350 gpm las partes no suman exacto la bomba.{/if}
       </p>
     </details>

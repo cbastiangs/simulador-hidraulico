@@ -1,6 +1,8 @@
 <script lang="ts">
+  import { u } from "$lib/display-units.svelte.ts";
   import type { Scenario } from "$hydraulics/scenario.ts";
   import { tankMinutes, type Tank } from "$hydraulics/tank.ts";
+  import { enduranceLabel } from "$lib/readings.ts";
   import NumberField from "./NumberField.svelte";
   let { scenario, flowGpm, running, onchange, onToggle }: {
     scenario: Scenario; flowGpm: number | null; running: boolean;
@@ -22,7 +24,7 @@
   {:else}
     <div class="remaining"><strong>{tank.remainingGal.toLocaleString("es-PE", { maximumFractionDigits: 1 })}</strong> / {tank.capacityGal.toLocaleString("es-PE")} US gal</div>
     <progress max={tank.capacityGal} value={tank.remainingGal} aria-label="Agua restante"></progress>
-    <p class:empty={tank.remainingGal === 0} role="status">{tank.remainingGal === 0 ? "Tanque vacío · sin entrega; presión aguas abajo desconocida" : flowGpm === null ? "Autonomía desconocida · no hay caudal resuelto" : flowGpm === 0 ? "Sin consumo · no se vacía" : `${minutes!.toFixed(1)} min al caudal actual de ${flowGpm.toFixed(0)} gpm`}</p>
+    <p class:empty={tank.remainingGal === 0} role="status">{tank.remainingGal === 0 ? "Tanque vacío · sin entrega; presión aguas abajo desconocida" : flowGpm === null ? "Autonomía desconocida · no hay caudal resuelto" : flowGpm === 0 ? "Sin consumo · no se vacía" : `${enduranceLabel(minutes!)} al caudal actual de ${u.q(flowGpm, 0)} ${u.flow}`}</p>
     <div class="row"><button type="button" class="primary" disabled={!running && (tank.remainingGal === 0 || flowGpm === null || flowGpm === 0)} onclick={onToggle}>{running ? "Pausar reloj" : "Iniciar reloj"}</button>
       <button type="button" onclick={() => setTank({ ...tank, remainingGal: tank.capacityGal })}>Rellenar tanque</button></div>
     <details><summary>Datos del tanque</summary>

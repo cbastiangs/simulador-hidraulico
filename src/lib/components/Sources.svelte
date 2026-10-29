@@ -20,7 +20,7 @@
     <dt>Pitón</dt>
     <dd>Ley del orificio (física): el caudal crece con la raíz de la presión, Q ∝ √P.</dd>
     <dt>Fricción</dt>
-    <dd>FL = C × (Q/100)² × (L/100), con C publicado por manguera: {LAWS["hose.friction"].sources.map(name).join(" · ")}.</dd>
+    <dd>FL = C × (Q/100)² × (L/100), con Q en US gpm, L en ft, resultado en psi y C publicado por manguera: {LAWS["hose.friction"].sources.map(name).join(" · ")}.</dd>
     <dt>Desnivel</dt>
     <dd>
       {method.psiPerMeterOfHeight.toFixed(method.source ? 1 : 3)} psi por metro ·

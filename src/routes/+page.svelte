@@ -1,10 +1,11 @@
 <script lang="ts">
+  import { u } from "$lib/display-units.svelte.ts";
+  import { enduranceLabel } from "$lib/readings.ts";
   import { parseScenario, pathResult, solveScenario, solveScenarioTree, type Scenario, type TreeSegmentResult } from "$hydraulics/scenario.ts";
   import Breakdown from "$lib/components/Breakdown.svelte";
   import BudgetBar from "$lib/components/BudgetBar.svelte";
   import PowerSplit from "$lib/components/PowerSplit.svelte";
   import { powerSplit } from "$hydraulics/power.ts";
-  import { reading } from "$lib/readings.ts";
   import { untrack } from "svelte";
   import EmptyPumpCanvas from "$lib/components/EmptyPumpCanvas.svelte";
   import Canvas from "$lib/components/Canvas.svelte";
@@ -576,10 +577,10 @@
     <table>
       <thead><tr><th></th><th>{methodName}</th>{#if reference}<th>{refName} (comparación)</th>{/if}</tr></thead>
       <tbody>
-        <tr><td>Caudal</td><td>{result.flowGpm.toFixed(1)} gpm</td>{#if reference}<td>{reference.flowGpm.toFixed(1)} gpm</td>{/if}</tr>
-        <tr><td>Accesorios</td><td>{result.terms.some((t) => t.lawId === "appliance.fixed" && t.inputs.lossPsi === null) ? "sin dato" : `${result.fittingLossPsi.toFixed(1)} psi`}</td>{#if reference}<td>{reference.terms.some((t) => t.lawId === "appliance.fixed" && t.inputs.lossPsi === null) ? "sin dato" : `${reference.fittingLossPsi.toFixed(1)} psi`}</td>{/if}</tr>
-        <tr><td>{lineScenario.nozzle.design === "open-end" ? "Presión en la punta" : "Presión en pitón"}</td><td>{reading(result.nozzlePressurePsi)} psi</td>{#if reference}<td>{reading(reference.nozzlePressurePsi)} psi</td>{/if}</tr>
-        {#if !network && lineScenario.nozzle.design !== "open-end"}<tr><td>Presión requerida</td><td>{reading(result.requiredPumpPressurePsi)} psi</td>{#if reference}<td>{reading(reference.requiredPumpPressurePsi)} psi</td>{/if}</tr>{/if}
+        <tr><td>Caudal</td><td>{u.q(result.flowGpm)} {u.flow}</td>{#if reference}<td>{u.q(reference.flowGpm)} {u.flow}</td>{/if}</tr>
+        <tr><td>Accesorios</td><td>{result.terms.some((t) => t.lawId === "appliance.fixed" && t.inputs.lossPsi === null) ? "sin dato" : `${u.p(result.fittingLossPsi)} ${u.pressure}`}</td>{#if reference}<td>{reference.terms.some((t) => t.lawId === "appliance.fixed" && t.inputs.lossPsi === null) ? "sin dato" : `${u.p(reference.fittingLossPsi)} ${u.pressure}`}</td>{/if}</tr>
+        <tr><td>{lineScenario.nozzle.design === "open-end" ? "Presión en la punta" : "Presión en pitón"}</td><td>{u.p(result.nozzlePressurePsi)} {u.pressure}</td>{#if reference}<td>{u.p(reference.nozzlePressurePsi)} {u.pressure}</td>{/if}</tr>
+        {#if !network && lineScenario.nozzle.design !== "open-end"}<tr><td>Presión requerida</td><td>{u.p(result.requiredPumpPressurePsi)} {u.pressure}</td>{#if reference}<td>{u.p(reference.requiredPumpPressurePsi)} {u.pressure}</td>{/if}</tr>{/if}
       </tbody>
     </table>
     <Breakdown terms={result.terms} methodId={scenario.methodId} scenario={lineScenario} />
@@ -593,14 +594,14 @@
 {#snippet pumpPanel(mode: "strip" | "head" | "full" | "bar")}
   <PumpPanel {scenario} result={pumpResult} branched={!!network} balanced={network?.balanced ?? pumpResult.issues.length === 0} onchange={(s) => apply(s, "pump")} strip={mode === "strip"} head={mode === "head"} full={mode === "full"} onOpen={() => select({ kind: "pump" })} />
   {#if scenario.source.tank && mode !== "full"}
-    <div class="tank-strip"><button type="button" onclick={() => { pumpTab = "tank"; select({ kind: "pump" }); }}>Tanque · {scenario.source.tank.remainingGal.toFixed(0)} gal · {scenario.source.tank.remainingGal === 0 ? "vacío" : totalFlow === null ? "autonomía —" : totalFlow === 0 ? "sin consumo" : `${endurance!.toFixed(1)} min`}</button>
+    <div class="tank-strip"><button type="button" onclick={() => { pumpTab = "tank"; select({ kind: "pump" }); }}>Tanque · {scenario.source.tank.remainingGal.toFixed(0)} gal · {scenario.source.tank.remainingGal === 0 ? "vacío" : totalFlow === null ? "autonomía —" : totalFlow === 0 ? "sin consumo" : enduranceLabel(endurance!)}</button>
       {#if clockRunning}<button type="button" onclick={pauseClock}>Pausar</button>{/if}</div>
   {/if}
 {/snippet}
 
 {#snippet summary()}
   {#if !lineScenario.sections.length && network}
-    <div class="empty-summary"><strong>Bomba · {totalFlow === null ? "—" : totalFlow.toFixed(0)} gpm</strong><span>{reading(pumpResult.nodes[0]?.pressurePsi ?? null, 0)} psi · salidas sin manguera</span></div>
+    <div class="empty-summary"><strong>Bomba · {u.q(totalFlow, 0)} {u.flow}</strong><span>{u.p(pumpResult.nodes[0]?.pressurePsi, 0)} {u.pressure} · salidas sin manguera</span></div>
   {:else}
   <div data-tour="budget"><BudgetBar {result} {reference} referenceLabel={refName} openEnd={lineScenario.nozzle.design === "open-end"} line={budgetLine} compact /></div>
   {/if}

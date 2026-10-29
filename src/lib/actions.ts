@@ -1,3 +1,4 @@
+import { u } from "$lib/display-units.svelte.ts";
 import type { Scenario } from "$hydraulics/scenario.ts";
 import * as edit from "$lib/edit.ts";
 import type { Selection } from "$lib/selection.ts";
@@ -108,7 +109,7 @@ export const ACTIONS: Action[] = [
     on: ["section"],
     quick: true,
     menu: true,
-    blocked: (c) => (c.scenario.sections[index(c.target)].lengthM < 2 ? "Muy corto para dividir (mínimo 2 m)" : null),
+    blocked: (c) => (c.scenario.sections[index(c.target)].lengthM < 2 ? `Muy corto para dividir (mínimo ${u.l(2)} ${u.length})` : null),
     run: (c) => ({ scenario: edit.splitSection(c.scenario, index(c.target)), select: c.target as Selection }),
   },
   {
@@ -226,7 +227,7 @@ export const ACTIONS: Action[] = [
   },
   {
     id: "pump.apply-required",
-    label: (c) => c.requiredPsi === null ? "Presión ideal no disponible" : `Poner la presión ideal (${c.requiredPsi.toFixed(0)} psi)`,
+    label: (c) => c.requiredPsi === null ? "Presión ideal no disponible" : `Poner la presión ideal (${u.p(c.requiredPsi, 0)} ${u.pressure})`,
     on: ["pump"],
     menu: true,
     field: true,

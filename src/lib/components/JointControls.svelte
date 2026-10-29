@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { u } from "$lib/display-units.svelte.ts";
   import { jointName } from "$lib/names.ts";
   import { METHODS, type FittingKind } from "$hydraulics/references.ts";
   import { isAuto, joints, type Scenario } from "$hydraulics/scenario.ts";
@@ -17,8 +18,8 @@
     onToggle: (kind: FittingKind) => void;
     /** False where a header above already names the coupling. */
     titled?: boolean;
-    /** The line's flow now, for a stepped allowance's "counts now / doesn't". */
-    flowGpm?: number;
+    /** Local solved flow; null when no operating point is available. */
+    flowGpm?: number | null;
   } = $props();
 
   const j = $derived(joints(scenario)[joint]);
@@ -66,10 +67,10 @@
 
   <p class="note">
     {#if method.fittingLossPsi}
-      Pérdida: {method.fittingLossPsi.adapter} psi fija mientras fluye (CGBVP p. 45).
+      Pérdida: {u.p(method.fittingLossPsi.adapter)} {u.pressure} fija mientras fluye (CGBVP p. 45).
     {:else if method.fittingStep}
       {@const s = method.fittingStep}
-      Pérdida: 0 psi hasta {s.aboveGpm} gpm; {s.lossPsi} psi por encima (regla de 350 gpm, Colorado). Ahora {flowGpm.toFixed(0)} gpm: {flowGpm > s.aboveGpm ? `cuenta ${s.lossPsi} psi` : "no cuenta"}.
+      Pérdida: 0 {u.pressure} hasta {u.q(s.aboveGpm)} {u.flow}; {u.p(s.lossPsi)} {u.pressure} por encima (regla de 350 gpm, Colorado). {#if flowGpm === null}Caudal actual sin resultado.{:else}Ahora {u.q(flowGpm, 0)} {u.flow}: {flowGpm > s.aboveGpm ? `cuenta ${u.p(s.lossPsi)} ${u.pressure}` : "no cuenta"}.{/if}
     {:else}
       Pérdida: sin dato para este método, cuenta 0.
     {/if}

@@ -369,7 +369,7 @@ export function setName(scenario: Scenario, name: string): Scenario {
 
 /** Floor-to-floor height, metres: drawing and snapping only. */
 export function setFloorHeight(scenario: Scenario, floorHeightM: number): Scenario {
-  return { ...scenario, floorHeightM: Math.round(within(floorHeightM, LIMITS.floorHeightM) * 10) / 10 };
+  return { ...scenario, floorHeightM: within(floorHeightM, LIMITS.floorHeightM) };
 }
 
 export const floorOf = (scenario: Scenario) => scenario.floorHeightM ?? 3;

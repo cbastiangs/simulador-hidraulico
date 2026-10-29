@@ -6,6 +6,17 @@
 
 ## 1. Principles
 
+**Display units (owner approved, 2026-10-26):** Ajustes › Vista offers
+independent pressure (psi/bar), flow (US gpm/L/min), and distance (m/ft)
+preferences, saved in this browser. Readings, editable values, gauges,
+chart axes and canvas distance labels follow them. Switching units never
+edits a scenario or adds an undo step. Typed values convert back at the
+screen boundary; rounding is display-only. Small steps use the displayed
+unit (bar controls step by 0.1 and 1 bar); physical large steps (hose lengths and floors) keep their size and
+show the converted label. Diameters remain inches, tanks US gal and speed
+m/s. Published formulas and engraved equipment scales keep their original
+units with an explicit explanation. Old links and files retain m/in/psi/gpm.
+
 1. **Operate equipment like equipment.** A nozzle has a bale you flick, a
    gallonage ring you turn, a pattern collar. A pump has a panel. Never a
    checkbox for an equipment state. **The drawn equipment is optional
@@ -23,6 +34,26 @@
 6. **Honest picture.** Exaggerations are fixed and labelled (§2). Anything
    illustrative rather than computed says so.
 7. **Spanish UI**, CGBVP terms (pitón, tramo, paño, bifurco, desnivel).
+
+**Spatial learning direction (owner, 2026-10-27):** eventually support
+spatial/3D presentation and exercises that connect affected floor area to
+required flow and hose-size judgment, including 2½″ and larger. A top-down
+floor plan is useful independently of 3D; the parked connection diagram
+does not yet define this experience. Exercise interactions and delivery
+order are still to be designed. Keep the NFA reference visibly distinct
+from actual solved delivery and from a prediction of extinguishment.
+
+The [fire-flow training draft](PLAN-fire-flow-training.md) (2026-10-29)
+proposes the estimate/choose/reveal/adjust interaction and its mobile checks;
+these remain planned behaviour, not implemented screens.
+
+**Priority (owner, 2026-10-29):** defer that training view behind the hydraulic
+quality pass, beginning with particles. Changes in solved flow must change
+particle speed without resetting their phase. Consecutive hoses in the same
+hydraulic segment share a clock, including when selection redraws a branch;
+different branches use their own solved flow. Retain fixed volume per particle,
+engine-derived velocity, zero-flow hiding and reduced-motion hiding. This is
+steady-flow visualization, not water-front travel or hose-filling simulation.
 
 ## 2. The canvas
 
@@ -1157,6 +1188,62 @@ measures 44 px; reduced motion hides all particle paths. `pnpm test`,
 `placement-1024.png`, `no-pressure-390.png`, `no-pressure-1024.png`, and
 `reduced-1024.png`. Browser verification, not a real-device study.
 
+### Particle quality pass (2026-10-29)
+
+Found and fixed a timing defect: CSS animation duration was changed while
+the animation remained anchored at the document's time origin. A pressure
+or selector edit therefore reinterpreted all elapsed time at the new rate,
+moving dots abruptly to a different phase.
+
+`src/lib/water-motion.ts` now retains accumulated phase per hydraulic segment
+and changes playback rate from that phase. Consecutive hoses share the
+segment clock; newly drawn paths join it when the selected branch changes.
+Each wye outlet starts its own spatial phase, since its flow can differ from
+the feed. The renderer uses SVG paths and browser animations; one scheduled
+frame applies each edit, with no application-side per-frame loop. Reduced
+motion hides and pauses those animations. Hydraulic laws, fixed volume per
+particle (1.25 US gal), spacing and engine-derived velocity are unchanged.
+
+Browser verification at 390×844 and 1024×844:
+
+- Reduction preset: both hoses carry 102.025 gpm, with equal particle arrival
+  rates and matching clock phases. Gaps are 20.918 and 58.105 world pixels
+  for 2½″ and 1½″ respectively. A live 135→60 psi edit changes speed without
+  resetting phase; sampled animation frames retain continuity.
+- Bifurcada: feed 210.521 gpm equals branches 106.902 + 103.619 gpm; each
+  particle rate matches its own solver output. Closing one nozzle stops its
+  particles and updates the surviving branch and feed. An isolated branch
+  stops independently. Selecting another branch preserves each clock.
+- Closed nozzle, zero supply pressure and empty tank show no particles and
+  retain their distinct flow-state labels. Reopening restores motion.
+- Reduced-motion toggling hides/pauses and resumes particles in step. Zoom
+  preserves rates. A 30 gpm selector rating displays its solved ~33 gpm;
+  a positive ~0.284 gpm flow still animates slowly rather than disappearing.
+- No page errors or horizontal page overflow in either viewport.
+
+Evidence: `/tmp/particle-pass/review.json`, `selection.json`,
+`flow-1024.png`, `flow-390.png`, `branches-1024.png`, `branches-390.png`,
+`closed-1024.png`, `closed-390.png`, `reduced-1024.png`, `reduced-390.png`.
+`pnpm test`, `pnpm typecheck` (zero errors/warnings) and `pnpm build` pass.
+This completes the particle timing/state slice, not the entire hydraulic
+quality gate. The actual station-phone walkthrough, broader representative
+lay review and equipment calibration remain separate work.
+
+**End-to-end hydraulic quality pass (2026-10-29):** a selected hose's friction
+caption and its fitting explanation must use the flow through that section,
+including the sum carried by a shared feed. Never substitute the selected
+terminal nozzle's flow. Nozzle classifications shown on screen must use the
+engine's resolved rating (a smooth-bore tip determines its flow at the nominal
+pressure), even if an imported document retains an older rating field. A
+downhill pressure credit must remain visible in the compact mobile budget,
+where the full legend is absent. These are presentation corrections, not
+changes to the hydraulic laws.
+
+Tank endurance below one minute is displayed in whole seconds, rounded up,
+in both the strip and the tank panel. Do not show `0.0 min` while a positive
+amount of time remains. Empty/unknown/no-consumption states keep their own
+labels; this is formatting of the engine's endurance, not a new tank law.
+
 ### 10.11 Real nozzle selection (2026-10-24)
 
 Before/after comparison moves to backlog; real equipment is next (ROADMAP
@@ -1259,3 +1346,8 @@ Evidence: `/tmp/sim-release/discharges-390.png`, `discharges-1024.png`,
 and `offline-1024.png`.
 Final current-build captures: `/tmp/sim-release/final-390.png` (tank controls)
 and `/tmp/sim-release/final-1024.png` (independent discharge controls).
+
+**Baseline review (2026-10-29):** the pressure-budget accessory legend describes
+the allowance using each accessory’s local flow. A selected nozzle’s flow
+cannot describe all fittings on a branched path; detailed local numbers
+remain in the fitting inspector and formula breakdown.

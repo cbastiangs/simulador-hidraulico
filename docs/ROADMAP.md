@@ -141,8 +141,14 @@ geometry.
   geography (hose length a number on the hose). With every line in the side
   view it adds little until lays grow large (many lines, nested wyes). A
   working version is parked on the `backlog/top-down-view` branch.
-- **No 3D.** Both views draw the same document; height is data, never a
-  pixel position.
+- **3D is a long-term goal (owner, 2026-10-27),** superseding the earlier
+  blanket exclusion. A top-down plan remains a 2D view; adding it does not
+  require a 3D renderer. Views must share the scenario's physical dimensions
+  and elevations rather than deriving hydraulic inputs from screen pixels.
+  The owner wants spatial exercises that help firefighters internalize
+  required flow from affected area and reason about choosing 2½″ or larger
+  hose. This gives a floor-plan view a new purpose beyond the parked
+  connection diagram; its scope and implementation order remain open.
 
 Drawing rules:
 
@@ -329,6 +335,52 @@ Dropped (owner, 2026-10-14): no published source gives a kink's loss.
 ### 7.6 Extinguishment
 
 Its own folder (`src/extinguishment/`), never imported by the hydraulics.
+
+**Current priority (owner, 2026-10-29, status assessment):** pursue flow and
+hose-choice learning together with correctness, equipment fidelity and
+usability of the existing simulator. These are the confirmed goals for the
+next assessment and recommendation. Obstacle-aware deployment is not the
+selected immediate priority. This supersedes the obstacle-first proposal as
+the assessment direction; a specific feature implementation sequence remains
+to be agreed. The real-phone walkthrough remains deferred.
+
+**Learning goal (owner, 2026-10-27):** help firefighters memorize and
+internalize the area-based required-flow convention and develop judgment
+about moving to 2½″ or larger hose. Eventually support spatial/3D views
+(§5). This is a learning goal, not adoption of a universal area-to-diameter
+threshold or a new extinction law. The existing NFA scope and distinction
+between reference demand and solved delivered flow still apply.
+
+**Draft implementation plan (2026-10-29):**
+[Floor area, required flow and hose selection](PLAN-fire-flow-training.md)
+proposes a rectangular plan, estimate/reveal practice and assigned-line flow
+comparison first, followed by spatial routing and eventual 3D. It is a draft,
+not a replacement for the current delivery sequence.
+
+**Deferred (owner, 2026-10-29):** area/flow training, spatial routing and 3D
+wait behind the hydraulic quality pass and station walkthrough. Start with
+particle motion and flow-state readability, then verify representative lays
+and equipment limits. Quality means trustworthy behaviour within supported
+scope; implementing every future hydraulic law is not the entry requirement.
+
+**Quality pass completed within supported scope (2026-10-29):** particle
+timing/state checks followed by [24 numerical scenarios and browser operating
+checks](HYDRAULIC-QUALITY-PASS.md). Corrected local-flow captions, derived
+smooth-bore rating displays, mobile downhill credit and short tank endurance.
+No hydraulic laws changed. **Subsequent owner decision (2026-10-29):** defer
+the actual station-phone walkthrough; preserve its checklist but remove it
+as a prerequisite for further development. The area/flow training draft can
+now be considered as the next feature; implementation is not yet requested.
+3D remains later work.
+
+**Reassessment proposal (2026-10-29):** following the owner's question about
+physical obstacles, the [training draft](PLAN-fire-flow-training.md#1-outcome-and-first-release)
+now proposes a shared spatial document and a minimal one-floor wall/doorway
+routing slice before area/flow practice. Current geometry supports hose
+length, straight-line reach, slack and elevation, not obstacle-aware routing.
+The proposal distinguishes route length from installed hose length and
+geometric corners from hydraulic fittings. It is not yet implementation
+authorization; the phone walkthrough remains deferred.
 
 - Water heated 20→100 °C and boiled absorbs ~2.6 MJ/kg, so ~160 kW per gpm
   at full vaporisation. No measured fireground application efficiency has
@@ -543,7 +595,7 @@ Agreed, in this order; each is usable on its own. Before M3 unless noted.
    coupling, Tab steps through the parts (Ctrl+Z / Ctrl+Y exist).
 5. ✅ **"Mis líneas"** (2026-10-26): named local copies, rename/duplicate/delete
    with deletion undo, autosave, and JSON file export/import beside presets.
-6. **Display units**: bar, L/min, ft at the screen's edge (M1).
+6. **Display units — built 2026-10-27**: bar, L/min, ft at the screen's edge (M1), including controls, canvas labels and chart axes (§10i).
 7. **Leader lines** from a lifted gauge to its coupling (crowded phone
    views).
 8. **UX-05 and UX-06** (`UX.md` §10.7): the toolbar past the canvas edge
@@ -632,8 +684,36 @@ use `simulador.apparatus.v1`. Unreadable stored profiles are not overwritten.
 Verified at 390 and 1024 px: clone/edit/save/apply/reload, profile edits
 independent of the scenario, one-outlet conversion, line/gate preservation,
 occupied-outlet protection and scenario export. M11-5 calibration, intake
-plumbing and partial-valve laws remain open. Next: display units (bar,
-L/min, ft), then a walkthrough on the actual station phone.
+plumbing and partial-valve laws remain open. Display units follow in §10i,
+then a walkthrough on the actual station phone.
+
+## 10i. Display units (2026-10-27)
+
+Ajustes › Vista now saves independent psi/bar, US gpm/L/min and m/ft
+preferences in `view.units.v1`. One app-side conversion layer uses the
+engine's existing exact unit helpers. Numeric controls convert edits back
+to station units; changing preferences never mutates a scenario or creates
+an undo entry. Floor-height input no longer quantizes converted feet to
+tenths of a metre. Readings, gauges, pressure budgets, curve axes, nozzle
+choices, tank-flow readouts and canvas labels follow the selected units.
+
+Source formulas keep their original units, explicitly labelled, with
+pressure results also shown in the selected unit. Engraved equipment scales
+stay in their original units; the adjacent operating readouts convert.
+Diameters stay in inches, tank volumes in US gal, velocities in m/s, and
+stored/shared scenarios remain in m/in/psi/US gpm. Hydraulic laws are unchanged.
+
+Verified at 390 and 1024 px: switching units preserves the scenario exactly;
+10 bar, 50 ft, 10 ft floor height and 400 L/min edits store their converted
+station values; preferences survive reload. Production-build checks cover
+multi-outlet readings against the engine, curve axes, tank-flow labels and
+the selectable nozzle (227 L/min still selects the original 60 gpm setting).
+The numerical tests, type-check and static build pass.
+
+Deferred by owner (2026-10-29): the [real-phone walkthrough](PHONE-WALKTHROUGH.md), a manual checklist
+with an owner feedback template (requested 2026-10-27), not new automated
+tests or a replacement for the in-app tour. Separately collect the missing
+M11-5 tank, LDH diameter and pump-curve evidence for calibration.
 
 ## 11. Decisions (owner, 2026-10-14)
 

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { u } from "$lib/display-units.svelte.ts";
   import { jointName, jointNameIn } from "$lib/names.ts";
   import type { Scenario } from "$hydraulics/scenario.ts";
   import { LAWS, type Term } from "$hydraulics/laws.ts";
@@ -37,6 +38,7 @@
   }
 </script>
 
+<p class="source">Fórmulas en las unidades de su fuente: Q en US gpm, presión en psi, longitudes en ft o m según se indica. El resultado también se muestra en tus unidades.</p>
 <ol class="terms">
   {#each terms as term, i (i)}
     <li>
@@ -44,7 +46,7 @@
         {@const { frictionCoefficient: c, flowGpm: q, lengthFt: l } = term.inputs}
         <span class="name">Fricción, tramo {term.sectionIndex + 1}</span>
         <span class="formula">
-          FL = C × (Q/100)<sup>2</sup> × (L/100) = {f(c, c < 1 ? 3 : 1)} × ({f(q)}/100)<sup>2</sup> × ({f(l)} ft/100)
+          FL = C × (Q/100)<sup>2</sup> × (L/100) = {f(c, c < 1 ? 3 : 1)} × ({f(q)} gpm/100)<sup>2</sup> × ({f(l)} ft/100)
           = <strong>{f(term.valuePsi)} psi</strong>
         </span>
       {:else if term.lawId === "elevation"}
@@ -72,6 +74,7 @@
           NP = NPr × (Q/Qr)<sup>2</sup> = {f(npr, 0)} × ({f(q)}/{f(qr, 0)})<sup>2</sup> = <strong>{f(term.valuePsi)} psi</strong>
         </span>
       {/if}
+      {#if u.pressure !== "psi"}<span>Resultado: <strong>{u.p(term.valuePsi)} {u.pressure}</strong></span>{/if}
       <span class="source">Fuente: {sources(term)}</span>
     </li>
   {/each}

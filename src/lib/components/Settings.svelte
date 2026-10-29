@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { u } from "$lib/display-units.svelte.ts";
   import { isAuto, type Scenario } from "$hydraulics/scenario.ts";
   import type { MethodId } from "$hydraulics/references.ts";
   import * as edit from "$lib/edit.ts";
@@ -70,6 +71,17 @@
 
     <section aria-labelledby="settings-view">
       <h3 id="settings-view">Vista <small>solo en este navegador</small></h3>
+      <div class="field"><span>Presión</span><div class="seg" role="radiogroup" aria-label="Unidad de presión">
+        {#each (["psi", "bar"] as const) as unit}<button type="button" role="radio" aria-checked={u.pressure === unit} class:on={u.pressure === unit} onclick={() => u.set("pressure", unit)}>{unit}</button>{/each}
+      </div></div>
+      <div class="field"><span>Caudal</span><div class="seg" role="radiogroup" aria-label="Unidad de caudal">
+        {#each (["gpm", "L/min"] as const) as unit}<button type="button" role="radio" aria-checked={u.flow === unit} class:on={u.flow === unit} onclick={() => u.set("flow", unit)}>{unit === "gpm" ? "US gpm" : unit}</button>{/each}
+      </div></div>
+      <div class="field"><span>Longitud y altura</span><div class="seg" role="radiogroup" aria-label="Unidad de distancia">
+        {#each (["m", "ft"] as const) as unit}<button type="button" role="radio" aria-checked={u.length === unit} class:on={u.length === unit} onclick={() => u.set("length", unit)}>{unit}</button>{/each}
+      </div></div>
+      <p class="about">Las unidades no cambian la tendida. Diámetros en pulgadas, tanques en US gal y velocidad en m/s. Fórmulas y escalas grabadas conservan las unidades de su fuente.</p>
+      {#if u.error}<p role="status">{u.error}</p>{/if}
       <div class="field">
         <span>Comparar con</span>
         <div class="seg" role="radiogroup" aria-label="Comparar con">

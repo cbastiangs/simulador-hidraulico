@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { u } from "$lib/display-units.svelte.ts";
   import { Tween } from "svelte/motion";
   import type { ScenarioNozzle } from "$hydraulics/scenario.ts";
   import { anatomyOf } from "$lib/nozzle-anatomy.ts";
@@ -113,7 +114,7 @@
    *  physical orientation, so the selected value is read here instead. */
   const toast = $derived.by(() => {
     if (!ringGeo) return null;
-    const w = 30 + 9 * `${nozzle.ratedFlowGpm}`.length;
+    const w = 16 + 9 * u.q(nozzle.ratedFlowGpm, 0).length + 6 * u.flow.length;
     return { x: 14 + w / 2, w, y: 40 };
   });
 
@@ -243,7 +244,7 @@
       <path class="spray" d={`M ${tipX} ${AXIS} L ${tipX + stream.length} ${AXIS - stream.dy} L ${tipX + stream.length} ${AXIS + stream.dy} Z`} />
       <path class="core" d={`M ${tipX} ${AXIS} L ${tipX + stream.length} ${AXIS - stream.core} L ${tipX + stream.length} ${AXIS + stream.core} Z`} />
     {/if}
-    {#if nozzle.open && flowGpm > 0}<text class="flow" x="392" y="168">{flowGpm.toFixed(0)} gpm</text>{/if}
+    {#if nozzle.open && flowGpm > 0}<text class="flow" x="392" y="168">{u.q(flowGpm, 0)} {u.flow}</text>{/if}
 
     <!-- Hose, then the model's own top view at its true proportions
          (nozzle-art/), or the generic handline for anything not drawn yet. -->
@@ -274,7 +275,7 @@
         aria-valuemin={settings[0]}
         aria-valuemax={settings.at(-1)}
         aria-valuenow={nozzle.ratedFlowGpm}
-        aria-valuetext={`${nozzle.ratedFlowGpm} gpm`}
+        aria-valuetext={`${u.q(nozzle.ratedFlowGpm)} ${u.flow}`}
         onpointerdown={(e) => turnDown("ring", e)}
         onpointermove={turnMove}
         onpointerup={turnUp}
@@ -422,11 +423,12 @@
     {#if toast}
       <g class="toast" aria-hidden="true">
         <rect x={toast.x - toast.w / 2} y={toast.y - 13} width={toast.w} height="26" rx="7" />
-        <text x={toast.x} y={toast.y} text-anchor="middle" dominant-baseline="central">{nozzle.ratedFlowGpm} <tspan class="unit">gpm</tspan></text>
+        <text x={toast.x} y={toast.y} text-anchor="middle" dominant-baseline="central">{u.q(nozzle.ratedFlowGpm, 0)} <tspan class="unit">{u.flow}</tspan></text>
       </g>
     {/if}
   </svg>
 
+  <p class="scale-note">Escalas grabadas en gpm y psi; lecturas en {u.flow} y {u.pressure}.</p>
   <div class="readouts">
     {#if shutKind !== "none"}
       <div class="readout" data-tour="manija">
@@ -439,7 +441,7 @@
         <span class="label">{anatomy.flow === "slide-index" ? "Caudal (índice)" : "Anillo"}</span>
         <div class="step">
           <button type="button" aria-label="Caudal menor" disabled={settingIndex === 0} onclick={() => stepSetting(-1)}>‹</button>
-          <b>{nozzle.ratedFlowGpm} <small>gpm</small></b>
+          <b>{u.q(nozzle.ratedFlowGpm, 0)} <small>{u.flow}</small></b>
           <button type="button" aria-label="Caudal mayor" disabled={settingIndex === settings.length - 1} onclick={() => stepSetting(1)}>›</button>
         </div>
       </div>
@@ -466,6 +468,7 @@
 </div>
 
 <style>
+  .scale-note { margin: 4px 0; font-size: 11px; color: var(--muted); }
   .closeup { display: grid; gap: 8px; }
   svg { width: 100%; max-width: 400px; justify-self: center; height: auto; background: var(--band); border-radius: 12px; touch-action: none; user-select: none; }
   .spray, .core, .flow, .tag, .hose, .lug, .swivel, .knurl, .body, .barrel, .grip2, .trim, .ring-body, .ring-num, .mark, .collar, .rib, .tooth, .tooth-rubber, .shadow, .pin, .slide-rail, .index, .pressure-half,

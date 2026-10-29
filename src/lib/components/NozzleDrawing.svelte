@@ -1,6 +1,7 @@
 <script lang="ts">
   import { Tween } from "svelte/motion";
   import type { ScenarioNozzle } from "$hydraulics/scenario.ts";
+  import { smoothBoreFlowGpm } from "$hydraulics/nozzle.ts";
   import { anatomyOf } from "$lib/nozzle-anatomy.ts";
   import { sideArtOf } from "$lib/nozzle-art/index.ts";
 
@@ -43,7 +44,8 @@
   // One 0 → 1 tween; each shutoff reads its own motion out of it.
   const motion = Tween.of(() => (nozzle.open ? 1 : 0), { duration: 220 });
   // An open end has no rating; its stream grows with flow against a typical handline flow.
-  const flow = Tween.of(() => Math.min(flowGpm / (design === "open-end" ? 250 : nozzle.ratedFlowGpm), 1.3), { duration: 300 });
+  const ratedFlow = $derived(design === "smooth-bore" ? smoothBoreFlowGpm(nozzle.tipIn!, nozzle.ratedPressurePsi) : nozzle.ratedFlowGpm);
+  const flow = Tween.of(() => Math.min(flowGpm / (design === "open-end" ? 250 : ratedFlow), 1.3), { duration: 300 });
   const pattern = Tween.of(() => (fog && anatomy.pattern ? nozzle.pattern : 0), { duration: 200 });
 
   // Stations along the axis, hose at 0: valve body to 22, the gallonage ring

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { u } from "$lib/display-units.svelte.ts";
   // A number you can type or step (UX.md §1.2): [−big] [−] value unit [+] [+big].
   // Commits every valid keystroke; an empty or invalid entry is ignored (edit.ts clamps the rest).
   let {
@@ -26,28 +27,41 @@
     onchange: (value: number) => void;
   } = $props();
 
-  const round = (n: number) => Number(n.toFixed(digits));
+  const shownUnit = $derived(u.unit(unit));
+  const shownDigits = $derived(shownUnit !== unit ? Math.max(unit === "psi" ? 2 : 1, digits) : digits);
+  const shownValue = $derived(u.to(value, unit));
+  const shownStep = $derived(unit === "psi" && shownUnit === "bar" ? step / 10 : step);
+  const round = (n: number) => Number(n.toFixed(shownDigits));
+  const change = (n: number) => onchange(u.from(n, unit));
+  const barSteps = $derived(unit === "psi" && shownUnit === "bar");
+  const largeLabel = $derived(bigStep && barSteps ? String(bigStep.size / 10)
+    : bigStep && shownUnit !== unit && Number.isFinite(Number(bigStep.label)) ? String(round(u.to(bigStep.size, unit))) : bigStep?.label);
+  function stepLarge(direction: number) {
+    if (!bigStep) return;
+    if (barSteps) change(round(shownValue + direction * bigStep.size / 10));
+    else onchange(value + direction * bigStep.size);
+  }
 </script>
 
 <div class="field" class:dark class:compact>
   {#if !hideLabel}<span class="label">{label}</span>{/if}
   <div class="row">
-    {#if bigStep}<button type="button" onclick={() => onchange(round(value - bigStep.size))}>−{bigStep.label}</button>{/if}
-    <button type="button" aria-label={`Bajar ${step} ${unit}`} onclick={() => onchange(round(value - step))}>−</button>
+    {#if bigStep}<button type="button" onclick={() => stepLarge(-1)}>−{largeLabel}</button>{/if}
+    <button type="button" aria-label={`Bajar ${shownStep} ${shownUnit}`} onclick={() => change(round(shownValue - shownStep))}>−</button>
     <input
       type="number"
       inputmode="decimal"
-      value={round(value)}
-      {step}
+      value={round(shownValue)}
+      step={shownStep}
       aria-label={label}
       oninput={(e) => {
         const n = e.currentTarget.valueAsNumber;
-        if (Number.isFinite(n)) onchange(n);
+        if (Number.isFinite(n)) change(n);
       }}
     />
-    <span class="unit">{unit}</span>
-    <button type="button" aria-label={`Subir ${step} ${unit}`} onclick={() => onchange(round(value + step))}>+</button>
-    {#if bigStep}<button type="button" onclick={() => onchange(round(value + bigStep.size))}>+{bigStep.label}</button>{/if}
+    <span class="unit">{shownUnit}</span>
+    <button type="button" aria-label={`Subir ${shownStep} ${shownUnit}`} onclick={() => change(round(shownValue + shownStep))}>+</button>
+    {#if bigStep}<button type="button" onclick={() => stepLarge(1)}>+{largeLabel}</button>{/if}
   </div>
 </div>
 

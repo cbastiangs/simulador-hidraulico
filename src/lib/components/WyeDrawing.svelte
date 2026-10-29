@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { u } from "$lib/display-units.svelte.ts";
   // A gated wye on the side-view canvas (UX.md §2 "Branched lays"), in
   // screen px with the flow to the right, drawn as one reads from the side:
   // the inlet swivel with its rocker lugs, the round casting, the outlets
@@ -43,7 +44,7 @@
     {@const sp = spill(n)}
     {#if sp && sp.gpm > 0}
       <path class="spill" d={`M 24 ${-6 - 4 * n} Q 44 ${-12 - 4 * n} 58 ${8 - 4 * n} L 50 ${14 - 4 * n} Q 40 ${2 - 4 * n} 24 ${-2 - 4 * n} Z`} />
-      <text class="spill-tag" x="40" y={-14 - 4 * n}>{sp.gpm.toFixed(0)} gpm</text>
+      <text class="spill-tag" x="40" y={-14 - 4 * n}>{u.q(sp.gpm, 0)} {u.flow}</text>
     {:else if sp}
       <rect class="cap" x="23" y={-6 - 4 * n} width="3" height="12" rx="1" />
     {/if}
