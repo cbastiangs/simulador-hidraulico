@@ -1351,3 +1351,29 @@ and `/tmp/sim-release/final-1024.png` (independent discharge controls).
 the allowance using each accessory’s local flow. A selected nozzle’s flow
 cannot describe all fittings on a branched path; detailed local numbers
 remain in the fitting inspector and formula breakdown.
+
+### NFA practice: first delivery (2026-10-29)
+
+Owner approved continuing from the quality baseline to the area/flow exercise.
+A header/menu entry opens **Práctica NFA**, a scrollable dialog with a
+proportional, dimensioned rectangular floor and hatched involvement. Numeric
+length, width and percentage controls are the first editing surface; spatial
+routing and draggable plan handles remain later work. **Volver a la tendida**
+closes it so the existing equipment controls remain the way to operate a lay.
+Reopening preserves session guesses/reveal state; loading another document or
+changing dimensions/involvement clears them. **Comprobar**, **Reintentar** and
+**Explorar** provide estimate/reveal/retry and immediate comparison modes.
+
+Assignments explicitly select terminal nozzles and attack/confinement/backup
+roles. Empty outlets and open ends are excluded. Show closed lines as zero
+and withhold aggregate comparison for unavailable selected results. NFA is a
+one-floor training reference for the combined lines, never a tactical pass.
+Keep its applicability context and source beside the worked calculation.
+Area labels use m²/ft², and guesses convert at the display boundary.
+
+A versioned app document wraps the hydraulic scenario and optional exercise.
+Legacy bare scenarios migrate on read; documents without practice may still
+export as bare scenarios. One undo history includes exercise facts and
+assignment cleanup after equipment replacement/removal. Guesses, reveal mode
+and dialog visibility are not saved. The published 40×30 ft example at 25%
+is the first exercise preset, using the existing generic diameter lay.

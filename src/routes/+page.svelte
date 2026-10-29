@@ -1,7 +1,7 @@
 <script lang="ts">
   import { u } from "$lib/display-units.svelte.ts";
   import { enduranceLabel } from "$lib/readings.ts";
-  import { parseScenario, pathResult, solveScenario, solveScenarioTree, type Scenario, type TreeSegmentResult } from "$hydraulics/scenario.ts";
+  import { pathResult, solveScenario, solveScenarioTree, type Scenario, type TreeSegmentResult } from "$hydraulics/scenario.ts";
   import Breakdown from "$lib/components/Breakdown.svelte";
   import BudgetBar from "$lib/components/BudgetBar.svelte";
   import PowerSplit from "$lib/components/PowerSplit.svelte";
@@ -35,25 +35,37 @@
   import { drainTank, tankMinutes } from "$hydraulics/tank.ts";
   import { workingLay, saveWorking, downloadScenario } from "$lib/library.ts";
   import { LESSONS } from "$lib/lessons.ts";
+  import { parseDocument, wrapScenario, withScenario, type AppDocument, type Exercise } from "$lib/document.ts";
+  import FireFlowPractice from "$lib/components/FireFlowPractice.svelte";
+  import { feetToMeters } from "$hydraulics/units.ts";
   import * as pieces from "$lib/pieces.ts";
 
   // Built to docs/design/main-screen.html (UX.md §6).
   // Presets are parsed like any outside document: the same gate as a share link.
   // The first lay a visitor sees and the welcome tour runs on (UX.md §8.4).
   const DEFAULT_PRESET = "bifurcada";
-  const files = import.meta.glob("/data/presets/*.json", { eager: true, import: "default" });
+  const files = import.meta.glob(["/data/presets/*.json", "/data/exercises/*.json"], { eager: true, import: "default" });
   const presets = Object.entries(files)
-    .map(([path, doc]) => ({ id: path.split("/").pop()!.replace(".json", ""), scenario: parseScenario(doc) }))
+    .map(([path, doc]) => ({ id: path.split("/").pop()!.replace(".json", ""), scenario: parseDocument(doc) }))
     .sort((a, b) => (a.id === DEFAULT_PRESET ? -1 : b.id === DEFAULT_PRESET ? 1 : a.id.localeCompare(b.id)));
 
   /** The preset loaded last; null when the scenario came from a link or a paste. */
   let presetId = $state<string | null>(presets[0].id);
   /** What "Reiniciar este escenario" returns to: the preset, link or paste loaded last. */
-  let base: Scenario = $state.raw(presets[0].scenario);
+  let base: AppDocument = $state.raw(presets[0].scenario);
   // Counts loads, so reloading the same preset also refits the canvas.
   let loads = $state(0);
   // Replaced whole by each edit (lib/edit.ts), never mutated in place.
-  let scenario: Scenario = $state.raw(presets[0].scenario);
+  let activeDocument: AppDocument = $state.raw(presets[0].scenario);
+  const scenario = $derived(activeDocument.scenario);
+  let practiceOpen = $state(false);
+  function openPractice() { practiceOpen = true; if (scenarioMenu) scenarioMenu.open = false; }
+  function changeExercise(exercise: Exercise | undefined, key = "") {
+    applyDocument({ ...activeDocument, exercise }, key);
+  }
+  function addExercise() {
+    changeExercise({ lengthM: feetToMeters(40), widthM: feetToMeters(30), involvedFraction: 0.25, assignments: [] });
+  }
   // Nothing is selected until the user taps something (UX.md §2 "Selecting").
   let selection: Selection | null = $state(null);
   /** A branched lay's drawn line: one branch id per wye, from the pump to a nozzle (UX.md §2). */
@@ -128,21 +140,28 @@
   // with the same key (one drag, one typed field) is one step.
   const HISTORY_MAX = 100;
   const BURST_MS = 600;
-  let past: Scenario[] = $state.raw([]);
-  let future: Scenario[] = $state.raw([]);
+  let past: AppDocument[] = $state.raw([]);
+  let future: AppDocument[] = $state.raw([]);
   let burst = { key: "", at: 0 };
 
   function apply(next: Scenario, key = "") {
     if (next === scenario) return;
+    const updated = withScenario(activeDocument, next);
+    const removed = (activeDocument.exercise?.assignments.length ?? 0) - (updated.exercise?.assignments.length ?? 0);
+    applyDocument(updated, key);
+    if (removed > 0) say("Práctica NFA: cambió un pitón asignado. Revisa las líneas que participan.");
+  }
+  function applyDocument(next: AppDocument, key = "") {
+    if (next === activeDocument) return;
     const oldTank = scenario.source.tank;
     advanceClock();
-    if (oldTank && next.source.tank === oldTank) next = { ...next, source: { ...next.source, tank: scenario.source.tank } };
+    if (oldTank && next.scenario.source.tank === oldTank) next = { ...next, scenario: { ...next.scenario, source: { ...next.scenario.source, tank: scenario.source.tank } } };
     const now = performance.now();
     const sameBurst = key !== "" && key === burst.key && now - burst.at < BURST_MS;
-    if (!sameBurst) past = [...past.slice(-(HISTORY_MAX - 1)), scenario];
+    if (!sameBurst) past = [...past.slice(-(HISTORY_MAX - 1)), activeDocument];
     burst = { key, at: now };
     future = [];
-    scenario = next;
+    activeDocument = next;
   }
 
   /** Keeps the selection pointing at something that still exists. */
@@ -181,8 +200,8 @@
   function undo() {
     pauseClock();
     if (past.length === 0) return;
-    future = [scenario, ...future];
-    scenario = past[past.length - 1];
+    future = [activeDocument, ...future];
+    activeDocument = past[past.length - 1];
     past = past.slice(0, -1);
     burst = { key: "", at: 0 };
     keepSelection();
@@ -191,8 +210,8 @@
   function redo() {
     pauseClock();
     if (future.length === 0) return;
-    past = [...past, scenario];
-    scenario = future[0];
+    past = [...past, activeDocument];
+    activeDocument = future[0];
     future = future.slice(1);
     burst = { key: "", at: 0 };
     keepSelection();
@@ -315,8 +334,10 @@
     if (scenarioMenu) scenarioMenu.open = false;
     pauseClock();
     presetId = id;
+    burst = { key: "", at: 0 };
     loads += 1;
-    scenario = base = presets.find((p) => p.id === id)!.scenario;
+    practiceOpen = !!presets.find(p => p.id === id)?.scenario.exercise;
+    activeDocument = base = presets.find((p) => p.id === id)!.scenario;
     selection = null;
     selectedPath = [];
     past = [];
@@ -328,10 +349,10 @@
   // refit the canvas; a preset starts a fresh history.
   let scenarioMenu: HTMLDetailsElement | undefined = $state();
   /** Changed since the preset was loaded: what "Reiniciar" would undo. */
-  const edited = $derived(scenario !== base);
+  const edited = $derived(activeDocument !== base);
   function newLine() {
     pauseClock();
-    apply(edit.blankLine(scenario));
+    applyDocument(wrapScenario(edit.blankLine(scenario)));
     selectedPath = [];
     loads += 1;
     deselect();
@@ -339,14 +360,14 @@
   }
   function resetPreset() {
     pauseClock();
-    apply(base);
+    applyDocument(base);
     selectedPath = [];
     loads += 1;
     deselect();
     if (scenarioMenu) scenarioMenu.open = false;
   }
 
-  // Copy, paste and links (lib/share.ts, UX.md §4): only the scenario travels.
+  // Copy, paste and links: the document travels; guesses and view settings stay local.
   let notice = $state("");
   /** A button in the notice, e.g. the tour offered to a first visit that came by a link. */
   let noticeAction = $state<{ label: string; run: () => void } | null>(null);
@@ -358,15 +379,17 @@
     noticeTimer = setTimeout(() => ((notice = ""), (noticeAction = null)), action ? 8000 : 3000);
   }
   /** A scenario from outside becomes what Reiniciar returns to; a paste is an undo step, a link opens fresh. */
-  function loadShared(next: Scenario, undoable: boolean) {
+  function loadShared(next: AppDocument, undoable: boolean) {
     pauseClock();
-    if (undoable) apply(next);
+    if (undoable) applyDocument(next);
     else {
-      scenario = next;
+      activeDocument = next;
       past = [];
       future = [];
     }
     base = next;
+    burst = { key: "", at: 0 };
+    practiceOpen = !!next.exercise;
     presetId = null;
     selectedPath = [];
     loads += 1;
@@ -383,7 +406,7 @@
       loadShared(next, undoable);
       opened = true;
       // A first visit by a link is offered the tour rather than shown it over the lay it was sent (UX.md §8.4).
-      say(`Abierto desde el enlace: ${next.name}`, tourSeen() ? null : { label: "¿Primera vez? Ver recorrido", run: startTour });
+      say(`Abierto desde el enlace: ${next.scenario.name}`, tourSeen() ? null : { label: "¿Primera vez? Ver recorrido", run: startTour });
     } catch (error) {
       say(error instanceof share.ShareError ? error.message : "No se pudo abrir el enlace.");
     }
@@ -419,7 +442,7 @@
   let pasteError = $state("");
   async function copy(kind: "link" | "text") {
     if (scenarioMenu) scenarioMenu.open = false;
-    const text = kind === "link" ? await share.linkOf(scenario, location.href) : share.toText(scenario);
+    const text = kind === "link" ? await share.linkOf(activeDocument, location.href) : share.toText(activeDocument);
     try {
       await navigator.clipboard.writeText(text);
       say(kind === "link" ? "Enlace copiado: quien lo abra ve este escenario" : "Escenario copiado como texto");
@@ -438,7 +461,7 @@
       const next = await share.fromText(text);
       textMode = null;
       loadShared(next, true);
-      say(`Escenario pegado: ${next.name}`);
+      say(`Escenario pegado: ${next.scenario.name}`);
     } catch (error) {
       pasteError = error instanceof share.ShareError ? error.message : "No se pudo abrir.";
     }
@@ -452,11 +475,11 @@
   let autoSaveEnabled = true;
   $effect(() => {
     if (!storageReady) return;
-    const current = scenario;
+    const current = activeDocument;
     const timer = setTimeout(() => persist(current), Math.max(100, 1000 - (Date.now() - lastSavedAt)));
     return () => clearTimeout(timer);
   });
-  function persist(current = scenario) {
+  function persist(current = activeDocument) {
     if (!storageReady || !autoSaveEnabled) return;
     try { saveWorking(current); lastSavedAt = Date.now(); saveStatus = "Última tendida guardada automáticamente en este navegador"; }
     catch { saveStatus = "No se pudo guardar automáticamente. Exporta un archivo para conservar tu trabajo."; }
@@ -465,8 +488,8 @@
     if (!file) return;
     try {
       if (file.size > 1_000_000) throw new Error("El archivo supera 1 MB.");
-      const next = parseScenario(JSON.parse(await file.text()));
-      loadShared(next, true); say(`Archivo abierto: ${next.name}`);
+      const next = parseDocument(JSON.parse(await file.text()));
+      loadShared(next, true); say(`Archivo abierto: ${next.scenario.name}`);
     } catch { say("No se pudo abrir: el archivo debe contener un escenario JSON válido de hasta 1 MB."); }
     if (fileInput) fileInput.value = "";
   }
@@ -483,14 +506,14 @@
     if (!tank || totalFlow === null) { clockRunning = false; return; }
     const next = drainTank(tank, totalFlow, (now - lastTick) / 1000);
     lastTick = now;
-    scenario = { ...scenario, source: { ...scenario.source, tank: next } };
+    activeDocument = { ...activeDocument, scenario: { ...scenario, source: { ...scenario.source, tank: next } } };
     if (next.remainingGal === 0) clockRunning = false;
   }
   function pauseClock() { advanceClock(); clockRunning = false; }
   function toggleClock() {
     if (clockRunning) return pauseClock();
     if (!scenario.source.tank?.remainingGal || totalFlow === null || totalFlow <= 0) return;
-    past = [...past.slice(-(HISTORY_MAX - 1)), scenario]; future = [];
+    past = [...past.slice(-(HISTORY_MAX - 1)), activeDocument]; future = [];
     lastTick = performance.now(); clockRunning = true;
   }
   function changeTank(next: Scenario) { pauseClock(); apply(next); }
@@ -515,6 +538,7 @@
 
 {#snippet line()}
   <section class="line-tools" aria-label="Línea">
+    <button type="button" class="practice-entry" onclick={openPractice}>{activeDocument.exercise ? "Continuar práctica NFA" : "Práctica NFA · área y caudal"}</button>
     {#if lesson}<aside class="lesson"><strong>{lesson.question}</strong><p>{lesson.action}</p></aside>{/if}
     <h2>Línea</h2>
     <label class="field">
@@ -621,15 +645,16 @@
         <p class="save-status">{saveStatus}</p>
         <hr />
         <span class="menu-title">Empezar desde</span>
+        <button type="button" onclick={openPractice}>Abrir práctica de esta tendida</button>
         {#each presets as p (p.id)}
-          <button type="button" class:on={p.id === presetId} aria-current={p.id === presetId} onclick={() => choosePreset(p.id)}>{p.scenario.name}</button>
+          <button type="button" class:on={p.id === presetId} aria-current={p.id === presetId} onclick={() => choosePreset(p.id)}>{p.scenario.scenario.name}</button>
         {/each}
         <button type="button" class="blank" onclick={newLine}>Línea en blanco</button>
         <hr />
         <button type="button" onclick={() => copy("link")}>Copiar enlace</button>
         <button type="button" onclick={() => copy("text")}>Copiar como texto</button>
         <button type="button" onclick={paste}>Pegar escenario…</button>
-        <button type="button" onclick={() => downloadScenario(scenario)}>Exportar archivo (.json)</button>
+        <button type="button" onclick={() => downloadScenario(activeDocument)}>Exportar archivo (.json)</button>
         <button type="button" onclick={() => { scenarioMenu!.open = false; fileInput?.click(); }}>Importar archivo…</button>
         <hr />
         <button type="button" disabled={!edited} title={edited ? undefined : "Sin cambios desde que se cargó"} onclick={resetPreset}>Reiniciar este escenario</button>
@@ -704,7 +729,7 @@
 </div>
 
 <input class="file-input" type="file" accept=".json,application/json" bind:this={fileInput} onchange={e => importFile(e.currentTarget.files?.[0])} aria-label="Importar archivo de escenario" />
-<SavedLays open={libraryOpen} {scenario} onOpen={s => loadShared(s, true)} onClose={() => libraryOpen = false} />
+<SavedLays open={libraryOpen} scenario={activeDocument} onOpen={s => loadShared(s, true)} onClose={() => libraryOpen = false} />
 <ScenarioText mode={textMode} text={textMode === "copy" ? textCopy : ""} error={pasteError} onOpen={openPasted} onClose={() => (textMode = null)} />
 {#if notice}
   <div class="notice" role="status">
@@ -713,6 +738,8 @@
   </div>
 {/if}
 <Tour running={touring} {phone} {scenario} {selection} onFit={() => (fitSignal += 1)} onDeselect={deselect} onMenu={(open) => scenarioMenu && (scenarioMenu.open = open)} onEnd={() => (touring = false)} />
+
+<FireFlowPractice open={practiceOpen} doc={activeDocument} {result} {network} resetKey={loads} onClose={() => practiceOpen = false} onAdd={addExercise} onchange={changeExercise} />
 
 <Settings
   open={settingsOpen}

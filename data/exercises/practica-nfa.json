@@ -1,0 +1,43 @@
+{
+  "schema": "simulador-hidraulico/document",
+  "version": 1,
+  "scenario": {
+    "schema": "simulador-hidraulico/scenario",
+    "version": 1,
+    "name": "Práctica NFA · área y caudal",
+    "methodId": "physical",
+    "source": {
+      "kind": "fixed-pressure",
+      "pressurePsi": 125
+    },
+    "sections": [
+      {
+        "hoseSizeId": "1-1/2",
+        "diameterIn": 1.5,
+        "frictionCoefficient": 24,
+        "lengthM": 30,
+        "endElevationM": 0
+      }
+    ],
+    "nozzle": {
+      "kind": "fixed-orifice",
+      "specId": "fog-100",
+      "settingsGpm": [],
+      "ratedFlowGpm": 100,
+      "ratedPressurePsi": 100,
+      "pattern": 0.25,
+      "open": true
+    }
+  },
+  "exercise": {
+    "lengthM": 12.192,
+    "widthM": 9.144,
+    "involvedFraction": 0.25,
+    "assignments": [
+      {
+        "path": [],
+        "role": "attack"
+      }
+    ]
+  }
+}

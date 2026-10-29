@@ -1,10 +1,11 @@
-import { parseScenario, ScenarioError, type Scenario } from "$hydraulics/scenario.ts";
+import { ScenarioError } from "$hydraulics/scenario.ts";
+import { parseDocument, portableDocument, type AppDocument } from "$lib/document.ts";
 
 /**
  * Copy, paste and share links (ROADMAP §10e item 2, UX.md §4 "One Escenario
  * menu"). The scenario document is the only thing that travels: the lay,
- * its method, floor height and fittings mode, never the viewer's Vista
- * settings (owner, 2026-10-18). Whatever comes in passes `parseScenario`,
+ * its method, floor height, fittings mode and optional exercise, never guesses or Vista
+ * settings (owner, 2026-10-18). Whatever comes in passes `parseDocument`,
  * the same gate as the presets.
  *
  * A link carries the document in the URL's fragment, so it never reaches a
@@ -13,7 +14,7 @@ import { parseScenario, ScenarioError, type Scenario } from "$hydraulics/scenari
  * no CompressionStream.
  */
 
-export const toText = (scenario: Scenario) => JSON.stringify(scenario, null, 2);
+export const toText = (scenario: AppDocument) => JSON.stringify(portableDocument(scenario), null, 2);
 
 const toBase64Url = (bytes: Uint8Array) => {
   let s = "";
@@ -31,13 +32,13 @@ async function pipe(bytes: Uint8Array, stream: CompressionStream | Decompression
 }
 
 /** The fragment that rebuilds this scenario, without the "#". */
-export async function fragmentOf(scenario: Scenario): Promise<string> {
-  const json = new TextEncoder().encode(JSON.stringify(scenario));
+export async function fragmentOf(scenario: AppDocument): Promise<string> {
+  const json = new TextEncoder().encode(JSON.stringify(portableDocument(scenario)));
   if (typeof CompressionStream === "undefined") return `j=${toBase64Url(json)}`;
   return `e=${toBase64Url(await pipe(json, new CompressionStream("deflate-raw")))}`;
 }
 
-export async function linkOf(scenario: Scenario, base: string): Promise<string> {
+export async function linkOf(scenario: AppDocument, base: string): Promise<string> {
   return `${base.split("#")[0]}#${await fragmentOf(scenario)}`;
 }
 
@@ -45,7 +46,7 @@ export async function linkOf(scenario: Scenario, base: string): Promise<string> 
 export class ShareError extends Error {}
 
 /** The scenario in a link's fragment ("#e=…", "#j=…"), or null when the fragment carries none. */
-export async function fromFragment(fragment: string): Promise<Scenario | null> {
+export async function fromFragment(fragment: string): Promise<AppDocument | null> {
   const m = /(?:^#?|&)([ej])=([A-Za-z0-9_-]+)/.exec(fragment);
   if (!m) return null;
   let json: string;
@@ -60,7 +61,7 @@ export async function fromFragment(fragment: string): Promise<Scenario | null> {
   return fromJson(json);
 }
 
-function fromJson(json: string): Scenario {
+function fromJson(json: string): AppDocument {
   let value: unknown;
   try {
     value = JSON.parse(json);
@@ -68,7 +69,7 @@ function fromJson(json: string): Scenario {
     throw new ShareError("No es un escenario: el texto no es JSON válido.");
   }
   try {
-    return parseScenario(value);
+    return parseDocument(value);
   } catch (error) {
     // The parser's wording is the engine's (English); the person gets the field it stopped at.
     if (error instanceof ScenarioError) {
@@ -79,7 +80,7 @@ function fromJson(json: string): Scenario {
 }
 
 /** A pasted text: the scenario's JSON, or a link to one. */
-export async function fromText(text: string): Promise<Scenario> {
+export async function fromText(text: string): Promise<AppDocument> {
   const t = text.trim();
   if (!t) throw new ShareError("No hay nada que pegar.");
   if (t.startsWith("{")) return fromJson(t);

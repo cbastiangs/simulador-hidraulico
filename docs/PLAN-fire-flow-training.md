@@ -1,4 +1,9 @@
-# Draft: floor area, required flow and hose selection
+# Floor area, required flow and hose selection
+
+> Current authorization (2026-10-29): implement the first area/flow exercise
+> after the completed quality checkpoint. ROADMAP current delivery and UX.md
+> define the selected first UI and supersede the obstacle-first proposal below.
+> The remaining proposal is retained as future design context.
 
 > 2026-10-29. Requested plan, not an implementation or an approved release
 > schedule. **Sequencing update, 2026-10-29:** the hydraulic quality pass is
@@ -12,7 +17,7 @@
 
 ## 1. Outcome and first release
 
-**Reassessment proposal (2026-10-29, following the owner's question about
+**Historical reassessment proposal (superseded for this delivery; 2026-10-29, following the owner's question about
 physical obstacles):** put a minimal obstacle-aware deployment slice before
 the area/flow exercise. This supersedes the proposed delivery order in §6
 and §8 below; those sections retain the training-feature detail. This is a

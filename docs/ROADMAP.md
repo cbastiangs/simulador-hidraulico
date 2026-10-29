@@ -856,3 +856,27 @@ are imported in `docs/reference/vehicles/plt11/`).
     save/load and the state crossing are needed under all three, so React
     removes the bridge boilerplate, not the domain work. The licence
     question (PLAN §1) is still the open one, not the stack.
+
+## Current delivery: area/flow practice (2026-10-29)
+
+After the verified quality checkpoint, the owner requested the next step:
+implement the first estimate/reveal/selected-delivery exercise, including
+compatible saving/sharing. This selects learning plus simulator quality ahead
+of the earlier obstacle-first proposal. The first UI uses a dimensioned floor
+in a practice dialog alongside the existing lay editor (UX.md); routing,
+3D, dimension dragging and a larger exercise catalog remain later work.
+
+**Built:** `data/exercises/practica-nfa.json` combines the published 40×30 ft
+floor at 25% involvement (100 gpm reference) with the generic diameter lay:
+30 m of 1½″, C=24, 125 psi ideal source and a generic fixed 100 gpm @ 100 psi
+nozzle. Delivery is 100.5558 gpm; changing to 2½″ gives 110.7190 gpm with the
+same nozzle and source. Full involvement changes reference demand to 400 gpm,
+not equipment delivery. These are teaching inputs, not station calibration.
+
+The app-owned `simulador-hidraulico/document` version 1 contains the existing
+hydraulic scenario plus optional exercise dimensions, involvement and unique
+terminal-path/role assignments. Bare hydraulic documents migrate on read;
+exports without an exercise retain the old format. Inputs allow floor sides
+0.1–1000 m and fraction 0–1 (editor bounds, not applicability limits). The
+same undo history carries both parts. No new hydraulic or NFA law was added.
+Verification is recorded in [NFA-EXERCISE-REVIEW.md](NFA-EXERCISE-REVIEW.md).

@@ -1,7 +1,7 @@
 <script lang="ts">
-  import type { Scenario } from "$hydraulics/scenario.ts";
+  import type { AppDocument } from "$lib/document.ts";
   import { readLibrary, writeLibrary, downloadScenario, type SavedLay } from "$lib/library.ts";
-  let { open, scenario, onOpen, onClose }: { open: boolean; scenario: Scenario; onOpen: (s: Scenario) => void; onClose: () => void } = $props();
+  let { open, scenario, onOpen, onClose }: { open: boolean; scenario: AppDocument; onOpen: (s: AppDocument) => void; onClose: () => void } = $props();
   let dialog: HTMLDialogElement | undefined = $state();
   let rows = $state<SavedLay[]>([]);
   let name = $state("");
@@ -10,7 +10,7 @@
   let ready = $state(false);
   $effect(() => {
     if (open && dialog && !dialog.open) {
-      name = scenario.name; message = ""; removed = null;
+      name = scenario.scenario.name; message = ""; removed = null;
       try { rows = readLibrary(); ready = true; }
       catch { ready = false; message = "No se pudieron leer las líneas guardadas. Puedes exportar la tendida actual; no se sobrescribirá la biblioteca."; }
       dialog.showModal();
@@ -20,14 +20,14 @@
     try { writeLibrary(next); rows = next; message = text; return true; }
     catch { message = "No se pudo guardar en este navegador. Exporta un archivo para conservar la línea."; return false; }
   }
-  function save(s: Scenario, title: string) {
+  function save(s: AppDocument, title: string) {
     if (!title.trim()) return;
-    const copy = { ...s, name: title.trim().slice(0, 200) };
-    store([{ id: crypto.randomUUID?.() ?? Array.from(crypto.getRandomValues(new Uint32Array(4)), n => n.toString(16)).join("-"), name: copy.name, updatedAt: new Date().toISOString(), scenario: copy }, ...rows], "Copia guardada en este navegador.");
+    const copy = { ...s, scenario: { ...s.scenario, name: title.trim().slice(0, 200) } };
+    store([{ id: crypto.randomUUID?.() ?? Array.from(crypto.getRandomValues(new Uint32Array(4)), n => n.toString(16)).join("-"), name: copy.scenario.name, updatedAt: new Date().toISOString(), scenario: copy }, ...rows], "Copia guardada en este navegador.");
   }
   function rename(row: SavedLay, title: string) {
     if (!title.trim() || title.trim() === row.name) return;
-    store(rows.map(r => r.id === row.id ? { ...r, name: title.trim(), scenario: { ...r.scenario, name: title.trim() }, updatedAt: new Date().toISOString() } : r), "Nombre actualizado.");
+    store(rows.map(r => r.id === row.id ? { ...r, name: title.trim(), scenario: { ...r.scenario, scenario: { ...r.scenario.scenario, name: title.trim() } }, updatedAt: new Date().toISOString() } : r), "Nombre actualizado.");
   }
 </script>
 <dialog bind:this={dialog} onclose={onClose} onclick={e => e.target === dialog && onClose()} aria-labelledby="saved-title">
