@@ -5,6 +5,7 @@
   import * as edit from "$lib/edit.ts";
   import { METHOD_IDS, METHOD_LABELS } from "$lib/methods.ts";
   import NumberField from "$lib/components/NumberField.svelte";
+  import { currentVersion } from "$lib/novedades.ts";
 
   // "Ajustes" (UX.md §10.1): choices about the whole simulation, not about a
   // piece. Escenario is saved with the lay (an undo step each); Vista stays
@@ -103,6 +104,7 @@
 
     <section aria-labelledby="settings-about">
       <h3 id="settings-about">Acerca de</h3>
+      {#if currentVersion}<p class="about">Versión {currentVersion}. Novedades en el menú Escenario.</p>{/if}
       <p class="about">© 2026 Sebastián Gonzales. Todos los derechos reservados sobre el código y la documentación originales. El modelo hidráulico se compila de fuentes citadas en cada valor (manual CGBVP 2019, Colorado DFPC y otras), que pertenecen a sus autores. Consultas sobre licencias: <a href="mailto:sebasgonsot@gmail.com">sebasgonsot@gmail.com</a>.</p>
     </section>
   </div>

@@ -32,6 +32,8 @@
   import TankPanel from "$lib/components/TankPanel.svelte";
   import SavedLays from "$lib/components/SavedLays.svelte";
   import Offline from "$lib/components/Offline.svelte";
+  import Novedades from "$lib/components/Novedades.svelte";
+  import { markSeen, unreadOnOpen, type Release } from "$lib/novedades.ts";
   import { drainTank, tankMinutes } from "$hydraulics/tank.ts";
   import { workingLay, saveWorking, downloadScenario } from "$lib/library.ts";
   import { LESSONS } from "$lib/lessons.ts";
@@ -309,6 +311,11 @@
     } catch {}
   }
   let settingsOpen = $state(false);
+  // Novedades (UX.md §8.6): once after an update, or from the Escenario menu.
+  let novedadesOpen = $state(false);
+  let unread = $state<Release[]>([]);
+  function openNovedades() { if (scenarioMenu) scenarioMenu.open = false; unread = []; novedadesOpen = true; }
+  function closeNovedades() { novedadesOpen = false; unread = []; markSeen(); }
   const comparing = $derived(compareId !== null && compareId !== scenario.methodId ? compareId : null);
   const referenceNetwork = $derived(comparing && network ? solveScenarioTree(scenario, comparing) : null);
   const reference = $derived(comparing ? referenceNetwork && view ? pathResult(referenceNetwork.root, view.path) : solveScenario(scenario, comparing) : null);
@@ -431,7 +438,10 @@
         catch { autoSaveEnabled = false; saveStatus = "No se pudo recuperar la última tendida. No se sobrescribirá: guarda una copia en Mis líneas o exporta tu trabajo."; }
       }
       storageReady = true;
+      // A first visit gets the tour (or its offer), never the history of changes.
+      unread = unreadOnOpen(!tourSeen());
       if (!linked && !restored && !tourSeen()) startTour();
+      else if (unread.length > 0) novedadesOpen = true;
     });
     const changed = () => openLink(true);
     addEventListener("hashchange", changed);
@@ -663,6 +673,8 @@
           <hr />
           <button type="button" data-tour="help-item" onclick={startTour}>Ver recorrido</button>
         {/if}
+        <hr />
+        <button type="button" onclick={openNovedades}>Novedades</button>
         <hr /><Offline />
       </div>
     </details>
@@ -740,6 +752,8 @@
 <Tour running={touring} {phone} {scenario} {selection} onFit={() => (fitSignal += 1)} onDeselect={deselect} onMenu={(open) => scenarioMenu && (scenarioMenu.open = open)} onEnd={() => (touring = false)} />
 
 <FireFlowPractice open={practiceOpen} doc={activeDocument} {result} {network} resetKey={loads} onClose={() => practiceOpen = false} onAdd={addExercise} onchange={changeExercise} />
+
+<Novedades open={novedadesOpen} {unread} onClose={closeNovedades} />
 
 <Settings
   open={settingsOpen}

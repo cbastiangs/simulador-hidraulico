@@ -743,6 +743,31 @@ it on from its own events; `refresh()` follows the camera. Not Intro.js
 (AGPL or a paid licence, and the licence question is open, ROADMAP §11 item 4);
 React Joyride needs React.
 
+### 8.6 Novedades (owner, 2026-11-02)
+
+**What.** A short list, in Spanish and written for crews, of what changed
+in each published version: "Nuevo" or "Corregido" per line, a date and the
+version id. It is not a developer changelog; commits stay in English.
+
+**When.** Once, the first time the app opens on a build with releases the
+person has not read: a dialog, "Novedades de esta versión", with at most
+the three newest unread versions and "Entendido". Closing it counts as read.
+A first visit (the tour not yet seen, whether it starts or a link only
+offers it) marks everything read and shows nothing: a new user meets the
+app, not its history. The tour always wins over the dialog. The full list
+is in the **Escenario menu → "Novedades"**; Ajustes → Acerca de names the
+version. Read state is one value in this browser (`novedades.seen.v1`); a
+failed storage read or write only means the dialog may show again.
+
+**Going forward only.** The catalog starts empty on 2026-11-02; earlier work
+is not announced.
+
+**Source.** `data/releases.json`, the same shape and calendar ids as fd-app's
+catalog (without its account read state and public flag), maintained by
+`pnpm release` (AGENTS.md, Releases). Drafts are never shown. Built in
+`src/lib/novedades.ts` and `src/lib/components/Novedades.svelte`; checked
+at 390 and 1024 px.
+
 ### 8.1b Hover and tap feedback (owner, 2026-10-18: deferred)
 
 Built, mouse only and never the only cue: a thin halo on the hovered hose

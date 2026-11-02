@@ -32,6 +32,8 @@ here untouched; the screen and station-data integration are still open (see
   fd-app plumbing disagrees with `ROADMAP.md`, the roadmap wins.
 - `docs/manual-summaries/hydraulics/` — the CGBVP 2019 review that grounds the
   physical model.
+- `data/releases.json` + `scripts/release.mjs` — the in-app novedades
+  catalog and the `pnpm release` command that maintains it (Releases below).
 
 ## Engine rules
 
@@ -93,6 +95,21 @@ also gets its screenshots (e.g.
 `pnpm shot --viewport-size=390,844 http://localhost:5173/ /tmp/opencode/390.png`).
 `pnpm dev` serves the app locally; the model contact sheet is `pnpm dev`'s
 `/boquillas` (UX.md §3.1).
+
+## Releases
+
+What users see in "Novedades" (UX.md §8.6) comes from `data/releases.json`.
+
+- A `feat` or `fix` commit that users will notice carries one or more body
+  lines `Novedad: <one sentence in Spanish, for a crew member>`. Internal
+  work (refactors, docs, tests) carries none.
+- `pnpm release` previews; `pnpm release --draft` drafts a release from the
+  `Novedad:` lines since the last `v<id>` tag (re-running it never rewrites
+  the draft; it lists lines the draft lacks); edit the draft's wording and
+  order by hand; `pnpm release --publish` stamps it and sets
+  `package.json`'s version. The script never commits, tags, pushes or
+  deploys; it prints the commit and tag commands for the owner to run.
+- Never change or reuse a published id: browsers remember the last id read.
 
 ## Commits
 

@@ -833,6 +833,20 @@ are imported in `docs/reference/vehicles/plt11/`).
    share link stays free beside them. Accounts, storage and pricing are not
    designed yet, and they bring back PLAN §1's licence and hosting question.
 
+### Novedades and versions (owner, 2026-11-02)
+
+Users are told what changed, in the app (UX.md §8.6), going forward only.
+The simulator copies fd-app's release workflow rather than adopting a
+release tool: fd-app's review (`fd-app/reports/Release tooling review.md`,
+2026-10-27) found that release-it, release-please, Changesets, git-cliff and
+semantic-release produce changelogs, tags and package versions, not an
+in-app announcement with read state. Same catalog shape and calendar
+versions (`2026.11.02` → package `2026.11.2`), so the two apps announce
+alike and a later merge needs no conversion. Dropped from fd-app: per-account
+read state (no accounts here; the browser remembers) and the public flag.
+Versions are dates, not SemVer; a deploy without user-visible changes needs
+no release.
+
 ### Stack and embedding (2026-10-16)
 
 10. **UI framework: Svelte 5 stays; React only on a committed native
