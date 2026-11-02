@@ -45,9 +45,17 @@ Owner's layout, 2026-10-24:
 That is 8 discharges and 2 intakes. The preconnect positions, valve types and
 internal plumbing are not stated. Machine-readable: `outlets.csv`.
 
+## Supply and tank
+
+- On-board water tank: **500 US gal** (1,893 L).
+- Provenance: **owner confirmation, 2026-10-30**. This is a direct owner
+  statement recorded for M11-5, not a plate or document reading.
+- Tank-to-pump line size, usable volume and plumbing losses are still not
+  stated; the simulator treats the capacity as an explicit scenario value.
+
 ## Still unknown
 
-- Chassis make/model/year and tank capacity for M11-5.
+- Chassis make/model/year for M11-5.
 - Exact LDH size, discharge valve sizes, tank-to-pump line and plumbing losses.
 - Pump acceptance test or exact Waterous impeller/curve.
 - Deck gun, hose loads, nozzle models/settings and lengths.

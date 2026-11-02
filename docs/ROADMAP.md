@@ -249,10 +249,10 @@ Spartan/Darley record above, which is not evidence for this unit. Pump:
 **1050 @ 200, 1807**; **752 @ 250, 1920**. They are separate operating
 points at different engine speeds, not one fixed-RPM curve. Outlets:
 **2 × 1½″ preconnects, 1 × 1½″ front fender, 2 × 2½″ each side, a 6″ intake
-each side, and an LDH discharge on the right (4″ or 5″ TBD)**. Still wanted:
-the exact LDH size, tank, acceptance test or unit-specific Waterous curve,
-chassis and hose/nozzle loads. Reference:
-`docs/reference/vehicles/m11-5/`.
+each side, and an LDH discharge on the right (4″ or 5″ TBD)**. Tank:
+**500 US gal** (owner confirmation, 2026-10-30). Still wanted: the exact LDH
+size, acceptance test or unit-specific Waterous curve, chassis and
+hose/nozzle loads. Reference: `docs/reference/vehicles/m11-5/`.
 
 ## 7. Engine work, in order
 
@@ -665,8 +665,9 @@ use case and measurement conditions. Neither blocks the sequence above.
 - Exact dependency pins, including TypeScript and Node type definitions.
 
 Truck configuration follows in §10h. Remaining M3 work is verified truck files and actual internal
-plumbing/supply limits. M11-5's tank and LDH bore are still unknown. Partial
-valves need their own sourced law. Display-unit options and the other
+plumbing/supply limits. M11-5's LDH bore is still unknown; its 500 US gal tank
+was confirmed by the owner on 2026-10-30. Partial valves need their own
+sourced law. Display-unit options and the other
 remaining §10e items stay in the backlog; automatic nozzles, measured reach
 and the aerial module are not prerequisites for this delivery.
 
@@ -713,7 +714,8 @@ The numerical tests, type-check and static build pass.
 Deferred by owner (2026-10-29): the [real-phone walkthrough](PHONE-WALKTHROUGH.md), a manual checklist
 with an owner feedback template (requested 2026-10-27), not new automated
 tests or a replacement for the in-app tour. Separately collect the missing
-M11-5 tank, LDH diameter and pump-curve evidence for calibration.
+M11-5 LDH diameter and pump-curve evidence for calibration; the tank is
+confirmed at 500 US gal (2026-10-30).
 
 ## 11. Decisions (owner, 2026-10-14)
 
@@ -817,7 +819,7 @@ Automatic nozzles, reach and the aerial module remain later work.
      adopted**; shown alone it would be a confident number on a weak basis
      ([audit](../reports/Water%20application%20efficiency%20audit.md)).
 
-Still wanted: M11-1's pump plate; M11-5's exact LDH size, tank and
+Still wanted: M11-1's pump plate; M11-5's exact LDH size and
 acceptance curve; the nozzles carried; hose sizes and couplings; PLT-11's
 OEM aerial manual and exact geometry/plumbing (its load chart and pump plate
 are imported in `docs/reference/vehicles/plt11/`).
