@@ -11,7 +11,10 @@ comparison, discrepancies and completion criteria.
 - **Waterous CXVC22C**
 - Nominal capacity: **1,500 US gpm** (5,678 L/min)
 - Gear ratio: **1:2.27**
-- Governor speed: **2,400 rpm**
+- Recorded governor reading: **2,400 rpm**. Owner clarification,
+  2026-11-06: probably the RPM shown on the governor; engine versus
+  pump-shaft speed remains unconfirmed. This does not establish a maximum
+  speed, governor limit or model set-point.
 - Pump mode, impeller and serial: not stated in this handoff.
 - Full pump curve: not yet unit-specific. Waterous publishes a **CX family**
   curve, [810304](https://www.waterousco.com/media/pdfs/810304.pdf), with

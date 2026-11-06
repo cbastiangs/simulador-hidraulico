@@ -45,6 +45,12 @@ do not raise model limits from this inference. This is not a finding about
 actual apparatus operation. The graph's approximately ±3 psi digitization
 accuracy is not an acceptance tolerance for this truck.
 
+Owner clarification, 2026-11-06: 2400 rpm was probably the governor's
+displayed reading. Its speed basis and whether it represents a limit are
+unknown. Retain the calculation above as conditional only; do not adopt
+2400 as either an engine-speed limit or a shaft-speed setting. A governor
+model/manual or labelled display record could resolve the speed basis.
+
 ## Minimum owner handoff
 
 Port layout is confirmed: front bumper 1½″, two 1½″ crosslays, two pilot-side
