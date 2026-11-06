@@ -1,30 +1,28 @@
 <script lang="ts">
   import { untrack } from 'svelte';
-  import type { ScenarioTreeResult } from '$hydraulics/scenario.ts';
-  import type { SeriesResult } from '$hydraulics/series.ts';
   import { METERS_PER_FOOT } from '$hydraulics/units.ts';
   import { SOURCES } from '../../extinguishment/references.ts';
   import { pathKey, type AppDocument, type Assignment, type Exercise } from '$lib/document.ts';
-  import { exerciseReadings } from '$lib/fire-flow.ts';
+  import type { exerciseReadings } from '$lib/fire-flow.ts';
+  import { EXERCISE_LESSONS } from '$lib/exercise-lessons.ts';
   import { u } from '$lib/display-units.svelte.ts';
   import { exerciseFloor } from '$lib/geometry/exercise.ts';
   import NumberField from './NumberField.svelte';
-  let { open, doc, result, network, resetKey, onClose, onAdd, onchange }: {
-    open: boolean; doc: AppDocument; result: SeriesResult; network: ScenarioTreeResult | null; resetKey: number;
+  let { open, doc, readings, revealed, onReveal, resetKey, onClose, onAdd, onchange }: {
+    open: boolean; doc: AppDocument; readings: ReturnType<typeof exerciseReadings>; revealed: boolean; onReveal: (value: boolean) => void; resetKey: number;
     onClose: () => void; onAdd: () => void; onchange: (e: Exercise | undefined, key?: string) => void;
   } = $props();
   let dialog: HTMLDialogElement | undefined = $state();
-  let revealed = $state(false);
   let exploring = $state(false);
   let areaGuessM2 = $state<number | null>(null);
   let flowGuessGpm = $state<number | null>(null);
   const e = $derived(doc.exercise);
-  const readings = $derived(exerciseReadings(doc, result, network));
+  const lesson = $derived(e?.lessonId ? EXERCISE_LESSONS[e.lessonId] : null);
   const areaUnit = $derived(u.length === 'ft' ? 'ft²' : 'm²');
   const areaFactor = $derived(u.length === 'ft' ? 1 / METERS_PER_FOOT ** 2 : 1);
   const area = (m2: number) => (m2 * areaFactor).toFixed(1);
   const signed = (n: number, format: (v: number) => string) => `${n > 0 ? '+' : ''}${format(n)}`;
-  function retry() { revealed = false; exploring = false; areaGuessM2 = null; flowGuessGpm = null; }
+  function retry() { onReveal(false); exploring = false; areaGuessM2 = null; flowGuessGpm = null; }
   const estimateKey = $derived([resetKey, e?.lengthM, e?.widthM, e?.involvedFraction].join(':'));
   $effect(() => { void estimateKey; untrack(retry); });
   $effect(() => {
@@ -51,7 +49,7 @@
       <button type="button" class="primary" onclick={onAdd}>Añadir práctica a esta tendida</button>
       <p class="note">Empieza con un piso de 40 × 30 ft al 25 %. Tú eliges las líneas que participan.</p>
     {:else}
-      <div class="intro"><p>¿Cuánta agua pide el área afectada y cuánta entrega tu tendida?</p><span class="badge">Un piso · convención de entrenamiento</span></div>
+      <div class="intro"><p>{lesson?.question ?? '¿Cuánta agua pide el área afectada y cuánta entrega tu tendida?'}</p><span class="badge">Un piso · convención de entrenamiento</span></div>
       <div class="columns">
         <section class="building" aria-label="Área del ejercicio">
           <h3>1. Observa el piso</h3>
@@ -76,7 +74,7 @@
             <label>Área afectada estimada ({areaUnit})<input type="number" min="0" step="any" value={areaGuessM2 === null ? '' : Number(area(areaGuessM2))} oninput={event => { const v = event.currentTarget.valueAsNumber; areaGuessM2 = Number.isFinite(v) && v >= 0 ? v / areaFactor : null; }} /></label>
             <label>Caudal estimado ({u.flow})<input type="number" min="0" step="any" value={flowGuessGpm === null ? '' : Number(u.q(flowGuessGpm))} oninput={event => { const v = event.currentTarget.valueAsNumber; flowGuessGpm = Number.isFinite(v) && v >= 0 ? u.from(v, 'gpm') : null; }} /></label>
             <p class="note">Puedes dejar las respuestas en blanco. Tu estimación no cambia el caudal de la tendida.</p>
-            <div class="buttons"><button type="button" class="primary" onclick={() => revealed = true}>Comprobar</button><button type="button" onclick={() => { exploring = true; revealed = true; }}>Explorar sin estimar</button></div>
+            <div class="buttons"><button type="button" class="primary" onclick={() => onReveal(true)}>Comprobar</button><button type="button" onclick={() => { exploring = true; onReveal(true); }}>Explorar sin estimar</button></div>
           {:else}
             <div class="reference" data-testid="nfa-reference"><span>Caudal de referencia NFA</span><strong>{u.q(readings.reference.requiredFlowGpm)} <small>{u.flow}</small></strong></div>
             <p>Área afectada: <b>{area(e.lengthM * e.widthM * e.involvedFraction)} {areaUnit}</b></p>
@@ -113,7 +111,7 @@
           {:else}<p role="status">Selecciona al menos un pitón para comparar su entrega con la referencia.</p>{/if}
         {/if}
       </section>
-      <section class="next"><h3>4. Cambia una cosa</h3><p>Vuelve a la tendida y cambia 1½″ por 2½″, manteniendo bomba, largo y pitón. Observa fricción y entrega. Después prueba otro pitón o una segunda línea: ¿qué limita ahora el caudal?</p><button type="button" class="primary" onclick={onClose}>Volver a la tendida</button></section>
+      <section class="next"><h3>4. Cambia una cosa</h3><p>{lesson?.action ?? 'Vuelve a la tendida y cambia 1½″ por 2½″, manteniendo bomba, largo y pitón. Observa fricción y entrega. Después prueba otro pitón o una segunda línea: ¿qué limita ahora el caudal?'}</p><button type="button" class="primary" onclick={onClose}>Volver a la tendida</button></section>
       <details class="scope"><summary>Alcance y fuente de la referencia</summary><p>Convención NFA para un piso y el conjunto de líneas de confinamiento, extinción y respaldo. Igualar la referencia no demuestra extinción ni determina una táctica segura.</p><p>La regla pierde precisión por encima del 50 % de afectación o 1000 US gpm y con techos de más de 10 ft. No se aplican topes ni reducciones automáticas. Otros pisos y exposiciones quedan fuera de este ejercicio.</p><a href={SOURCES.nfaInitialCompanyOperations.url} target="_blank" rel="noreferrer">NFA · Strategy and Tactics, 2016 · SM2-28–30</a></details>
       <button type="button" class="remove" onclick={() => onchange(undefined)}>Quitar práctica de esta tendida</button>
     {/if}

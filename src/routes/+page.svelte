@@ -38,6 +38,8 @@
   import { workingLay, saveWorking, downloadScenario } from "$lib/library.ts";
   import { LESSONS } from "$lib/lessons.ts";
   import { parseDocument, wrapScenario, withScenario, type AppDocument, type Exercise } from "$lib/document.ts";
+  import { exerciseReadings } from "$lib/fire-flow.ts";
+  import PracticeSummary from "$lib/components/PracticeSummary.svelte";
   import FireFlowPractice from "$lib/components/FireFlowPractice.svelte";
   import { feetToMeters } from "$hydraulics/units.ts";
   import * as pieces from "$lib/pieces.ts";
@@ -61,6 +63,11 @@
   let activeDocument: AppDocument = $state.raw(presets[0].scenario);
   const scenario = $derived(activeDocument.scenario);
   let practiceOpen = $state(false);
+  let practiceEpoch = $state(0);
+  let revealedPracticeKey = $state<string | null>(null);
+  const practiceKey = $derived(JSON.stringify([practiceEpoch, activeDocument.exercise?.lengthM, activeDocument.exercise?.widthM, activeDocument.exercise?.involvedFraction]));
+  const practiceRevealed = $derived(!!activeDocument.exercise && revealedPracticeKey === practiceKey);
+  function revealPractice(value: boolean) { revealedPracticeKey = value ? practiceKey : null; }
   function openPractice() { practiceOpen = true; if (scenarioMenu) scenarioMenu.open = false; }
   function changeExercise(exercise: Exercise | undefined, key = "") {
     applyDocument({ ...activeDocument, exercise }, key);
@@ -240,6 +247,7 @@
   const view = $derived((scenario.wye || scenario.discharges) ? branch.pathView(scenario, selectedPath) : null);
   const lineScenario = $derived(view?.scenario ?? scenario);
   const result = $derived(network && view ? pathResult(network.root, view.path) : solveScenario(scenario));
+  const practiceReadings = $derived(exerciseReadings(activeDocument, result, network));
   const pumpResult = $derived(network?.root.result ?? result);
   /** Each outlet's reading, keyed by its path joined with "/". */
   const outlets = $derived.by(() => {
@@ -338,6 +346,7 @@
   });
 
   function choosePreset(id: string) {
+    practiceEpoch += 1;
     if (scenarioMenu) scenarioMenu.open = false;
     pauseClock();
     presetId = id;
@@ -358,6 +367,7 @@
   /** Changed since the preset was loaded: what "Reiniciar" would undo. */
   const edited = $derived(activeDocument !== base);
   function newLine() {
+    practiceEpoch += 1;
     pauseClock();
     applyDocument(wrapScenario(edit.blankLine(scenario)));
     selectedPath = [];
@@ -366,6 +376,7 @@
     if (scenarioMenu) scenarioMenu.open = false;
   }
   function resetPreset() {
+    practiceEpoch += 1;
     pauseClock();
     applyDocument(base);
     selectedPath = [];
@@ -387,6 +398,7 @@
   }
   /** A scenario from outside becomes what Reiniciar returns to; a paste is an undo step, a link opens fresh. */
   function loadShared(next: AppDocument, undoable: boolean) {
+    practiceEpoch += 1;
     pauseClock();
     if (undoable) applyDocument(next);
     else {
@@ -641,7 +653,7 @@
   {/if}
 {/snippet}
 
-<div class="app" class:phone class:wide style:--sheet-closed={`${closedSheetHeight}px`}>
+<div class="app" class:phone class:wide class:has-practice={!!activeDocument.exercise} style:--sheet-closed={`${closedSheetHeight}px`}>
   <header class="top">
     <h1>Simulador hidráulico</h1>
     <div class="history">
@@ -684,6 +696,12 @@
 
   {#if !wide}
     <div class="pump" data-tour="pump">{@render pumpPanel(phone ? "strip" : "bar")}</div>
+  {/if}
+
+  {#if activeDocument.exercise && practiceReadings}
+    <div class="practice-summary" inert={phone && sheet === "full"} style:visibility={phone && sheet === "full" ? "hidden" : undefined}>
+      <PracticeSummary readings={practiceReadings} revealed={practiceRevealed} lessonId={activeDocument.exercise.lessonId} onOpen={openPractice} />
+    </div>
   {/if}
 
   <div class="canvas" data-tour="canvas">
@@ -751,7 +769,7 @@
 {/if}
 <Tour running={touring} {phone} {scenario} {selection} onFit={() => (fitSignal += 1)} onDeselect={deselect} onMenu={(open) => scenarioMenu && (scenarioMenu.open = open)} onEnd={() => (touring = false)} />
 
-<FireFlowPractice open={practiceOpen} doc={activeDocument} {result} {network} resetKey={loads} onClose={() => practiceOpen = false} onAdd={addExercise} onchange={changeExercise} />
+<FireFlowPractice open={practiceOpen} doc={activeDocument} readings={practiceReadings} revealed={practiceRevealed} onReveal={revealPractice} resetKey={practiceEpoch} onClose={() => practiceOpen = false} onAdd={addExercise} onchange={changeExercise} />
 
 <Novedades open={novedadesOpen} {unread} onClose={closeNovedades} />
 
@@ -769,6 +787,9 @@
 
 {#if phone}
   <Sheet onClosedHeight={(height) => (closedSheetHeight = height)} selectionKey={JSON.stringify([selectedPath, selection])} {summary} {sheet} onSheet={(s) => (sheet = s)}>
+    {#if sheet === "full" && practiceReadings}
+      <div class="sheet-practice"><PracticeSummary readings={practiceReadings} revealed={practiceRevealed} compact onOpen={openPractice} /></div>
+    {/if}
     {#if selection?.kind === "pump"}
       <!-- The strip is a summary; the pump's whole control opens here, above its detail (UX.md §4). -->
       {@render pumpPanel("full")}
@@ -806,6 +827,10 @@
     grid-template-areas: "top top" "canvas side" "results side";
     grid-template-rows: auto auto 1fr;
   }
+  .sheet-practice { position: sticky; top: 0; z-index: 6; background: var(--bg); }
+  .practice-summary { grid-area: practice; min-width: 0; }
+  .app.wide.has-practice { grid-template-areas: "top top" "practice side" "canvas side" "results side"; grid-template-rows: auto auto auto 1fr; }
+  .app.wide .practice-summary { position: sticky; top: var(--gap); z-index: 6; }
   .app.wide .head { position: sticky; top: 0; z-index: 5; }
   /* One header row when wide: a long scenario name truncates rather than pushing ? and ⚙ to a second row, which would shift the panel under the dock. */
   .app.wide .top { flex-wrap: nowrap; }
@@ -864,6 +889,7 @@
     grid-template-areas: "top" "pump" "canvas";
     grid-template-rows: auto auto minmax(0, 1fr);
   }
+  .app.phone.has-practice { grid-template-areas: "top" "pump" "practice" "canvas"; grid-template-rows: auto auto auto minmax(0, 1fr); }
   .app.phone .top { flex-wrap: nowrap; }
   /* Svelte trims a leading space inside the span, so the gap after the arrow is a margin. */
   .word { margin-left: 0.35em; }

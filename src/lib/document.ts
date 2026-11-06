@@ -1,7 +1,9 @@
 import { branchesOf, parseScenario, ScenarioError, type Scenario, type ScenarioBranch } from '../hydraulics/scenario.ts';
 
 export type Assignment = { path: string[]; role: 'attack' | 'confinement' | 'backup' };
-export type Exercise = { lengthM: number; widthM: number; involvedFraction: number; assignments: Assignment[] };
+export const EXERCISE_LESSON_IDS = ['diameter', 'nozzle-capacity', 'second-discharge'] as const;
+export type ExerciseLessonId = typeof EXERCISE_LESSON_IDS[number];
+export type Exercise = { lessonId?: ExerciseLessonId; lengthM: number; widthM: number; involvedFraction: number; assignments: Assignment[] };
 export type AppDocument = { schema: 'simulador-hidraulico/document'; version: 1; scenario: Scenario; exercise?: Exercise };
 export const wrapScenario = (scenario: Scenario): AppDocument => ({ schema: 'simulador-hidraulico/document', version: 1, scenario });
 export const pathKey = (path: readonly string[]) => JSON.stringify(path);
@@ -32,6 +34,7 @@ export function parseDocument(value: unknown): AppDocument {
     if (typeof n !== 'number' || !Number.isFinite(n) || n < min || n > max) throw new ScenarioError(`exercise.${key}`, 'Outside supported range');
     return n;
   };
+  if (e.lessonId !== undefined && !EXERCISE_LESSON_IDS.includes(e.lessonId as ExerciseLessonId)) throw new ScenarioError('exercise.lessonId', 'Unknown exercise lesson');
   const lengthM = number('lengthM', 0.1, 1000), widthM = number('widthM', 0.1, 1000), involvedFraction = number('involvedFraction', 0, 1);
   if (!Array.isArray(e.assignments)) throw new ScenarioError('exercise.assignments', 'Expected array');
   const valid = new Set(terminals(doc.scenario).map(t => pathKey(t.path))), seen = new Set<string>();
@@ -43,7 +46,7 @@ export function parseDocument(value: unknown): AppDocument {
     seen.add(key);
     return { path: [...path], role: a.role as Assignment['role'] };
   });
-  return { ...doc, exercise: { lengthM, widthM, involvedFraction, assignments } };
+  return { ...doc, exercise: { lengthM, widthM, involvedFraction, assignments, ...(e.lessonId === undefined ? {} : { lessonId: e.lessonId as ExerciseLessonId }) } };
 }
 /** Keep old hydraulic-only exports readable by the previous app. */
 export const portableDocument = (doc: AppDocument) => doc.exercise ? doc : doc.scenario;

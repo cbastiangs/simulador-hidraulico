@@ -1444,3 +1444,33 @@ export as bare scenarios. One undo history includes exercise facts and
 assignment cleanup after equipment replacement/removal. Guesses, reveal mode
 and dialog visibility are not saved. The published 40×30 ft example at 25%
 is the first exercise preset, using the existing generic diameter lay.
+
+### Live practice summary and focused exercises (2026-11-06)
+
+Owner approved a compact NFA summary beside the operating canvas and three
+prediction/action exercises: hose diameter, selectable nozzle capacity and
+opening another discharge against pump capacity. The summary sits between
+the pump strip and drawing on phones, and above the drawing on desktop.
+It remains available while selecting equipment; it is absent without practice.
+
+The dialog and summary share session-only reveal state. Until Comprobar or
+Explorar, the summary shows an invitation to estimate with no reference,
+margin or coverage values (including accessible text). Retry, loading a
+scenario and editing floor dimensions/involvement hide the answer everywhere.
+Equipment edits, selection, unit changes and assignment edits retain reveal.
+Show reference, assigned delivery and shortfall/surplus after reveal; distinguish
+no assigned nozzle, unavailable delivery and a valid zero. The header opens
+the dialog for estimates and assignments. A collapsible question/action prompt
+keeps instructions available without permanently consuming the phone canvas.
+
+Exercise documents may carry a validated optional lessonId for the three
+built-in prompts; reload and share retain it. Prompts ask for a prediction
+and one controlled change, without promising a tactical outcome or requiring
+new hydraulic laws. The nozzle exercise changes a selector on the same nozzle,
+so its assignment remains valid. All assigned outlets in the pump exercise
+are explicit, including the initially closed backup.
+
+When the phone inspector expands fully over the drawing, a compact copy of
+the summary sticks inside the inspector; the covered canvas summary becomes
+inert and invisible without changing its layout space. Closing/shrinking the
+inspector restores the canvas copy.

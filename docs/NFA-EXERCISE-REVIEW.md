@@ -44,3 +44,40 @@ service-worker installation; offline verification passed with Vite preview.
 `pnpm test`, `pnpm typecheck` and `pnpm build` pass. Real-device/instructor
 feedback remains deferred. Spatial routes, dimension dragging, multiple floors,
 a larger preset catalog and thermal outcomes are outside this first delivery.
+
+## Live summary and focused exercises (2026-11-06)
+
+The canvas summary and practice dialog consume the same derived comparison
+and session reveal state. Opening another document, retry and floor edits hide
+both; equipment edits, unit changes and selection retain reveal. A dedicated
+practice load counter avoids resetting answers when reconnecting a pump outlet
+only resets the canvas. At full height the phone inspector contains a sticky
+compact summary; the covered canvas copy is inert.
+
+The three new documents use the existing sourced friction/nozzle/pump laws:
+
+| Exercise | Fixed equipment and one change | Reference | Solved delivery before → after |
+|---|---|---|---|
+| Diámetro de manguera | 60 m, ideal 125 psi, generic 150 gpm @ 100 psi nozzle; 1½″ C=24 → 2½″ C=2 | 150 gpm: 40×30 ft, 37.5% | 116.7609 → 160.7369 gpm |
+| Capacidad del pitón | 30 m 2½″, ideal 125 psi, catalog TFT G-Force GF3C2S; selector 60 → 125 gpm @ 100 psi | 125 gpm: 40×30 ft, 31.25% | 66.8456 → 137.6533 gpm |
+| Segunda descarga | Existing generic second-discharge lay: CX family at 3200 shaft rpm, request 140 psi; open second assigned outlet | 600 gpm: 60×60 ft, 50% | 279.1310 → 551.4654 gpm total |
+
+In the third exercise pressure falls from 140 to 136.6119 psi and the first
+line falls to 275.7327 gpm. Both terminals are explicitly assigned; the closed
+backup initially contributes zero. These inputs are teaching arrangements,
+not station apparatus calibration. See MODEL §3.3–3.5 and the existing CX
+reference. No new physical law or numerical test duplicates were added.
+
+An optional, validated exercise.lessonId retains the question/action prompt
+through document parsing and sharing, with no schema-version change. The
+three IDs are diameter, nozzle-capacity and second-discharge; absent retains
+the original general exercise. Unknown IDs are rejected.
+
+Browser verification at 390×844 and 1024×844 covers all three equipment
+changes, shared hidden/revealed state, retry, floor edits, unit switching,
+undo, reload, unassigned lines, closed/isolated lines, empty tank, unavailable
+pump output, and compressed share links preserving the prompt while hiding
+the answer on load. The summary labels a reference surplus without a tactical
+verdict. Tests, typecheck and static build pass; no page errors or horizontal
+overflow in the interaction sweep. Local-only browser scripts and screenshots:
+`/tmp/live-practice/` (browser.mjs, states.mjs, capture.mjs, arithmetic.json).

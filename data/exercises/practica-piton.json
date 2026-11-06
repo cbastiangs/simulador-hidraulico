@@ -1,0 +1,51 @@
+{
+  "schema": "simulador-hidraulico/document",
+  "version": 1,
+  "scenario": {
+    "schema": "simulador-hidraulico/scenario",
+    "version": 1,
+    "name": "Práctica · 2. Capacidad del pitón",
+    "methodId": "physical",
+    "source": {
+      "kind": "fixed-pressure",
+      "pressurePsi": 125
+    },
+    "sections": [
+      {
+        "hoseSizeId": "2-1/2",
+        "diameterIn": 2.5,
+        "frictionCoefficient": 2,
+        "lengthM": 30,
+        "endElevationM": 0
+      }
+    ],
+    "nozzle": {
+      "kind": "selectable",
+      "specId": "TFT-GF3C2S",
+      "settingsGpm": [
+        30,
+        60,
+        95,
+        125,
+        150
+      ],
+      "ratedFlowGpm": 60,
+      "ratedPressurePsi": 100,
+      "pattern": 0.25,
+      "open": true,
+      "inletIn": 1.5
+    }
+  },
+  "exercise": {
+    "lengthM": 12.192,
+    "widthM": 9.144,
+    "involvedFraction": 0.3125,
+    "assignments": [
+      {
+        "path": [],
+        "role": "attack"
+      }
+    ],
+    "lessonId": "nozzle-capacity"
+  }
+}

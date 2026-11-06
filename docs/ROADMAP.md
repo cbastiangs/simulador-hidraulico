@@ -897,3 +897,12 @@ exports without an exercise retain the old format. Inputs allow floor sides
 0.1–1000 m and fraction 0–1 (editor bounds, not applicability limits). The
 same undo history carries both parts. No new hydraulic or NFA law was added.
 Verification is recorded in [NFA-EXERCISE-REVIEW.md](NFA-EXERCISE-REVIEW.md).
+
+## Live learning while operating (2026-11-06)
+
+Owner approved a live practice summary and three focused exercises. This
+connects reference demand to delivered flow during ordinary equipment edits.
+The summary follows the practice dialog's session reveal/reset rules. New
+exercise prompts survive saving/sharing via optional exercise.lessonId;
+existing documents remain valid. Exercise equipment and numerical comparisons
+are recorded with the verification results; source laws remain unchanged.
