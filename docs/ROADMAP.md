@@ -248,12 +248,14 @@ Spartan/Darley record above, which is not evidence for this unit. Pump:
 **Waterous CXVC22C**, nominal **1500 gpm**, gear ratio **1:2.27**, governor
 **2400 rpm**. Plate points (engine rpm): **1526 gpm @ 150 psi, 1657**;
 **1050 @ 200, 1807**; **752 @ 250, 1920**. They are separate operating
-points at different engine speeds, not one fixed-RPM curve. Outlets:
-**2 × 1½″ preconnects, 1 × 1½″ front fender, 2 × 2½″ each side, a 6″ intake
-each side, and an LDH discharge on the right (4″ or 5″ TBD)**. Tank:
-**500 US gal** (owner confirmation, 2026-10-30). Still wanted: the exact LDH
-size, acceptance test or unit-specific Waterous curve, chassis and
-hose/nozzle loads. Reference: `docs/reference/vehicles/m11-5/`.
+points at different engine speeds, not one fixed-RPM curve. Ports (owner correction, 2026-11-06): **front bumper 1 × 1½″ discharge;
+2 × 1½″ crosslays; pilot side 2 × 2½″ discharges plus 6″ and 2½″ intakes;
+copilot side 1 × 2½″ and 1 × 4″ LDH discharge plus a 6″ intake**.
+Total: **7 discharges, 3 intakes**, superseding the earlier eight-discharge
+layout and unresolved LDH size. Tank:
+**500 US gal** (owner confirmation, 2026-10-30). Still wanted for pump calibration: acceptance test or unit-specific Waterous
+curve and clarification of speed/pressure definitions. Chassis and
+hose/nozzle loads are outside the current pump-and-ports scope. Reference: `docs/reference/vehicles/m11-5/`.
 
 ## 7. Engine work, in order
 
@@ -666,7 +668,7 @@ from a fit to published data where it holds (MODEL §3.14, 2026-11-02). Neither 
 - Exact dependency pins, including TypeScript and Node type definitions.
 
 Truck configuration follows in §10h. Remaining M3 work is verified truck files and actual internal
-plumbing/supply limits. M11-5's LDH bore is still unknown; its 500 US gal tank
+plumbing/supply limits. M11-5's LDH bore is confirmed at 4″ (2026-11-06); its 500 US gal tank
 was confirmed by the owner on 2026-10-30. Partial valves need their own
 sourced law. Display-unit options and the other
 remaining §10e items stay in the backlog; automatic nozzles, measured reach
@@ -715,7 +717,7 @@ The numerical tests, type-check and static build pass.
 Deferred by owner (2026-10-29): the [real-phone walkthrough](PHONE-WALKTHROUGH.md), a manual checklist
 with an owner feedback template (requested 2026-10-27), not new automated
 tests or a replacement for the in-app tour. Separately collect the missing
-M11-5 LDH diameter and pump-curve evidence for calibration; the tank is
+M11-5 pump-curve evidence for calibration (LDH confirmed at 4″ on 2026-11-06); the tank is
 confirmed at 500 US gal (2026-10-30).
 
 ## 11. Decisions (owner, 2026-10-14)
@@ -820,8 +822,7 @@ Automatic nozzles, reach and the aerial module remain later work.
      adopted**; shown alone it would be a confident number on a weak basis
      ([audit](../reports/Water%20application%20efficiency%20audit.md)).
 
-Still wanted: M11-1's pump plate; M11-5's exact LDH size and
-acceptance curve; the nozzles carried; hose sizes and couplings; PLT-11's
+Still wanted: M11-1's pump plate; M11-5's acceptance curve; the nozzles carried; hose sizes and couplings; PLT-11's
 OEM aerial manual and exact geometry/plumbing (its load chart and pump plate
 are imported in `docs/reference/vehicles/plt11/`).
 
@@ -910,8 +911,10 @@ are recorded with the verification results; source laws remain unchanged.
 ## Next goal: one station-representative scenario (2026-11-06)
 
 Owner approved progressing toward one real truck training scenario after the
-generic practice delivery. M11-5 is the evidence-based candidate, pending
-confirmation of the actual hose/nozzle load. First reconcile its recorded
+generic practice delivery. The owner subsequently narrowed scope to **pump
+and ports only**, confirming M11-5’s seven discharges and three intakes
+(§6). Hose/nozzle loads are deferred and do not block this scope. First
+reconcile its recorded
 pump speeds and pressure definitions; do not relabel the CX family model as
 unit calibration. The [readiness review](reference/vehicles/m11-5/CALIBRATION.md)
 records known equipment, the conditional plate comparison, missing evidence

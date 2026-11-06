@@ -2,8 +2,9 @@
 
 Status, 2026-11-06: evidence preparation. The owner approved moving toward
 one station truck scenario. M11-5 is the proposed first unit because it has
-the strongest existing record. Its actual hose load and calibrated pump
-model still require the evidence below.
+the strongest existing record. The owner narrowed scope to pump and ports
+on 2026-11-06 and confirmed the corrected layout. Hose/nozzle loads are not
+required for this scope. Pump calibration still requires the evidence below.
 
 ## Available evidence
 
@@ -11,7 +12,7 @@ model still require the evidence below.
 |---|---|---|
 | Waterous CXVC22C, 1500 US gpm | Owner plate handoff, 2026-10-24; [record](README.md) | Unit identity and three rated points |
 | Ratio 1:2.27; governor 2400 rpm | Same handoff | Conditional speed comparison; confirm labels and ratio direction |
-| Seven known discharge sizes; eighth LDH 4 or 5 in | [Outlet record](outlets.csv) | Partial layout; no invented LDH size |
+| Seven discharges including 4 in LDH; three intakes | [Outlet record](outlets.csv), owner correction 2026-11-06 | Confirmed port counts, locations and nominal sizes |
 | 500 US gal tank | Owner confirmation, 2026-10-30 | Nominal capacity; usable volume and plumbing losses unknown |
 | Akron 1723P, Protek 368, MAFCO SS402 | Station inventory in [catalog](../../../../data/catalog/nozzles.csv); MODEL §3.5 | Sourced nozzle laws; assignment to M11-5 unknown |
 | CX family curve | [Stored source](../../pumps/waterous-cx/README.md) | Generic model, not unit-specific acceptance data |
@@ -46,11 +47,10 @@ accuracy is not an acceptance tolerance for this truck.
 
 ## Minimum owner handoff
 
-For one first lay: actual discharge used, each hose section's length,
-internal diameter and coupling size, and nozzle model plus selector/tip
-setting. Confirm the catalog's 100 psi variant matches the unit. Record
-hose make/model if known; unmeasured coefficients remain labelled published
-teaching assumptions. Station inventory does not establish a truck's load.
+Port layout is confirmed: front bumper 1½″, two 1½″ crosslays, two pilot-side
+2½″ discharges and copilot-side 2½″ and 4″ LDH discharges; pilot-side 6″ and
+2½″ intakes and copilot-side 6″ intake. Hose/nozzle arrangements are deferred
+by the owner and are not a prerequisite for pump/port work.
 
 For pump validation: an existing acceptance report or exact configuration
 curve, unit/serial and impeller identity, intake pressure, speed definitions
@@ -59,13 +59,14 @@ Use [measurement-record.csv](measurement-record.csv) to transcribe existing
 readings, leaving unknowns blank. This is not a pump-testing procedure.
 Preserve several flows at one speed where available, without merging speeds.
 
-Exact LDH size is necessary for a complete eight-outlet profile. A first
-single-discharge exercise can explicitly omit unused outlets. Unknown
-hardware must not silently become an ideal source or a guessed diameter.
+The earlier eight-discharge layout and unresolved LDH size are superseded.
+Intake sizes are inventory facts; their supply pressures and internal losses
+are unknown. Do not model these intakes as discharges or infer a supply law
+from their nominal sizes.
 
 ## Completion criteria
 
-1. Owner confirms the unit and one actual hose/nozzle arrangement.
+1. Confirm the unit's port layout: complete, owner correction 2026-11-06.
 2. Identify each scenario value as confirmed, sourced model approximation,
    or unknown. A generic pump remains labelled as such.
 3. Resolve speed/pressure definitions; adopt a supported unit-specific curve

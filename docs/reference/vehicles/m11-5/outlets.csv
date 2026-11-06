@@ -1,8 +1,9 @@
 location,kind,size_in,count,notes
-preconnect,discharge,1.5,2,Preconnected slots; position not stated
-front fender,discharge,1.5,1,
-left side,discharge,2.5,2,
-right side,discharge,2.5,2,
-right side,discharge,4 or 5,1,LDH; exact size not yet measured
-left side,intake,6,1,
-right side,intake,6,1,
+crosslay,discharge,1.5,2,Owner confirmation 2026-11-06
+front bumper,discharge,1.5,1,Owner confirmation 2026-11-06
+pilot side,discharge,2.5,2,Owner confirmation 2026-11-06
+copilot side,discharge,2.5,1,Owner correction 2026-11-06
+copilot side,discharge,4,1,LDH; owner confirmation 2026-11-06
+pilot side,intake,6,1,Owner confirmation 2026-11-06
+pilot side,intake,2.5,1,Owner confirmation 2026-11-06
+copilot side,intake,6,1,Owner confirmation 2026-11-06

@@ -36,16 +36,20 @@ Machine-readable: `pump-rating-points.csv`.
 
 ## Discharges and intakes
 
-Owner's layout, 2026-10-24:
+Owner's corrected layout, 2026-11-06 (supersedes the 2026-10-24 layout):
 
-- 2 × 1½″ preconnected slots
-- 1 × 1½″ front fender line
-- 2 × 2½″ discharges on each side (4 total)
-- 1 × 6″ intake on each side (2 total)
-- 1 × LDH discharge on the right; **4″ or 5″ not yet measured**
+- Front bumper: 1 × 1½″ discharge.
+- Crosslays: 2 × 1½″ discharges.
+- Pilot side: 1 × 6″ intake, 1 × 2½″ intake, 2 × 2½″ discharges.
+- Copilot side: 1 × 6″ intake, 1 × 2½″ discharge, 1 × **4″ LDH discharge**.
 
-That is 8 discharges and 2 intakes. The preconnect positions, valve types and
-internal plumbing are not stated. Machine-readable: `outlets.csv`.
+That is **7 discharges and 3 intakes**. Side names retain the owner's
+pilot/copilot terminology. Valve types and internal plumbing remain unknown.
+Machine-readable: `outlets.csv`. Intakes are supply ports, not additional
+discharges in the existing one-source solver.
+
+Current scope (owner, 2026-11-06): **pump and ports only**. Hose loads and
+nozzles are outside this task and do not block recording this configuration.
 
 ## Supply and tank
 
@@ -58,9 +62,9 @@ internal plumbing are not stated. Machine-readable: `outlets.csv`.
 ## Still unknown
 
 - Chassis make/model/year for M11-5.
-- Exact LDH size, discharge valve sizes, tank-to-pump line and plumbing losses.
+- Discharge valve sizes, tank-to-pump line and plumbing losses.
 - Pump acceptance test or exact Waterous impeller/curve.
-- Deck gun, hose loads, nozzle models/settings and lengths.
+- Deck gun, hose loads, nozzle models/settings and lengths (outside current scope).
 - Whether the 2½″ side discharges are gated individually and how they share
   the pump capacity.
 
