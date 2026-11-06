@@ -906,3 +906,14 @@ The summary follows the practice dialog's session reveal/reset rules. New
 exercise prompts survive saving/sharing via optional exercise.lessonId;
 existing documents remain valid. Exercise equipment and numerical comparisons
 are recorded with the verification results; source laws remain unchanged.
+
+## Next goal: one station-representative scenario (2026-11-06)
+
+Owner approved progressing toward one real truck training scenario after the
+generic practice delivery. M11-5 is the evidence-based candidate, pending
+confirmation of the actual hose/nozzle load. First reconcile its recorded
+pump speeds and pressure definitions; do not relabel the CX family model as
+unit calibration. The [readiness review](reference/vehicles/m11-5/CALIBRATION.md)
+records known equipment, the conditional plate comparison, missing evidence
+and validation criteria. Instructor feedback remains outstanding; this
+approval does not imply that it has been collected.

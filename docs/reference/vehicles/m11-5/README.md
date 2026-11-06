@@ -1,8 +1,10 @@
 # M11-5 pump reference
 
 Owner-provided handoff, recorded 2026-10-24. Reference material only; the app
-does not read this folder yet. The future truck file (`data/apparatus/*.json`)
-will be built from these values in M3, not before.
+does not read this folder. Generic and local apparatus profiles now exist;
+an M11-5 built-in still awaits missing equipment and calibration evidence.
+See [calibration readiness and owner handoff](CALIBRATION.md) for the current
+comparison, discrepancies and completion criteria.
 
 ## Pump
 
