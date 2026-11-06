@@ -4,14 +4,17 @@
   import { smoothBoreFlowGpm } from "$hydraulics/nozzle.ts";
   import { anatomyOf } from "$lib/nozzle-anatomy.ts";
   import { sideArtOf } from "$lib/nozzle-art/index.ts";
+  import { REACH_ANGLE_DEG } from "$hydraulics/reach.ts";
+  import type { WaterMotion } from "$lib/water-motion.ts";
 
   // The nozzle on the canvas (UX.md §3): the model's own side view
   // (nozzle-art/, owner 2026-10-19) when one is drawn — its shell, its shutoff
   // in its two poses, where its stream leaves — and the generic drawing
   // before 2026-10-19 for anything else: a shutoff it really has (bale, slide
   // or ball), its pistol grip, gallonage ring, pressure ring, pattern collar
-  // and teeth. The stream's length is illustrative (it grows with flow); real
-  // reach needs manufacturer data (MODEL.md §6), so no distance is claimed.
+  // and teeth. The cone is the spray at the tip (illustrative: it grows with
+  // flow); the arc beyond it is the stream in world metres (MODEL.md §3.14),
+  // drawn in the canvas's frame, which tilts the nozzle to the data's 32°.
   let {
     nozzle,
     flowGpm,
@@ -22,6 +25,8 @@
     onGrab,
     color = null,
     small = false,
+    jet = null,
+    waterPhase,
   }: {
     nozzle: ScenarioNozzle;
     flowGpm: number;
@@ -35,6 +40,10 @@
     color?: string | null;
     /** Drawn too small to aim a finger at: on touch screens the bale is drawing only (UX.md §8.1). */
     small?: boolean;
+    /** The stream (Canvas.svelte jetOf): engine reach, icon units per metre, its label and its drops. */
+    jet?: { reachM: number; fitted: boolean; unitsPerM: number; screen: number; label: string; drops: WaterMotion } | null;
+    /** The canvas's shared water clock (water-motion.ts). */
+    waterPhase?: (node: SVGPathElement, value: WaterMotion) => { update(v: WaterMotion): void; destroy(): void };
   } = $props();
 
   const design = $derived(nozzle.design ?? "fog");
@@ -46,6 +55,7 @@
   // An open end has no rating; its stream grows with flow against a typical handline flow.
   const ratedFlow = $derived(design === "smooth-bore" ? smoothBoreFlowGpm(nozzle.tipIn!, nozzle.ratedPressurePsi) : nozzle.ratedFlowGpm);
   const flow = Tween.of(() => Math.min(flowGpm / (design === "open-end" ? 250 : ratedFlow), 1.3), { duration: 300 });
+  const reach = Tween.of(() => jet?.reachM ?? 0, { duration: 300 });
   const pattern = Tween.of(() => (fog && anatomy.pattern ? nozzle.pattern : 0), { duration: 200 });
 
   // Stations along the axis, hose at 0: valve body to 22, the gallonage ring
@@ -74,6 +84,25 @@
     return { length: streamLength, dy, core: exit.half * 0.6 + (dy - exit.half) * 0.35 };
   });
 
+  /**
+   * The arc, in a level frame at the tip: it leaves along the nozzle at 32°,
+   * peaks past the middle and falls more steeply than it rose, as drag makes a
+   * real stream do, landing at the nozzle's height. Its shape is illustrative;
+   * the landing distance is the engine's.
+   */
+  const arc = $derived.by(() => {
+    if (!jet) return null;
+    const r = reach.current * jet.unitsPerM;
+    if (r < 1) return null;
+    const t = Math.tan((REACH_ANGLE_DEG * Math.PI) / 180);
+    const d = `M 0 0 C ${0.4 * r} ${-0.4 * r * t} ${0.8 * r} ${-0.25 * r * t} ${r} 0`;
+    // Drops: a streak a third of their spacing, centred on their place.
+    const gap = jet.drops.gapPx;
+    const w = Math.min(3 * jet.screen, 0.4 * gap);
+    const dash = Math.max(0, 0.33 * gap - w);
+    return { r, d, w, px: jet.screen, dasharray: `${dash} ${gap - dash}`, drops: { ...jet.drops, offsetPx: dash / 2 } };
+  });
+
   const shutoffLabel = $derived(
     nozzle.open
       ? `${anatomy.shutoff === "bale" ? "Manija" : "Palanca"} abierta: tocar para cerrar`
@@ -83,6 +112,16 @@
 
 <g transform={`translate(${x} ${y})`}>
   {#if selected}<rect class="selection" x="-10" y="-34" width={length + 14} height="54" rx="8" />{/if}
+  {#if jet && arc}
+    <g class="jet" transform={`translate(${exit.x} 0) rotate(${REACH_ANGLE_DEG})`}>
+      <path class="arc-soft" d={arc.d} stroke-width={(8 + 16 * pattern.current) * arc.px} />
+      <path class="arc" d={arc.d} stroke-width={3 * arc.px} />
+      {#if waterPhase && arc.drops.gapPx > 0}
+        <path class="drops" d={arc.d} stroke-width={arc.w} stroke-dasharray={arc.dasharray} use:waterPhase={arc.drops} />
+      {/if}
+      <text class="reach" class:fitted={jet.fitted} transform={`translate(${arc.r} ${-12 * arc.px}) scale(${arc.px})`}>{jet.label}</text>
+    </g>
+  {/if}
   {#if stream.length > 1}
     {@const x0 = exit.x}
     {@const x1 = exit.x + stream.length}
@@ -188,7 +227,7 @@
 
 <style>
   /* Only the shutoff takes pointer input; the rest lets drags reach the coupling handle beneath. */
-  .selection, .spray, .core, .body, .ring, .ring-label, .collar, .tip, .barrel, .pressure, .tooth, .tooth-rubber, .grip, .index,
+  .selection, .jet, .spray, .core, .body, .ring, .ring-label, .collar, .tip, .barrel, .pressure, .tooth, .tooth-rubber, .grip, .index,
   .dark, .steel, .brass, .label, .red, .yellow, .orange, .blue, .pose { pointer-events: none; }
   /* The product's own colours, fixed in both themes: a black nozzle stays black (the art palette, nozzle-art/types.ts). */
   .dark { fill: #2b2f33; }
@@ -204,6 +243,12 @@
   .spray.solid { fill: var(--water); opacity: 0.45; }
   .selection { fill: none; stroke: var(--accent); stroke-width: 2; stroke-dasharray: 5 4; }
   .spray { fill: var(--water-soft); opacity: 0.8; }
+  .arc-soft { fill: none; stroke: var(--water-soft); stroke-linecap: round; opacity: 0.55; }
+  .arc { fill: none; stroke: var(--water); stroke-linecap: round; opacity: 0.7; }
+  .drops { fill: none; stroke: #fff; stroke-linecap: round; stroke-opacity: 0.95; }
+  .reach { font-size: 11px; font-weight: 600; text-anchor: end; fill: var(--muted); paint-order: stroke; stroke: var(--surface); stroke-width: 3px; }
+  .reach.fitted { fill: var(--ink); }
+  @media (prefers-reduced-motion: reduce) { .drops { display: none; } }
   .core { fill: var(--water); opacity: 0.6; }
   .body { fill: var(--ink); }
   .ring { fill: var(--steel); }

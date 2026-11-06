@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { openEndFlowGpm, reactionOf, smoothBoreFlowGpm } from "../src/hydraulics/nozzle.ts";
 import { NOZZLE_SPECS } from "../src/hydraulics/catalog.ts";
+import { readFileSync } from "node:fs";
+import { genericReachM, NOZZLE_REACH, nozzleReachM, streamReach } from "../src/hydraulics/reach.ts";
 import { METHODS } from "../src/hydraulics/references.ts";
 import { parseScenario, solveScenario } from "../src/hydraulics/scenario.ts";
 
@@ -66,15 +68,18 @@ test("nozzle.reaction: TFT formulas, the open-end momentum and the CGBVP shortcu
 });
 
 // Manufacturer rating points (MODEL §3.5 links), not claims about off-rating curves.
-for (const [id, pressure, settings] of [
+for (const [id, pressure, settings, inletIn = 1.5] of [
   ["TFT-GF3C2S", 100, [30, 60, 95, 125, 150]],
   ["TFT-GF3D2S", 75, [30, 60, 95, 125, 150]],
   ["AKR-17204001", 100, [30, 60, 95, 125]],
   ["AKR-48634028", 50, [175]],
+  ["AKR-1723P", 100, [95, 125, 150, 200]],
+  ["PRO-368", 100, [95, 125, 150, 200, 250], 2.5],
+  ["MAF-SS402", 100, [30, 60, 95, 125, 150]],
 ]) {
   test(`${id}: published rating points through the scenario solver`, () => {
     const spec = NOZZLE_SPECS.find((n) => n.id === id);
-    assert.equal(spec.inletIn, 1.5); // All four published configurations use a 1½″ inlet.
+    assert.equal(spec.inletIn, inletIn); // The datasheet inlet: 1½″, except the Protek 368's 2½″.
     assert.deepEqual(spec.settingsGpm.length ? spec.settingsGpm : [spec.ratedFlowGpm], settings);
     for (const ratedFlowGpm of settings) {
       const scenario = parseScenario({
@@ -89,3 +94,37 @@ for (const [id, pressure, settings] of [
     }
   });
 }
+
+// Each nozzle's reach curve against its own published table (MODEL.md §3.14):
+// the "overall" rows of data/catalog/nozzle-reach.csv, read as printed.
+const reachRows = readFileSync(new URL("../data/catalog/nozzle-reach.csv", import.meta.url), "utf8")
+  .trim().split("\n").slice(1).map((line) => line.split(","))
+  .filter(([, , , , kind]) => kind === "overall")
+  .map(([id, gpm, psi, , , metres]) => ({ id, gpm: Number(gpm), psi: Number(psi), metres: Number(metres) }));
+// The generic tips' curves come from Akron's tip rows (the 15/16″ filed under the catalog's Akron tip).
+const reachTable = { "smooth-bore-7-8": "AKR-1430-7-8", "smooth-bore-15-16": "AKR-1499-15-16" };
+for (const specId of Object.keys(NOZZLE_REACH)) {
+  test(`stream.reach ${specId}: its curve within 6 % of every published overall point`, () => {
+    const rows = reachRows.filter((r) => r.id === (reachTable[specId] ?? specId));
+    assert.ok(rows.length >= 2, specId);
+    for (const r of rows) {
+      near(nozzleReachM(specId, r.gpm, r.psi), r.metres, 0.06 * r.metres);
+      assert.equal(streamReach(specId, specId.startsWith("smooth") ? "smooth-bore" : "fog", r.gpm, r.psi, 0).fitted, true, `${specId} ${r.gpm}@${r.psi}`);
+    }
+  });
+}
+
+test("stream.reach generic: R = 14.3·Q^0.25 m, illustrative, against published overall reach at 100 psi", () => {
+  // Akron Turbojet table (32°), Elkhart Chief XD chart (32°), Fire Armour's Protek 368 table.
+  const published = [
+    [125, 46], [95, 46], [125, 50], [150, 52], [200, 55], // Akron 1720, 1723P
+    [125, 43], [250, 56], // Elkhart Chief XD mid, high tip
+    [95, 45], [125, 48], [150, 51], [200, 54], // Protek 368
+  ];
+  for (const [gpm, metres] of published) near(genericReachM(gpm), metres, 0.12 * metres);
+  // Hand arithmetic: 14.3 × 125^0.25 = 14.3 × 3.3437 = 47.81 m; a generic nozzle never states it.
+  near(streamReach("fog-150", "fog", 125, 100, 0).reachM, 47.81, 0.01);
+  assert.equal(streamReach("fog-150", "fog", 125, 100, 0).fitted, false);
+  // Akron 1720 outside its table (60 psi): its own curve, not stated.
+  assert.equal(streamReach("AKR-17204001", "fog", 100, 60, 0).fitted, false);
+});

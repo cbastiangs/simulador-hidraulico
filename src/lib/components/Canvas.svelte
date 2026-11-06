@@ -11,6 +11,7 @@
     fitBounds,
     growBounds,
     jointAngle,
+    streamBounds,
     layoutWorld,
     snapHeightM,
     type Bounds,
@@ -30,8 +31,10 @@
   import WyeDrawing from "./WyeDrawing.svelte";
   import PieceStrip from "./PieceStrip.svelte";
   import { PIECES, isAdding, removalFor, spotsFor, type PieceId, type Spot } from "$lib/pieces.ts";
-  import { hoseVelocityMps } from "$hydraulics/velocity.ts";
-  import { createWaterMotion } from "$lib/water-motion.ts";
+  import { hoseVelocityMps, nozzleExitVelocityMps } from "$hydraulics/velocity.ts";
+  import { REACH_ANGLE_DEG, streamReach } from "$hydraulics/reach.ts";
+  import { smoothBoreFlowGpm } from "$hydraulics/nozzle.ts";
+  import { createWaterMotion, type WaterMotion } from "$lib/water-motion.ts";
   import { jointFlowGpm } from "$lib/readings.ts";
 
   // The canvas (UX.md §2, polish §10.8): one uniform scale, the lay auto-fitted
@@ -270,7 +273,23 @@
     }
   });
 
-  const fitted = $derived(others.reduce((b, o) => growBounds(b, o.scenario.sections, floorM), fitBounds(scenario.sections, floorM)));
+  /**
+   * The world makes room for each stream at its nozzle's rating, not its
+   * solved flow, so working the pump doesn't refit the view (UX.md §10.10).
+   */
+  function ratedReachM(line: Scenario) {
+    const n = line.nozzle;
+    const design = n.design ?? "fog";
+    if (design === "open-end") return streamReach(null, design, 250, 50, 0).reachM;
+    const gpm = design === "smooth-bore" ? smoothBoreFlowGpm(n.tipIn!, n.ratedPressurePsi) : n.ratedFlowGpm;
+    return streamReach(n.specId, design, gpm, n.ratedPressurePsi, 0).reachM;
+  }
+  const fitted = $derived(
+    others.reduce(
+      (b, o) => streamBounds(growBounds(b, o.scenario.sections, floorM), o.scenario.sections, ratedReachM(o.scenario)),
+      streamBounds(fitBounds(scenario.sections, floorM), scenario.sections, ratedReachM(scenario)),
+    ),
+  );
   // The canvas takes the height the window has (UX.md §2): the lay sits on the
   // ground at the bottom and the rest is building above it, so a rising hose
   // can be dragged up. Side by side, the header above the canvas and its toolbar take about 150 px and the floating pressure bar 70 px.
@@ -865,6 +884,19 @@
     const seconds = (60 * GALLONS_PER_PARTICLE) / flowGpm;
     return { gapPx: hoseVelocityMps(flowGpm, diameterIn) * seconds * PX_PER_M, seconds };
   }
+  /**
+   * How a particle is drawn (UX.md §10.10): a streak 45 % of its spacing long,
+   * at most 60 % of the hose wide, centred on its place in the stream, so its
+   * phase still carries across a size change. A round dot 30 % of the hose
+   * wide measured ~1.3 px at a fitted zoom: moving, but unseen. Capping the
+   * width by the spacing keeps a 5″ hose's dense particles from merging.
+   */
+  function streak(hoseWidthPx: number, gapPx: number, offsetPx: number) {
+    const width = Math.min(0.6 * hoseWidthPx, 0.4 * gapPx);
+    // Round caps add `width` to the drawn length.
+    const dash = Math.max(0, 0.45 * gapPx - width);
+    return { width, dasharray: `${dash} ${gapPx - dash}`, offsetPx: offsetPx + dash / 2 };
+  }
   /** A hose's own flow: on a branched lay the feed carries every open line's water. */
   const sectionFlow = (r: SeriesResult, i: number) => {
     const t = r.terms.find((t) => t.lawId === "hose.friction" && t.sectionIndex === i);
@@ -878,6 +910,29 @@
     return JSON.stringify(upstream?.outlets.find((o) => o.active)?.path ?? []);
   }
   const waterPhase = createWaterMotion();
+
+  // The stream out of the nozzle (MODEL.md §3.14, UX.md §10.10): an arc in
+  // world metres at the reach data's 32°, landing at the engine's reach, and
+  // drops along it at the jet's exit speed (§3.7). A drop is 1/10 of a hose
+  // particle, so a handline shows a dozen or more along its arc.
+  const GALLONS_PER_DROP = GALLONS_PER_PARTICLE / 10;
+  function jetOf(line: Scenario, r: Pick<SeriesResult, "flowGpm" | "nozzlePressurePsi">) {
+    const psi = r.nozzlePressurePsi ?? 0;
+    const reach = streamReach(line.nozzle.specId, line.nozzle.design ?? "fog", r.flowGpm, psi, line.nozzle.pattern);
+    const unitsPerM = PX_PER_M / nozzleK;
+    const seconds = r.flowGpm > 0 ? (60 * GALLONS_PER_DROP) / r.flowGpm : 0;
+    const drops: WaterMotion = {
+      scope: resetKey,
+      stream: `${streamKey(line, line.sections.length)}|jet`,
+      gapPx: nozzleExitVelocityMps(psi) * seconds * unitsPerM,
+      seconds,
+      offsetPx: 0,
+      reduced: reducedMotion,
+    };
+    const label = reach.fitted ? `alcance ≈ ${u.l(reach.reachM, 0)} ${u.length}` : "alcance ilustrativo";
+    // Icon units per screen px: text and strokes keep their size where the nozzle shrinks.
+    return { ...reach, unitsPerM, screen: k / nozzleK, label, drops };
+  }
 
   const selectedHose = $derived(selection?.kind === "section" ? layout.hoses[selection.index] : undefined);
   // The nozzle joint's fittings are edited in the inspector: its handle works the bale.
@@ -1623,7 +1678,10 @@
               {#if peeked}<path class="peek-outline" {d} stroke-width={hoseWidth(h.thicknessPx, sec.diameterIn) + 6 * k} />{/if}
               <path class="hose-outline" {d} stroke-width={hoseWidth(h.thicknessPx, sec.diameterIn) + 2 * HOSE_BORDER * k} />
               <path class="hose" class:idle={!p} {d} stroke-width={hoseWidth(h.thicknessPx, sec.diameterIn)} />
-              {#if p}<path class="particles" {d} stroke-width={Math.max(2, hoseWidth(h.thicknessPx, sec.diameterIn) * 0.3)} style:--offset={`${offsetPx}px`} style:--gap={`${p.gapPx}px`} style:--period={`${p.seconds}s`} use:waterPhase={{ scope: resetKey, stream: streamKey(o.scenario, h.index), ...p, offsetPx, reduced: reducedMotion }} />{/if}
+              {#if p}
+                {@const st = streak(hoseWidth(h.thicknessPx, sec.diameterIn), p.gapPx, offsetPx)}
+                <path class="particles" {d} stroke-width={st.width} stroke-dasharray={st.dasharray} use:waterPhase={{ scope: resetKey, stream: streamKey(o.scenario, h.index), ...p, offsetPx: st.offsetPx, reduced: reducedMotion }} />
+              {/if}
               <path
                 class="hit"
                 {d}
@@ -1657,8 +1715,10 @@
                 />
               {/if}
             {/each}
-            <g transform={`translate(${end.x} ${end.y}) scale(${nozzleK})`}>
+            <g transform={`translate(${end.x} ${end.y}) rotate(${-REACH_ANGLE_DEG}) scale(${nozzleK})`}>
               <NozzleDrawing
+                jet={jetOf(o.scenario, o.result)}
+                {waterPhase}
                 small={nozzleSmall}
                 nozzle={o.scenario.nozzle}
                 flowGpm={o.result.flowGpm}
@@ -1682,14 +1742,13 @@
           <path class="hose-outline" d={hd.d} stroke-width={hd.width + 2 * HOSE_BORDER * k} />
           <path class="hose" class:idle={hd.gapPx <= 0} d={hd.d} stroke-width={hd.width} />
           {#if hd.gapPx > 0}
+            {@const st = streak(hd.width, hd.gapPx, hd.offsetPx)}
             <path
               class="particles"
               d={hd.d}
-              stroke-width={Math.max(2, hd.width * 0.3)}
-              style:--offset={`${hd.offsetPx}px`}
-              style:--gap={`${hd.gapPx}px`}
-              style:--period={`${hd.seconds}s`}
-              use:waterPhase={{ scope: resetKey, stream: streamKey(scenario, hd.index), gapPx: hd.gapPx, seconds: hd.seconds, offsetPx: hd.offsetPx, reduced: reducedMotion }}
+              stroke-width={st.width}
+              stroke-dasharray={st.dasharray}
+              use:waterPhase={{ scope: resetKey, stream: streamKey(scenario, hd.index), gapPx: hd.gapPx, seconds: hd.seconds, offsetPx: st.offsetPx, reduced: reducedMotion }}
             />
           {/if}
           {#if isSection(hd.index)}<path class="hose-selected" d={hd.d} stroke-width={hd.width + 6 * k} />
@@ -1861,8 +1920,10 @@
           </g>
         {/each}
         <!-- The nozzle above its handle and the gauges: the highest event layer -->
-        <g data-tour="nozzle" transform={`translate(${layout.nodes[last].x} ${layout.nodes[last].y}) scale(${nozzleK})`}>
+        <g data-tour="nozzle" transform={`translate(${layout.nodes[last].x} ${layout.nodes[last].y}) rotate(${-REACH_ANGLE_DEG}) scale(${nozzleK})`}>
           <NozzleDrawing
+            jet={jetOf(scenario, result)}
+            {waterPhase}
             small={nozzleSmall}
             nozzle={scenario.nozzle}
             flowGpm={result.flowGpm}
@@ -2187,8 +2248,8 @@
   .missing text { fill: #fff; font-size: 14px; font-weight: 800; text-anchor: middle; }
   .hose { stroke: var(--hose); stroke-linecap: butt; fill: none; }
   .hose-outline { stroke: #000; stroke-linecap: butt; fill: none; pointer-events: none; }
-  .particles { fill: none; stroke: #fff; stroke-opacity: 0.85; stroke-linecap: round; stroke-dasharray: 0 var(--gap); pointer-events: none; }
-  @media (prefers-reduced-motion: reduce) { .particles { display: none; animation: none; } .stage.glide { transition: none; } }
+  .particles { fill: none; stroke: #fff; stroke-opacity: 0.95; stroke-linecap: round; pointer-events: none; }
+  @media (prefers-reduced-motion: reduce) { .particles { display: none; } .stage.glide { transition: none; } }
   .hose-selected { fill: none; stroke: var(--accent); stroke-opacity: 0.35; stroke-linecap: round; pointer-events: none; }
   .hose-hover { fill: none; stroke: var(--accent); stroke-opacity: 0.22; pointer-events: none; }
   .hit { fill: none; stroke: transparent; cursor: pointer; outline: none; }

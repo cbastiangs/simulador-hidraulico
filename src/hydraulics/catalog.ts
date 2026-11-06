@@ -105,13 +105,13 @@ function smoothBore({ id, tipIn, name, inletIn }: (typeof SMOOTH_BORE_TIPS)[numb
 /** Verified subset of data/catalog/nozzles.csv; MODEL §3.5 records scope and assumptions. */
 function manufacturerNozzle(
   id: string, label: string, source: SourceId, settingsGpm: readonly number[],
-  ratedFlowGpm: number, ratedPressurePsi: number,
+  ratedFlowGpm: number, ratedPressurePsi: number, inletIn = 1.5, read = "2026-10-24",
 ): NozzleSpec {
-  const published: Provenance = { sources: [source], note: "Manufacturer product specification, read 2026-10-24; MODEL §3.5" };
+  const published: Provenance = { sources: [source], note: `Manufacturer product specification, read ${read}; MODEL §3.5` };
   return {
     id, label, manufacturerSource: source, design: "fog",
     kind: settingsGpm.length ? "selectable" : "fixed-orifice",
-    settingsGpm, ratedFlowGpm, ratedPressurePsi, inletIn: 1.5,
+    settingsGpm, ratedFlowGpm, ratedPressurePsi, inletIn,
     provenance: {
       ratedFlowGpm: settingsGpm.length
         ? { ...published, note: `${published.note}; 95 gpm initial setting is a simulator choice, not a factory default` }
@@ -126,6 +126,10 @@ export const NOZZLE_SPECS: readonly NozzleSpec[] = [
   manufacturerNozzle("TFT-GF3D2S", "TFT G-Force GF3D2S · 75 psi", "tftGf3d2s", [30, 60, 95, 125, 150], 95, 75),
   manufacturerNozzle("AKR-17204001", "Akron Turbojet 1720 · 100 psi", "akron1720", [30, 60, 95, 125], 95, 100),
   manufacturerNozzle("AKR-48634028", "Akron Assault 48634028 · 175 gpm / 50 psi", "akron48634028", [], 175, 50),
+  // The station's truck nozzles (inventory 2026-10-19), added as catalog options 2026-11-03 (MODEL §3.5).
+  manufacturerNozzle("AKR-1723P", "Akron Mid-Range Turbojet 1723P · 100 psi", "akron1723p", [95, 125, 150, 200], 95, 100, 1.5, "2026-10-21"),
+  manufacturerNozzle("PRO-368", "Protek 368 · 100 psi", "protek368", [95, 125, 150, 200, 250], 95, 100, 2.5, "2026-10-21"),
+  manufacturerNozzle("MAF-SS402", "MAFCO SS402 · 100 psi", "mafcoSs402", [30, 60, 95, 125, 150], 95, 100, 1.5, "2026-10-21"),
   {
     id: "combination-selectable",
     design: "fog",

@@ -67,6 +67,12 @@ export function growBounds(current: Bounds, sections: readonly Section[], floorM
   };
 }
 
+/** Room past a line's end for its stream (UX.md §10.10), which lands `reachM` beyond the nozzle. */
+export function streamBounds(current: Bounds, sections: readonly Section[], reachM: number): Bounds {
+  const total = runsOf(sections).reduce((a, b) => a + b, 0);
+  return { ...current, maxX: Math.max(current.maxX, Math.ceil((total + reachM + 4) / 5) * 5) };
+}
+
 /**
  * The bounds extended to fill a viewport of `widthPx` × `heightPx` at `zoom`,
  * so the world never ends before the canvas does. Adds world to the right

@@ -54,6 +54,24 @@ export const SOURCES = {
     published: "read 2026-10-24",
     url: "https://www.akronbrass.com/mid-range-assault-nozzle-175gpm-50psi",
   },
+  akron1723p: {
+    title: "Mid-Range Turbojet 1723P",
+    publisher: "Akron Brass",
+    published: "read 2026-10-21",
+    url: "https://www.akronbrass.com/mid-range-turbojetr-nozzle-with-pistol-grip",
+  },
+  protek368: {
+    title: "Style 368 selectable gallonage nozzle",
+    publisher: "Protek",
+    published: "read 2026-10-21",
+    url: "https://www.protekfire.com.tw/handline-nozzles/selectable-gallonage-nozzles/105-368",
+  },
+  mafcoSs402: {
+    title: "SS Series handline nozzles (S402)",
+    publisher: "MAFCO",
+    published: "read 2026-10-21",
+    url: "https://www.mafco-fire.com/product/ss-series-handline-nozzles/",
+  },
   /** Nozzle reaction formulas, smooth bore and fog (MODEL.md §3.6, [E4]). */
   tftReaction: {
     title: "Understanding your nozzle reaction",

@@ -1,5 +1,5 @@
 /** Presentation clock only: spacing and period are supplied by the canvas. */
-type WaterMotion = {
+export type WaterMotion = {
   scope: string;
   stream: string;
   gapPx: number;

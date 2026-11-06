@@ -16,6 +16,9 @@
     tftGf3d2s: "TFT G-Force GF3D2S",
     akron1720: "Akron Turbojet 1720",
     akron48634028: "Akron Assault 48634028",
+    akron1723p: "Akron Mid-Range Turbojet 1723P",
+    protek368: "Protek 368",
+    mafcoSs402: "MAFCO SS402",
     tftReaction: "Task Force Tips, reacción del pitón",
     temeculaFireFlow: "Temecula Fire Prevention Bureau (NFPA 291)",
   };

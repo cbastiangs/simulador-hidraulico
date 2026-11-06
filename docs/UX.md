@@ -856,7 +856,7 @@ allowed, with the reason.
 | **Coupling** | with a hose ✅ | fittings ✅ | drag ✅; first-drag camera stability ✅ (§10.8) | join the two hoses ✅ | pressure here, lost before it ✅ (tap its gauge) | — |
 | **Fitting** | adapter ✅; valve: engine only, no toggle (a coupling kind later) | ✕ (a kind has one loss) | moves with its coupling | ✅ | its loss and basis ✅ | auto fittings switch ✅ |
 | **Nozzle** | put back ✅ ("Poner pitón": the one it came from) | bale ✅, model ✅ (chips grouped Combinado / Chorro sólido / Sin pitón), ring ✅, typed rating ✅ (fog only); smooth-bore tips ✅ (owner, 2026-10-17) | drag ✅ | remove ✅ ("Quitar pitón": an open end, MODEL.md §3.4d; owner, 2026-10-17) | rating vs actual ✅ (mark on its gauge, warning in its panel under 95 %; none for an open end); **reaction ✅** (lbf and kgf with the formula, its panel) | — |
-| **Stream** | — | pattern ✅; aim ⏳ M2 | — | — | jet speed ✅; reach ⏳ M2 (illustrative) | — |
+| **Stream** | — | pattern ✅; aim ⏳ M2 | — | — | jet speed ✅ (drops); reach ✅ (arc in metres, MODEL §3.14: a distance where fitted, "ilustrativo" elsewhere) | — |
 | **Water flow** | — | ✕: flow is solved, the app's core lesson; "I want X gpm" is target planning ⏳ | — | — | flow ✅, hose speed ✅, where the pressure went ✅ | — |
 | **Gauge** | — | — | — | hide ✅ (Ajustes › Vista) | tap: reading, loss before it ✅ | — |
 | **Building** | — | floor height ✅ (Línea, 2–6 m) | — | — | — | obstacles, routes ⏳ (ROADMAP §10b) |
@@ -1268,6 +1268,48 @@ Tank endurance below one minute is displayed in whole seconds, rounded up,
 in both the strip and the tank panel. Do not show `0.0 min` while a positive
 amount of time remains. Empty/unknown/no-consumption states keep their own
 labels; this is formatting of the engine's endurance, not a new tank law.
+
+**Particle visibility (2026-11-02).** The owner saw no particles, only the
+static spray. They were moving, but each was a round dot 30 % of the hose
+wide: about 1.3 px in a 1½″ and 1.9 px in a 2½″ at the fitted zoom, while in
+a 5″ hose the dots were wider than their spacing and merged into a line.
+Each particle is now a white streak 45 % of its spacing long (round caps
+included), at most 60 % of the hose wide and at most 40 % of the spacing,
+centred on its place in the stream so its phase still carries across a size
+change. Volume per particle (1.25 US gal), spacing, speed and the segment
+clocks are unchanged. The streak scales with the spacing, so it lengthens on
+entering a narrower hose, as the water does. Measured at the fitted zoom
+(63 %, 1024 px): 1½″ 16.6 × 2.3 px, 2½″ 6.0 × 3.8 px; a 5″ feed shows 1.3 px
+dots 1.6 px apart.
+
+**The stream out of the nozzle (owner, 2026-11-02).** The owner expected the
+particle work to show the water leaving the nozzle; only the static cone did.
+The stream is now an arc in world metres beyond the cone: every nozzle is
+drawn tilted 32°, the angle the reach data were measured at, and its arc
+lands at the engine's reach (MODEL §3.14) at the nozzle's height. White
+drops (one per 0.125 gal) run along it at the jet's exit speed, 12.18·√NP
+ft/s, on the line's own water clock; they are hidden under reduced motion,
+the arc stays. A nozzle with its own reach table (owner, 2026-11-03: a curve
+per nozzle; MODEL §3.14 lists them), in straight stream inside that table,
+reads "alcance ≈ N m" at the arc's end (display units); anywhere else, and
+every nozzle without a table, reads "alcance ilustrativo", muted, no number.
+A wider fog thickens the arc's halo and shortens it. Text, strokes and drops
+keep their screen size where the nozzle icon shrinks (from zoom 1.2 down).
+The world reserves room past each line for its stream at the nozzle's
+**rating**, so working the pump never refits the view; "Ver todo" shows the
+landing. Checked at 390 and 1024 px, light and dark, reduced motion
+(2026-11-02). Per-nozzle reach rechecked 2026-11-03 on the default
+bifurcada, line 2 in straight stream (103 gpm at 108 psi): Akron 1723P reads
+"alcance ≈ 47 m", Protek 368 "≈ 46 m", Akron 1720 "≈ 45 m", the generic
+15/16″ tip (51 psi) "≈ 46 m"; MAFCO SS402 and fog patterns read
+"ilustrativo". At 390 px the arc's end runs past the canvas edge at the
+default zoom; zooming out shows it.
+
+Verified in Chromium at 390×844 and 1024×844, in light and dark themes and
+at 1× and 2× pixel density. On the reduction preset, the particle rate gives
+102.025 gpm and the measured speeds are 2.033 and 5.646 m/s, matching the
+engine. The phase across the 2½″→1½″ joint agrees within 0.005 px. Reduced
+motion hides and pauses the particles. No page errors.
 
 ### 10.11 Real nozzle selection (2026-10-24)
 

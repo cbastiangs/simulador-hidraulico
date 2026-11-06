@@ -470,6 +470,16 @@ and selectable laws, no new law. Product pages rechecked on this date:
 | TFT-GF3D2S | 30 / 60 / 95 / 125 / 150 | 75 | 1½″ | [TFT GF3D2S](https://tft.com/product/gf3d2s/) |
 | AKR-17204001 | 30 / 60 / 95 / 125 | 100 | 1½″ | [Akron Turbojet 1720](https://www.akronbrass.com/turbojet-nozzle-100psi) |
 | AKR-48634028 | 175 fixed | 50 | 1½″ | [Akron Assault 48634028](https://www.akronbrass.com/mid-range-assault-nozzle-175gpm-50psi) |
+| AKR-1723P | 95 / 125 / 150 / 200 | 100 | 1½″ | [Akron Mid-Range Turbojet 1723P](https://www.akronbrass.com/mid-range-turbojetr-nozzle-with-pistol-grip) |
+| PRO-368 | 95 / 125 / 150 / 200 / 250 | 100 | 2½″ | [Protek 368](https://www.protekfire.com.tw/handline-nozzles/selectable-gallonage-nozzles/105-368) |
+| MAF-SS402 | 30 / 60 / 95 / 125 / 150 | 100 | 1½″ | [MAFCO SS series](https://www.mafco-fire.com/product/ss-series-handline-nozzles/) |
+
+The last three are the station's truck nozzles (inventory 2026-10-19), added
+2026-11-03 at the owner's request so their performance can be seen. Their
+ratings are the researched rows of `data/catalog/nozzles.csv` (read
+2026-10-21). A nozzle stays a catalog option whether or not reach data exist
+for it (owner, 2026-11-03): reach decides only whether the stream states a
+distance (§3.14).
 
 Selectable models start at 95 gpm as a simulator choice, not a manufacturer
 factory setting. Only the rating/settings/inlet are adopted; off-rating
@@ -514,7 +524,10 @@ than a fog nozzle at 100 psi (185 gpm: 69 vs 93 lbf).
   manual teaches (pp. 33–34).
 - **As built** (`velocity.ts`, canvas): real time, unscaled; one particle
   per 1.25 gal, so the spacing is 1.25 gal / A and doesn't depend on Q
-  (≈ 1.5 m in 2½″, 4.2 m in 1½″). Nozzle-exit velocity (`nozzleExitVelocityMps`) is shown in the Conceptos card, not drawn.
+  (≈ 1.5 m in 2½″, 4.2 m in 1½″). Nozzle-exit velocity (`nozzleExitVelocityMps`) is shown in the Conceptos card and, since
+  2026-11-02, drawn: drops along the stream's arc (§3.14) move at it, one
+  per 0.125 gal (a tenth of a hose particle, so a handline's arc carries a
+  dozen or more), constant speed along the arc (drag's slowing not drawn).
 
 ### 3.8 Pump: `pump.*` ✅ CX family curve/control and independent discharges; truck files pending
 
@@ -867,7 +880,7 @@ labels on screen; no new law.
 | **Presión en el pitón (NP)** | the flowing pressure at the nozzle **inlet**, behind the opening ("backpressure"). Ratings and the laws of §3.3–§3.5 use it. `convention`, `verify` where each manufacturer measures it | last node of the solver |
 | **Presión a la salida** | the jet leaves into the air: **atmospheric**, 0 psi gauge, for every setting. The pressure has become speed | not modelled; nothing to show |
 | **Caudal (gpm)** | volume per minute, Q = A·v; the **delivered** flow, a solved output, never typed in. A **target** flow is a requested value used for planning, not the delivered output (§2) | solver |
-| **Velocidad** | in a hose v = 0.4085·Q/d² (§3.7); at the tip v = 12.18·√NP ft/s, which depends on NP only | §3.7 (tip part not drawn yet) |
+| **Velocidad** | in a hose v = 0.4085·Q/d² (§3.7); at the tip v = 12.18·√NP ft/s, which depends on NP only | §3.7 (both drawn) |
 | **Reacción** | force on the hands (§3.6) | ✅ |
 
 Rules that follow:
@@ -879,6 +892,64 @@ Rules that follow:
   discharge pressure at which the nozzle gets its rated flow at its rated
   pressure: rated NP + friction at the rated flow + height. It is not the
   nozzle's rating.
+
+### 3.14 Stream reach: `stream.reach` ✅ fitted per nozzle (owner, 2026-11-02; per nozzle 2026-11-03)
+
+Use case (owner, 2026-11-02): show the water leaving the nozzle, the stream
+drawn in world metres, landing where a real stream would. This is the
+"defined use case" ROADMAP §4 waited for before reach data was used.
+
+**A curve per catalog nozzle, not a catch-all one** (owner, 2026-11-03).
+Each nozzle with a published reach table has its own fit to that table:
+
+**R = c · Q^a · (NP/100)^b** m, "overall" reach (farthest droplets), Q the
+actual flow (gpm), NP the nozzle pressure (psi), straight stream, 32°, still
+air. `published` fits, least squares in log space to the "overall" rows of
+`data/catalog/nozzle-reach.csv` (sources in
+`docs/reference/nozzles/SOURCES.md`). Test: `tests/nozzle.test.mjs`, each
+curve within 6 % of every row of its own table.
+
+| Catalog id | c | a | b | Table (stated inside it) | Points, max error |
+|---|---|---|---|---|---|
+| AKR-17204001 (Akron Turbojet 1720) | 9.83 | 0.328 | 0.076 | 75–125 psi, 26–140 gpm | 12 (4 settings × 3 pressures), 4.1 % |
+| AKR-1723P (Akron Mid-Range Turbojet) | 10.90 | 0.308 | 0.184 | 75–125 psi, 82–224 gpm | 12, 4.3 % |
+| PRO-368 (Protek 368) | 13.16 | 0.263 | 0.167 | 75–125 psi, 82–280 gpm | 15, 5.3 %; angle not stated by the page |
+| smooth-bore-7-8 (generic 7/8″ tip) | 56.69 | 0 | 0.3014 | 50–80 psi | 2 (Akron style 1430 7/8″ tip), exact; one tip, so NP alone |
+| smooth-bore-15-16 (generic 15/16″ tip) | 61.48 | 0 | 0.4185 | 50–80 psi | 2 (Akron style 439 15/16″ tip), exact; one tip, so NP alone |
+
+- **Stated** ("alcance ≈ 50 m") only for those nozzles, in straight stream
+  (pattern ≤ 0.05), inside their table's pressures and flows. Outside it the
+  nozzle keeps its own curve but the canvas says "alcance ilustrativo", with
+  no number, so the arc doesn't jump at the edge.
+- **Every other nozzle** (TFT G-Force, Akron Assault 48634028, MAFCO SS402,
+  generic fog, the other smooth-bore tips, open end) draws an illustrative
+  stream from the cross-maker curve **R = 14.3 · Q^0.25** m (`published`
+  fit to the 11 "overall" handline rows at 100 psi: Akron 1720/1723P,
+  Elkhart Chief XD, Protek 368; 95–250 gpm, max error 11 %, rms 4 %),
+  never with a number. No data exist for those nozzles (SOURCES.md records
+  where we looked); nor for the generic 1″ and 1⅛″ tips (one Protek 1″ point,
+  effective only, is not a curve).
+- **Pressure enters through the flow.** Once Q is the actual flow, the
+  tables leave a pressure exponent of 0.08–0.18 (above), far from the ½
+  built on 2026-11-02, which read the 1720's points −11 % to +17 % and was
+  dropped. More pressure carries further mostly because it pushes more
+  water; the cross-maker curve has no separate pressure factor. The single
+  tip is the exception: its flow is fixed by NP, so its curve is in NP.
+- **Pattern** × (1 − 0.7 · pattern), fog only: `convention`, illustrative;
+  a wide fog carries a fraction of a straight stream.
+- Effective reach runs ~3 m shorter (cross-maker fit 13.7 · Q^0.25, 10
+  rows; 1720 alone 8.27 · Q^0.349 · (NP/100)^0.112, 4.5 %). The TFT rows
+  (no reach kind stated) read 7–12 % under the cross-maker curve; the EN
+  15182 G-Force rows at 87 psi read 7–39 % under it.
+- Data not used: the Akromatic 5160 (automatic, not a catalog option until `nozzle.automatic`,
+  ⏳ M2), and the TFT handline charts beyond their headline points (images).
+- Q^0.25 to Q^0.33: doubling the flow adds 19–26 % reach. Drag-limited, so
+  not the ballistic R = v²·sin 2θ / g (37 m/s at 100 psi would give 125 m
+  at 32°; manual pp. 76–77).
+- Drawing: the nozzle is tilted to the data's 32° (no aiming yet, ⏳ M2) and
+  the arc lands at the nozzle's height; its shape is illustrative (rises
+  along the nozzle, falls more steeply), the landing distance is the law's.
+  `src/hydraulics/reach.ts`.
 
 ## 4. Methods and the default model
 
@@ -1004,7 +1075,7 @@ From the review (§17.6) and `validation-cases.md`:
 | Topic | Why | Instead |
 |---|---|---|
 | Kinks | No published loss data (owner decision) | — |
-| Stream reach and pattern | Jet breakup and drag; a ballistic arc overstates reach (manual p. 76–77 says so) | Manufacturer reach data, or a labelled qualitative comparison |
+| Stream reach beyond §3.14's fit | Jet breakup and drag; a ballistic arc overstates reach (manual p. 76–77 says so) | §3.14: a fit to manufacturer reach data where it holds, a labelled illustrative arc elsewhere; wind, aim and fog reach need their own data |
 | Water hammer | Transient; needs its own model | Qualitative note |
 | Drafting, NPSH, cavitation | Absolute pressure and pump data | Later, with real pump data |
 | Hose collapse beyond the high-point rule | Structural data | — |

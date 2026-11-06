@@ -113,8 +113,9 @@ compiled into the engine catalog (MODEL §3.5); incomplete rows stay reference-o
 Reach is kept separately in `data/catalog/nozzle-reach.csv` (2026-10-22):
 one row per published flow/angle/condition measurement, with blank fields
 where the source does not state them. Do not infer a missing angle from
-another row, and do not interpolate reach until the use case and its
-conditions are defined.
+another row. The use case came on 2026-11-02 (owner: draw the stream): a
+fit to the 100 psi straight-stream rows, MODEL §3.14; other rows stay
+reference.
 
 
 **Floor height (2026-10-16):** optional `floorHeightM` (absent: 3 m), the
@@ -166,9 +167,9 @@ Drawing rules:
   This keeps the logic testable under `node --test` and a framework switch
   limited to the components.
 - **Performance:** SVG for the lay (tens of elements, crisp, touchable,
-  accessible); one canvas layer for particles, animated outside the
-  framework, with the count adapted to the device. Particles are off under
-  `prefers-reduced-motion`.
+  accessible); particles and stream drops are dashed SVG paths animated by
+  the Web Animations API outside the framework (`water-motion.ts`), a few
+  elements whatever the flow. They are off under `prefers-reduced-motion`.
 
 ## 6. Trucks
 
@@ -455,7 +456,7 @@ constant sourced.
 |---|---|---|
 | Language | TypeScript | Browsers run it natively; the solver needs microseconds, so WebAssembly languages add size and buy nothing. Keeps the tested engine as is. Most AI-assist examples. |
 | UI | Svelte 5 (runes) + SvelteKit, `adapter-static` | Fine-grained updates and built-in motion suit gauges and sliders; less code than React. Risk: AI writing Svelte 4 syntax. Mitigation: the AGENTS.md rule, and Svelte's `llms.txt` docs. |
-| Drawing | SVG for the lay, one canvas for particles | §5 |
+| Drawing | SVG for the lay and its moving water (Web Animations) | §5 |
 | Offline | Installable web app (PWA) | Home-screen install on tablets; no app stores |
 | Hosting | Any static host (e.g. GitHub Pages) | Public hosting brings back PLAN §1's licence question |
 | Tests | `node --test` for engines; a test per preset that it solves to the numbers its notes claim | |
@@ -643,8 +644,8 @@ redesign; verify remaining friction against the fixes recorded in UX §10.9.
 Before/after comparison is backlog (owner, 2026-10-24): existing branches
 already support useful simultaneous comparisons; pinning a previous result
 is not a prerequisite for real equipment. Personal saved lays ("Mis líneas")
-are built (§10g). Automatic nozzles await verified operating behavior; simulated reach awaits a defined
-use case and measurement conditions. Neither blocks the sequence above.
+are built (§10g). Automatic nozzles await verified operating behavior. Stream reach is drawn
+from a fit to published data where it holds (MODEL §3.14, 2026-11-02). Neither blocks the sequence above.
 
 ## 10g. Operating and keeping a lay (built 2026-10-26)
 
