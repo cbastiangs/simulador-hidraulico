@@ -876,6 +876,16 @@ tank starts full; unknown capacity disables finite-volume tracking. An
 occupied outlet cannot be removed by applying a smaller profile. Storage
 errors are visible and must not overwrite unreadable local profiles.
 
+**M11-5 (2026-11-06):** a read-only built-in with seven owner-confirmed
+discharges and a 500 US gal tank. Its name explicitly says the CX pump is
+approximate, so applied/shared snapshots retain that distinction. The truck
+panel lists the three confirmed intakes as reference equipment only; they
+are not additional outlets or simulated supplies. The built-in's source
+card distinguishes confirmed port/tank data from the uncalibrated family
+curve. Applying uses pressure control at 4000 pump-shaft rpm, a teaching
+default, not the uncertain 2400 rpm governor reading. Existing lines remain
+in outlet order; new outlets are closed. No hose/nozzle load is supplied.
+
 ### 10.3 Phone walkthrough of the built tasks
 
 > **Historical (2026-10-16).** This walkthrough recorded the first pass over

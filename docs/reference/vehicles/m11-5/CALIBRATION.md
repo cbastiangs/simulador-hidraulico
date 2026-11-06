@@ -83,5 +83,20 @@ from their nominal sizes.
    plate is not independent validation.
 5. Verify scenario save/share and phone/desktop controls.
 
-No station calibration is claimed. Generic exercises remain the operating
-examples until the required handoff is complete.
+No station calibration is claimed. The owner approved proceeding with the
+confirmed ports and the labelled CX approximation. The built-in
+`data/apparatus/m11-5.json` now provides seven discharges and the 500 US gal
+tank; the three intakes remain reference-only. It starts in pressure mode
+at 4000 shaft rpm, a teaching default independent of the 2400 rpm reading.
+Applying keeps existing lines by outlet order and closes newly added outlets;
+no hose/nozzle load is claimed. Calibration criteria above remain pending.
+
+Verification: `pnpm test`, `pnpm typecheck` and `pnpm build` pass. Local
+browser checks at 390×844 and 1024×844 verify applying the seven sizes,
+preserving the existing line/requested pressure, closing new gates, the
+full 500-gallon tank, the exact CX curve snapshot, clone/save and shared
+scenario reopening with the approximation label. No page errors or page
+horizontal overflow occurred. Screenshots were inspected at both sizes;
+temporary checks and images are in `/tmp/m11-5/`. Profile diameter counts
+also match the owner-confirmed outlet CSV. These checks establish software
+behavior, not apparatus calibration.

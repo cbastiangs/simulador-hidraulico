@@ -920,3 +920,11 @@ unit calibration. The [readiness review](reference/vehicles/m11-5/CALIBRATION.md
 records known equipment, the conditional plate comparison, missing evidence
 and validation criteria. Instructor feedback remains outstanding; this
 approval does not imply that it has been collected.
+
+**Approximate profile approved and built (2026-11-06):** M11-5 now appears
+in Camión with the confirmed seven discharges, 4″ LDH and 500 US gal tank.
+It uses the existing CX family curve, explicitly labelled approximate in
+the profile/snapshot name, with a teaching default of pressure control at
+4000 pump-shaft rpm. This is not an interpretation of the uncertain 2400 rpm
+governor reading. The three intakes are listed as reference equipment only;
+inlet hydraulics and unit-specific pump calibration remain pending.

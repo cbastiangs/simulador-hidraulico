@@ -2,7 +2,8 @@
 
 Owner-provided handoff, recorded 2026-10-24. Reference material only; the app
 does not read this folder. Generic and local apparatus profiles now exist;
-an M11-5 built-in still awaits missing equipment and calibration evidence.
+the M11-5 built-in now uses the confirmed ports and tank with an explicitly
+approximate CX family pump. It is not a calibrated unit-specific model.
 See [calibration readiness and owner handoff](CALIBRATION.md) for the current
 comparison, discrepancies and completion criteria.
 

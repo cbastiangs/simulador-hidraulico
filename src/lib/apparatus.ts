@@ -2,6 +2,7 @@ import { parsePump, type PumpConfig } from "$hydraulics/pump.ts";
 import { parseScenario, type Scenario, type ScenarioDischarge } from "$hydraulics/scenario.ts";
 import { flattenSegments } from "$lib/branch-edit.ts";
 import generic from "../../data/apparatus/generic.json";
+import m11_5 from "../../data/apparatus/m11-5.json";
 
 export type Apparatus = {
   schema: "simulador-hidraulico/apparatus"; version: 1; id: string; name: string;
@@ -23,7 +24,8 @@ export function parseApparatus(value: unknown): Apparatus {
     ...(p.pump === undefined ? {} : { pump: parsePump(p.pump) }),
     ...(p.tankCapacityGal === undefined ? {} : { tankCapacityGal: p.tankCapacityGal }) };
 }
-export const BUILTIN_APPARATUS = [parseApparatus(generic)];
+export const M11_5_APPARATUS = parseApparatus(m11_5);
+export const BUILTIN_APPARATUS = [parseApparatus(generic), M11_5_APPARATUS];
 export function readApparatus(): Apparatus[] {
   const raw = localStorage.getItem(KEY);
   if (!raw) return [];

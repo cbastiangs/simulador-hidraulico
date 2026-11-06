@@ -2,7 +2,7 @@
   import { onMount } from "svelte";
   import type { Scenario } from "$hydraulics/scenario.ts";
   import { WATEROUS_CX, parsePump } from "$hydraulics/pump.ts";
-  import { BUILTIN_APPARATUS, readApparatus, writeApparatus, parseApparatus, applyApparatus, type Apparatus } from "$lib/apparatus.ts";
+  import { BUILTIN_APPARATUS, M11_5_APPARATUS, readApparatus, writeApparatus, parseApparatus, applyApparatus, type Apparatus } from "$lib/apparatus.ts";
   let { scenario, onchange }: { scenario: Scenario; onchange: (s: Scenario) => void } = $props();
   let saved = $state<Apparatus[]>([]);
   let draft = $state<Apparatus>(structuredClone(BUILTIN_APPARATUS[0]));
@@ -17,7 +17,11 @@
     catch (e) { return e instanceof Error ? e.message : "No se puede aplicar este camión."; }
   });
   onMount(() => {
-    try { saved = readApparatus(); storageReady = true; }
+    try {
+      saved = readApparatus(); storageReady = true;
+      const applied = [...BUILTIN_APPARATUS, ...saved].find(p => p.name === scenario.apparatusName);
+      if (applied) draft = parseApparatus(applied);
+    }
     catch { storageError = "No se pudieron leer los camiones guardados. Se conservan los datos; no se guardarán cambios en esta visita."; }
   });
   function choose(id: string) {
@@ -53,6 +57,15 @@
     {#each profiles as p (p.id)}<option value={p.id}>{p.name}{BUILTIN_APPARATUS.some(b => b.id === p.id) ? " · incluido" : " · local"}</option>{/each}
     {#if !profiles.some(p => p.id === draft.id)}<option value={draft.id}>{draft.name} · sin guardar</option>{/if}
   </select></label>
+  {#if draft.id === M11_5_APPARATUS.id}
+    <aside class="reference" aria-label="Datos de M11-5">
+      <strong>M11-5 · equipo confirmado</strong>
+      <p>7 descargas y 3 entradas, confirmadas por el propietario el 06/11/2026. Tanque de 500 US gal, confirmado el 30/10/2026.</p>
+      <p>Entradas: piloto, 6″ y 2½″; copiloto, 6″. Solo referencia de equipo: no se simula alimentación por estas entradas.</p>
+      <p>Bomba identificada: Waterous CXVC22C, 1500 gpm nominales. Se usa la curva de familia CX (Waterous 810304), sin calibración para esta unidad. El caudal entregado depende de la tendida.</p>
+      <p>Inicio a 4000 rpm del eje de la bomba: valor de simulación. La lectura de 2400 rpm del gobernador sigue sin identificar; no se usa como límite.</p>
+    </aside>
+  {/if}
   <div class="actions">
     <button type="button" disabled={dirty} onclick={clone}>Clonar perfil</button>
     {#if dirty}<button type="button" onclick={() => choose(saved.some(p => p.id === draft.id) ? draft.id : BUILTIN_APPARATUS[0].id)}>Descartar cambios</button>{/if}
@@ -65,7 +78,7 @@
       <option value="ideal">Presión ideal · sin límite de capacidad</option>
       <option value="cx">Waterous CX · modelo de familia</option>
     </select></label>
-    {#if draft.pump}<p>CX de referencia, no calibrada para M11-5. Se aplica con gobernador de presión a 4000 rpm; opera el control en «Curva y control».</p>{/if}
+    {#if draft.pump}<p>CX de referencia, no calibrada para M11-5. Se aplica con gobernador de presión a {draft.pump.speedRpm} rpm del eje de la bomba; opera el control en «Curva y control».</p>{/if}
     <label>Capacidad del tanque (US gal)<input type="number" min="1" step="any" placeholder="Desconocida / sin tanque" bind:value={draft.tankCapacityGal} /></label>
     <label>Número de descargas<select value={draft.outlets.length} onchange={e => count(Number(e.currentTarget.value))}>{#each [1,2,3,4,5,6,7,8] as n}<option value={n}>{n}</option>{/each}</select></label>
     {#each draft.outlets as outlet, i}
@@ -93,6 +106,8 @@
   .outlet { display: grid; grid-template-columns: 22px minmax(0, 1fr) 95px; gap: 7px; align-items: end; }
   .outlet span { padding-bottom: 12px; font-size: 12px; color: var(--muted); }
   .actions { display: flex; gap: 8px; } .apply { display: grid; gap: 10px; border-top: 1px solid var(--line); padding-top: 12px; }
+  .reference { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; }
+  .reference strong { font-size: 14px; }
   .primary { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
   [role=alert] { color: var(--warn); }
 </style>

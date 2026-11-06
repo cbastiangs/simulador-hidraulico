@@ -1,0 +1,81 @@
+{
+  "schema": "simulador-hidraulico/apparatus",
+  "version": 1,
+  "id": "m11-5-cx-approximate",
+  "name": "M11-5 · bomba CX aproximada",
+  "outlets": [
+    {
+      "name": "Parachoques delantero",
+      "sizeIn": 1.5
+    },
+    {
+      "name": "Crosslay 1",
+      "sizeIn": 1.5
+    },
+    {
+      "name": "Crosslay 2",
+      "sizeIn": 1.5
+    },
+    {
+      "name": "Piloto 1",
+      "sizeIn": 2.5
+    },
+    {
+      "name": "Piloto 2",
+      "sizeIn": 2.5
+    },
+    {
+      "name": "Copiloto",
+      "sizeIn": 2.5
+    },
+    {
+      "name": "LDH · copiloto",
+      "sizeIn": 4
+    }
+  ],
+  "pump": {
+    "curve": {
+      "id": "waterous-cx-810304-v1",
+      "referenceRpm": 4000,
+      "minRpm": 2600,
+      "maxRpm": 4800,
+      "points": [
+        {
+          "flowGpm": 0,
+          "pressurePsi": 224
+        },
+        {
+          "flowGpm": 250,
+          "pressurePsi": 222
+        },
+        {
+          "flowGpm": 500,
+          "pressurePsi": 218
+        },
+        {
+          "flowGpm": 750,
+          "pressurePsi": 212
+        },
+        {
+          "flowGpm": 1000,
+          "pressurePsi": 202
+        },
+        {
+          "flowGpm": 1250,
+          "pressurePsi": 184
+        },
+        {
+          "flowGpm": 1500,
+          "pressurePsi": 154
+        },
+        {
+          "flowGpm": 1600,
+          "pressurePsi": 140
+        }
+      ]
+    },
+    "mode": "pressure",
+    "speedRpm": 4000
+  },
+  "tankCapacityGal": 500
+}
