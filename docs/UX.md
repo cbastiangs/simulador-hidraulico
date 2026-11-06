@@ -1291,8 +1291,15 @@ drops (one per 0.125 gal) run along it at the jet's exit speed, 12.18·√NP
 ft/s, on the line's own water clock; they are hidden under reduced motion,
 the arc stays. A nozzle with its own reach table (owner, 2026-11-03: a curve
 per nozzle; MODEL §3.14 lists them), in straight stream inside that table,
-reads "alcance ≈ N m" at the arc's end (display units); anywhere else, and
-every nozzle without a table, reads "alcance ilustrativo", muted, no number.
+reads "alcance ≈ N m" at the arc's end (display units). The same nozzle on a
+fog pattern reads, muted, "en Directo: alcance ≈ N m", the number its table
+gives at that flow and pressure on straight stream (owner, 2026-11-06: the
+default pattern otherwise hides it). Outside its table, and on every nozzle
+without one, the label reads "alcance ilustrativo", muted, no number. A label
+with a number stays on screen: when the landing is off screen it sits where
+the arc leaves the canvas, and moves as the view pans; within 200 px of the
+nozzle it drops the word "alcance" ("≈ 47 m"). "ilustrativo" stays at
+the landing, so it never covers a gauge's reading.
 A wider fog thickens the arc's halo and shortens it. Text, strokes and drops
 keep their screen size where the nozzle icon shrinks (from zoom 1.2 down).
 The world reserves room past each line for its stream at the nozzle's
@@ -1302,8 +1309,7 @@ landing. Checked at 390 and 1024 px, light and dark, reduced motion
 bifurcada, line 2 in straight stream (103 gpm at 108 psi): Akron 1723P reads
 "alcance ≈ 47 m", Protek 368 "≈ 46 m", Akron 1720 "≈ 45 m", the generic
 15/16″ tip (51 psi) "≈ 46 m"; MAFCO SS402 and fog patterns read
-"ilustrativo". At 390 px the arc's end runs past the canvas edge at the
-default zoom; zooming out shows it.
+"ilustrativo".
 
 Verified in Chromium at 390×844 and 1024×844, in light and dark themes and
 at 1× and 2× pixel density. On the reduction preset, the particle rate gives

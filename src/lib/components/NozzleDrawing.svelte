@@ -26,6 +26,7 @@
     color = null,
     small = false,
     jet = null,
+    view = null,
     waterPhase,
   }: {
     nozzle: ScenarioNozzle;
@@ -41,7 +42,9 @@
     /** Drawn too small to aim a finger at: on touch screens the bale is drawing only (UX.md §8.1). */
     small?: boolean;
     /** The stream (Canvas.svelte jetOf): engine reach, icon units per metre, its label and its drops. */
-    jet?: { reachM: number; fitted: boolean; unitsPerM: number; screen: number; label: string; drops: WaterMotion } | null;
+    jet?: { reachM: number; fitted: boolean; unitsPerM: number; screen: number; label: string; numbered: boolean; drops: WaterMotion } | null;
+    /** The visible canvas's right and top edges, icon units from the nozzle, so the stream's label stays on screen. */
+    view?: { right: number; top: number } | null;
     /** The canvas's shared water clock (water-motion.ts). */
     waterPhase?: (node: SVGPathElement, value: WaterMotion) => { update(v: WaterMotion): void; destroy(): void };
   } = $props();
@@ -103,6 +106,35 @@
     return { r, d, w, px: jet.screen, dasharray: `${dash} ${gap - dash}`, drops: { ...jet.drops, offsetPx: dash / 2 } };
   });
 
+  /**
+   * The stream's label sits at the landing or, when that is off screen, where
+   * the arc leaves the canvas (owner, 2026-11-06: a phone never showed it).
+   * Only a label with a number moves: "ilustrativo" says nothing worth covering a gauge's reading.
+   * Icon units in the jet's own frame.
+   */
+  const labelAt = $derived.by(() => {
+    if (!jet || !arc) return null;
+    const { r, px } = arc;
+    const angle = (REACH_ANGLE_DEG * Math.PI) / 180;
+    const right = view && jet.numbered ? view.right - exit.x * Math.cos(angle) - 8 * px : r;
+    const top = view && jet.numbered ? view.top + exit.x * Math.sin(angle) + 14 * px : -Infinity;
+    const x = Math.min(r, Math.max(right, 0));
+    // The arc's height at that x: its Bézier (above) solved for s, since x grows with s.
+    const xAt = (s: number) => r * s * (1.2 * (1 - s) ** 2 + 2.4 * s * (1 - s) + s * s);
+    let lo = 0;
+    let hi = 1;
+    for (let i = 0; i < 20; i++) {
+      const s = (lo + hi) / 2;
+      if (xAt(s) < x) lo = s;
+      else hi = s;
+    }
+    const s = (lo + hi) / 2;
+    const y = -r * Math.tan(angle) * s * (1 - s) * (1.2 * (1 - s) + 0.75 * s);
+    // Close to the edge the full wording would run over the nozzle: the number alone.
+    const text = x < r && x < 200 * px ? jet.label.replace("alcance ", "") : jet.label;
+    return { x, y: Math.max(y - 12 * px, top), text };
+  });
+
   const shutoffLabel = $derived(
     nozzle.open
       ? `${anatomy.shutoff === "bale" ? "Manija" : "Palanca"} abierta: tocar para cerrar`
@@ -119,7 +151,7 @@
       {#if waterPhase && arc.drops.gapPx > 0}
         <path class="drops" d={arc.d} stroke-width={arc.w} stroke-dasharray={arc.dasharray} use:waterPhase={arc.drops} />
       {/if}
-      <text class="reach" class:fitted={jet.fitted} transform={`translate(${arc.r} ${-12 * arc.px}) scale(${arc.px})`}>{jet.label}</text>
+      <text class="reach" class:fitted={jet.fitted} transform={`translate(${labelAt?.x ?? arc.r} ${labelAt?.y ?? 0}) scale(${arc.px})`}>{labelAt?.text ?? jet.label}</text>
     </g>
   {/if}
   {#if stream.length > 1}

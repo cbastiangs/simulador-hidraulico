@@ -929,10 +929,19 @@
       offsetPx: 0,
       reduced: reducedMotion,
     };
-    const label = reach.fitted ? `alcance ≈ ${u.l(reach.reachM, 0)} ${u.length}` : "alcance ilustrativo";
+    // A fog pattern on a nozzle with its own table: say where its number is (owner, 2026-11-06).
+    const straight = reach.fitted ? reach : streamReach(line.nozzle.specId, line.nozzle.design ?? "fog", r.flowGpm, psi, 0);
+    const label = straight.fitted
+      ? `${reach.fitted ? "" : "en Directo: "}alcance ≈ ${u.l(straight.reachM, 0)} ${u.length}`
+      : "alcance ilustrativo";
     // Icon units per screen px: text and strokes keep their size where the nozzle shrinks.
-    return { ...reach, unitsPerM, screen: k / nozzleK, label, drops };
+    return { ...reach, unitsPerM, screen: k / nozzleK, label, numbered: straight.fitted, drops };
   }
+  /** The visible canvas's edges from a nozzle at world (x, y), in its icon units (NozzleDrawing `view`). */
+  const jetView = (x: number, y: number) => ({
+    right: ((camX + viewWidth) / zoom - x) / nozzleK,
+    top: (camY / zoom - y) / nozzleK,
+  });
 
   const selectedHose = $derived(selection?.kind === "section" ? layout.hoses[selection.index] : undefined);
   // The nozzle joint's fittings are edited in the inspector: its handle works the bale.
@@ -1718,6 +1727,7 @@
             <g transform={`translate(${end.x} ${end.y}) rotate(${-REACH_ANGLE_DEG}) scale(${nozzleK})`}>
               <NozzleDrawing
                 jet={jetOf(o.scenario, o.result)}
+                view={jetView(end.x, end.y)}
                 {waterPhase}
                 small={nozzleSmall}
                 nozzle={o.scenario.nozzle}
@@ -1923,6 +1933,7 @@
         <g data-tour="nozzle" transform={`translate(${layout.nodes[last].x} ${layout.nodes[last].y}) rotate(${-REACH_ANGLE_DEG}) scale(${nozzleK})`}>
           <NozzleDrawing
             jet={jetOf(scenario, result)}
+            view={jetView(layout.nodes[last].x, layout.nodes[last].y)}
             {waterPhase}
             small={nozzleSmall}
             nozzle={scenario.nozzle}
