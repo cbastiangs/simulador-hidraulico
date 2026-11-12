@@ -928,3 +928,37 @@ the profile/snapshot name, with a teaching default of pressure control at
 4000 pump-shaft rpm. This is not an interpretation of the uncertain 2400 rpm
 governor reading. The three intakes are listed as reference equipment only;
 inlet hydraulics and unit-specific pump calibration remain pending.
+
+## Current checkpoint and deferred pump-panel proposal (2026-11-12)
+
+Owner requested holding off on the proposed visual M11-5 pump-panel layout.
+Grouping ports by front bumper, crosslays, pilot side and copilot side is
+**proposed and deferred**, not approved for implementation. The existing
+truck profile and discharge controls remain the delivered UI. No visual
+pump-panel implementation was started.
+
+Current delivered state (through `a8279cb`):
+
+- Live NFA comparison and the three focused diameter, nozzle-capacity and
+  second-discharge exercises are implemented; instructor feedback is pending.
+- Camión includes **M11-5 · bomba CX aproximada**. Its seven discharges are
+  front bumper 1½″, two 1½″ crosslays, two pilot-side 2½″ outlets, and
+  copilot-side 2½″ plus 4″ LDH outlets. Tank capacity is 500 US gal.
+- Three intakes are reference-only: pilot-side 6″ and 2½″, copilot-side 6″.
+  Intake supply hydraulics and internal plumbing losses are not modelled.
+- The pump uses the existing Waterous CX family curve in pressure mode,
+  initially at 4000 pump-shaft rpm, explicitly a simulation default.
+  The reported 2400 rpm is probably a governor display reading; its speed
+  basis and whether it represents a limit are unconfirmed.
+- Unit-specific calibration remains pending: exact curve/acceptance evidence,
+  speed/gear definitions and intake-pressure conditions. The family curve
+  must not be represented as calibrated M11-5 performance. See the
+  [calibration review](reference/vehicles/m11-5/CALIBRATION.md).
+- Applying the profile preserves existing lines by outlet order, closes new
+  outlets and fills the tank. Clone/save and shared snapshots are supported.
+  Hose/nozzle inventory remains outside the approved pump-and-ports scope.
+
+Last implementation verification recorded tests, typecheck and static build
+passing, with local browser checks and inspected screenshots at 390 and
+1024 px. This documentation checkpoint introduces no runtime change and
+does not claim fresh physical calibration or instructor validation.
