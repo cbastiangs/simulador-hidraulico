@@ -39,6 +39,7 @@
   import { LESSONS } from "$lib/lessons.ts";
   import { parseDocument, wrapScenario, withScenario, type AppDocument, type Exercise } from "$lib/document.ts";
   import { exerciseReadings } from "$lib/fire-flow.ts";
+  import DischargeComparison from "$lib/components/DischargeComparison.svelte";
   import PracticeSummary from "$lib/components/PracticeSummary.svelte";
   import FireFlowPractice from "$lib/components/FireFlowPractice.svelte";
   import { feetToMeters } from "$hydraulics/units.ts";
@@ -249,6 +250,28 @@
   const result = $derived(network && view ? pathResult(network.root, view.path) : solveScenario(scenario));
   const practiceReadings = $derived(exerciseReadings(activeDocument, result, network));
   const pumpResult = $derived(network?.root.result ?? result);
+  let dischargeBaseline = $state<{ key: string; values: number[] } | null>(null);
+  const dischargeValues = $derived.by(() => {
+    const valid = network?.balanced && pumpResult.pump?.status !== 'empty';
+    return [valid ? network?.root.branches[0]?.flowGpm ?? null : null,
+      valid ? pumpResult.flowGpm : null,
+      valid ? pumpResult.pump?.pressurePsi ?? pumpResult.nodes[0]?.pressurePsi ?? null : null];
+  });
+  const dischargeKey = $derived(JSON.stringify([practiceKey, scenario.source]));
+  const baselineValues = $derived(dischargeBaseline?.key === dischargeKey ? dischargeBaseline.values : null);
+  $effect(() => { if (!practiceRevealed) dischargeBaseline = null; });
+  function chooseDischargeCase(reserve: boolean) {
+    pauseClock();
+    const preset = presets.find(p => p.id === (reserve ? 'practica-descargas-reserva' : 'practica-descargas'))!;
+    applyDocument(structuredClone(preset.scenario));
+    dischargeBaseline = null;
+    selection = null;
+    selectedPath = [];
+  }
+  function captureDischargeBaseline() {
+    if (dischargeValues.every(v => v !== null)) dischargeBaseline = { key: dischargeKey, values: dischargeValues as number[] };
+  }
+
   /** Each outlet's reading, keyed by its path joined with "/". */
   const outlets = $derived.by(() => {
     const out: Record<string, { flowGpm: number; isolated: boolean; nozzlePsi: number | null }> = {};
@@ -701,6 +724,9 @@
   {#if activeDocument.exercise && practiceReadings}
     <div class="practice-summary" inert={phone && sheet === "full"} style:visibility={phone && sheet === "full" ? "hidden" : undefined}>
       <PracticeSummary readings={practiceReadings} revealed={practiceRevealed} lessonId={activeDocument.exercise.lessonId} onOpen={openPractice} />
+      {#if practiceRevealed && activeDocument.exercise?.lessonId === 'second-discharge'}
+        <DischargeComparison values={dischargeValues} baseline={baselineValues} canCapture={scenario.discharges?.[1]?.open === false} onCapture={captureDischargeBaseline} pump={scenario.source.pump} status={pumpResult.pump?.status} onCase={chooseDischargeCase} />
+      {/if}
     </div>
   {/if}
 
@@ -788,7 +814,10 @@
 {#if phone}
   <Sheet onClosedHeight={(height) => (closedSheetHeight = height)} selectionKey={JSON.stringify([selectedPath, selection])} {summary} {sheet} onSheet={(s) => (sheet = s)}>
     {#if sheet === "full" && practiceReadings}
-      <div class="sheet-practice"><PracticeSummary readings={practiceReadings} revealed={practiceRevealed} compact onOpen={openPractice} /></div>
+      <div class="sheet-practice"><PracticeSummary readings={practiceReadings} revealed={practiceRevealed} compact onOpen={openPractice} />
+      {#if practiceRevealed && activeDocument.exercise?.lessonId === 'second-discharge'}
+        <DischargeComparison values={dischargeValues} baseline={baselineValues} canCapture={scenario.discharges?.[1]?.open === false} onCapture={captureDischargeBaseline} pump={scenario.source.pump} status={pumpResult.pump?.status} onCase={chooseDischargeCase} />
+      {/if}</div>
     {/if}
     {#if selection?.kind === "pump"}
       <!-- The strip is a summary; the pump's whole control opens here, above its detail (UX.md §4). -->

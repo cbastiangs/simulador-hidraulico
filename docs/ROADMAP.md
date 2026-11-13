@@ -962,3 +962,16 @@ Last implementation verification recorded tests, typecheck and static build
 passing, with local browser checks and inspected screenshots at 390 and
 1024 px. This documentation checkpoint introduces no runtime change and
 does not claim fresh physical calibration or instructor validation.
+
+**Owner confirmation (2026-11-12):** passenger/copilot side has exactly one
+4″ LDH discharge, one 2½″ discharge and one 6″ intake only. This confirms
+the existing inventory; no additional passenger-side intake is implied.
+Next review focuses on the existing diameter and second-discharge exercises;
+the visual pump panel remains deferred.
+
+**Capacity-dependent practice (2026-11-13):** the second-discharge exercise
+now compares repeatable generic CX pressure-control cases at 3200 and 4000
+pump-shaft rpm ceilings. Its live explanation distinguishes maintaining
+pressure from reaching the ceiling; opening another discharge does not
+necessarily reduce first-line flow. This remains separate from M11-5
+calibration and uses the existing solver and family curve.

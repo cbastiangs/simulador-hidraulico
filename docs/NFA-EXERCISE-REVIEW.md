@@ -81,3 +81,46 @@ the answer on load. The summary labels a reference surplus without a tactical
 verdict. Tests, typecheck and static build pass; no page errors or horizontal
 overflow in the interaction sweep. Local-only browser scripts and screenshots:
 `/tmp/live-practice/` (browser.mjs, states.mjs, capture.mjs, arithmetic.json).
+
+## Focused walkthrough (2026-11-12)
+
+Rechecked diameter and second-discharge operation at 390×844 and 1024×844.
+Diameter delivery changes 116.8 → 160.7 gpm; opening discharge 2 changes
+combined delivery 279.1 → 551.5 gpm, with discharge 1 at 275.7 gpm and
+actual pump pressure 136.6 psi. Prompts now request baseline readings and
+reversing the change. Reveal/reset, undo, units and reload checks also pass;
+no browser page errors or horizontal overflow. Inspected captures:
+`/tmp/live-practice/operate-390.png` and `pump-1024.png`.
+Tests, typecheck (zero errors/warnings) and static build pass. This is a
+browser walkthrough, not instructor or physical apparatus validation.
+
+Second-discharge comparison implemented: explicit session baseline with the
+second outlet closed, shared across desktop and mobile inspector views.
+The final production build was checked at 390×844 and 1024×844: opening
+outlet 2 shows first-outlet change −3.4 gpm, total +272.3 gpm and pressure
+−3.4 psi. Undo restores zero differences; reload hides the comparison and
+clears its baseline. Inspected final captures `/tmp/discharge-390.png` and
+`/tmp/discharge-1024.png`. Repeat instructions collapse to preserve canvas
+space. The preset is unchanged. Tests, typecheck and build pass.
+
+## Capacity-dependent comparison (2026-11-13)
+
+Added a second generic exercise document with the same lines, 140 psi request
+and pressure control, changing only the pump-shaft ceiling to 4000 rpm.
+Both cases are reachable in the comparison's repeat section, which discloses
+that it restores the initial lay. The mode, ceiling and solver-derived
+holding/limited/RPM explanation remain visible. Editing the source invalidates
+the baseline. The teaching prompt no longer assumes first-line flow falls.
+
+Production browser checks at 390×844 and 1024×844 confirmed:
+- 3200 rpm: first line 279.1 → 275.7 gpm, total 551.5 gpm, pressure 136.6 psi;
+  the explanation reports reaching the ceiling.
+- 4000 rpm: first line remains 279.1 gpm, total 558.3 gpm, pressure stays
+  140 psi; the explanation reports holding pressure.
+- Loading the alternate case clears the baseline and closes discharge 2.
+- No page errors or horizontal overflow in either walkthrough.
+
+Inspected `/tmp/capacity-holding-390.png` and
+`/tmp/capacity-limited-1024.png`. Tests, typecheck (zero errors/warnings),
+static build and diff whitespace checks pass. No new engine law or calibrated
+M11-5 claim; these are simulator checks, not physical pump measurements.

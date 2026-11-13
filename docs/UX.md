@@ -1490,3 +1490,28 @@ When the phone inspector expands fully over the drawing, a compact copy of
 the summary sticks inside the inspector; the covered canvas summary becomes
 inert and invisible without changing its layout space. Closing/shrinking the
 inspector restores the canvas copy.
+
+**Focused walkthrough (2026-11-12):** diameter and second-discharge prompts
+ask users to record baseline readings, change one control, compare readings
+and reverse the change. For the second discharge, explicitly compare total
+flow with first-line flow and actual pressure. Keep these instructions in
+the existing collapsible prompt; no new hydraulic law or exercise state.
+
+**Second-discharge comparison (2026-11-12):** after revealing the exercise,
+users capture a session-only baseline with discharge 2 closed. A compact
+Before / Now / Change table shows discharge 1 flow, total pump flow and
+actual pump pressure. Both phone summary locations share the same baseline.
+Unavailable readings show dashes, never a numeric delta. Reloading, changing
+exercise dimensions or retrying clears the baseline; equipment edits retain
+it, with an explicit reminder to change only discharge 2. Existing discharge
+controls open/close the line. Keep the current teaching preset: one decimal
+place makes its small capacity effect visible without exaggerating physics.
+
+**Pump-dependent discharge lesson (2026-11-13):** show live control mode and
+pump-shaft speed (ceiling in pressure mode). Explain holding/limited/RPM
+states from the solver, not from the selected case's name. The repeat section
+loads either the original 3200 rpm case or an identical 4000 rpm pressure-mode
+case with capacity available. Loading restores the generic equipment and
+closes discharge 2, clears the baseline, and is undoable. Clearly disclose
+that reset and the CX family provenance. Source changes invalidate the
+baseline so speed/control edits cannot masquerade as a discharge-only change.
