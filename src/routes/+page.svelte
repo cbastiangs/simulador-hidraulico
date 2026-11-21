@@ -48,7 +48,7 @@
   // Built to docs/design/main-screen.html (UX.md §6).
   // Presets are parsed like any outside document: the same gate as a share link.
   // The first lay a visitor sees and the welcome tour runs on (UX.md §8.4).
-  const DEFAULT_PRESET = "bifurcada";
+  const DEFAULT_PRESET = "alcance-turbojet";
   const files = import.meta.glob(["/data/presets/*.json", "/data/exercises/*.json"], { eager: true, import: "default" });
   const presets = Object.entries(files)
     .map(([path, doc]) => ({ id: path.split("/").pop()!.replace(".json", ""), scenario: parseDocument(doc) }))
@@ -64,6 +64,8 @@
   let activeDocument: AppDocument = $state.raw(presets[0].scenario);
   const scenario = $derived(activeDocument.scenario);
   let practiceOpen = $state(false);
+  let practiceHeaderHeight = $state(0);
+  let pressureDockHeight = $state(70);
   let practiceEpoch = $state(0);
   let revealedPracticeKey = $state<string | null>(null);
   const practiceKey = $derived(JSON.stringify([practiceEpoch, activeDocument.exercise?.lengthM, activeDocument.exercise?.widthM, activeDocument.exercise?.involvedFraction]));
@@ -86,22 +88,51 @@
   // Read from media queries, not innerWidth: a phone can report its 980 px
   // layout width when the page starts and send no resize once it settles.
   let phone = $state(false);
+  let landscape = $state(false);
+  let viewportHeight = $state(800);
+  let keyboardBottom = $state(0);
   // Desktop (UX.md §4): one panel on the right, the pump header atop it.
   let wide = $state(false);
   $effect(() => {
     const queries = [matchMedia("(max-width: 1023.98px)"), matchMedia("(min-width: 1024px)")];
-    const sync = () => ([phone, wide] = queries.map((q) => q.matches));
+    const compactLandscape = matchMedia("(min-width: 640px) and (max-width: 1023.98px) and (max-height: 600px) and (orientation: landscape)");
+    const sync = () => { [phone, wide] = queries.map((q) => q.matches); landscape = compactLandscape.matches; };
+    queries.push(compactLandscape);
     sync();
     queries.forEach((q) => q.addEventListener("change", sync));
     return () => queries.forEach((q) => q.removeEventListener("change", sync));
+  });
+  $effect(() => {
+    const viewport = window.visualViewport;
+    let frame = 0;
+    const sync = () => {
+      const usable = viewport && Math.abs(viewport.scale - 1) < 0.05;
+      viewportHeight = usable ? viewport.height : window.innerHeight;
+      keyboardBottom = usable ? Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop) : 0;
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        const focused = document.activeElement;
+        if (focused instanceof HTMLElement && focused.matches('input, textarea, select') &&
+            (keyboardBottom > 100 || viewportHeight < 500)) focused.scrollIntoView({ block: 'center', inline: 'nearest' });
+      });
+    };
+    sync();
+    viewport?.addEventListener('resize', sync);
+    viewport?.addEventListener('scroll', sync);
+    window.addEventListener('resize', sync);
+    document.addEventListener('focusin', sync);
+    return () => { cancelAnimationFrame(frame); viewport?.removeEventListener('resize', sync); viewport?.removeEventListener('scroll', sync); window.removeEventListener('resize', sync); document.removeEventListener('focusin', sync); };
   });
   let sheet = $state<SheetState>("closed");
   let windowHeight = $state(800);
   let closedSheetHeight = $state(CLOSED_PX);
   /** Viewport edge available to the drawing above the peek or closed sheet. */
-  const canvasBottom = $derived(windowHeight - (sheet === "peek" ? sheetHeights(windowHeight).peek : closedSheetHeight));
+  const shortPortrait = $derived(phone && !landscape && viewportHeight < 650);
+  const canvasBottom = $derived(landscape ? Infinity : windowHeight - keyboardBottom - (sheet === "peek" ? sheetHeights(viewportHeight).peek : closedSheetHeight));
+  let landscapePanel: HTMLDivElement | undefined = $state();
 
   function select(s: Selection, open = true) {
+    if (landscapePanel && JSON.stringify(s) !== JSON.stringify(selection)) landscapePanel.scrollTop = 0;
     selection = s;
     if (open && sheet === "closed") sheet = "peek";
   }
@@ -184,6 +215,7 @@
 
   /** Draw another outlet's line; what stays on the drawing stays selected. */
   function selectLine(path: string[]) {
+    if (landscapePanel) landscapePanel.scrollTop = 0;
     selectedPath = path;
     keepSelection();
   }
@@ -229,7 +261,7 @@
 
   function onKey(event: KeyboardEvent) {
     const target = event.target as HTMLElement;
-    if (target.closest("input, textarea, select, [contenteditable]")) return;
+    if (target.closest("input, textarea, select, [contenteditable]") || document.querySelector("dialog[open]")) return;
     // Esc clears the selection, unless it is closing a menu.
     if (event.key === "Escape" && scenarioMenu?.open) return void (scenarioMenu.open = false);
     if (event.key === "Escape" && !document.querySelector("[role=menu]")) return deselect();
@@ -676,7 +708,7 @@
   {/if}
 {/snippet}
 
-<div class="app" class:phone class:wide class:has-practice={!!activeDocument.exercise} style:--sheet-closed={`${closedSheetHeight}px`}>
+<div class="app" class:phone class:wide class:landscape class:short-portrait={shortPortrait} class:has-practice={!!activeDocument.exercise} style:--dock-space={`${Math.max(90, pressureDockHeight + 12)}px`} style:--sheet-closed={`${closedSheetHeight}px`} style:--viewport-height={`${viewportHeight}px`}>
   <header class="top">
     <h1>Simulador hidráulico</h1>
     <div class="history">
@@ -717,19 +749,22 @@
     <button type="button" class="gear" aria-label="Ajustes" title="Ajustes: método, altura de piso, accesorios, vista" onclick={() => (settingsOpen = true)}>⚙</button>
   </header>
 
-  {#if !wide}
+  {#if !wide && !landscape}
     <div class="pump" data-tour="pump">{@render pumpPanel(phone ? "strip" : "bar")}</div>
   {/if}
 
-  {#if activeDocument.exercise && practiceReadings}
-    <div class="practice-summary" inert={phone && sheet === "full"} style:visibility={phone && sheet === "full" ? "hidden" : undefined}>
-      <PracticeSummary readings={practiceReadings} revealed={practiceRevealed} lessonId={activeDocument.exercise.lessonId} onOpen={openPractice} />
+  {#if !landscape && !shortPortrait && activeDocument.exercise && practiceReadings}
+    <div class="practice-summary" bind:clientHeight={practiceHeaderHeight} inert={phone && sheet === "full"} style:visibility={phone && sheet === "full" ? "hidden" : undefined}>
+      <PracticeSummary readings={practiceReadings} revealed={practiceRevealed} lessonId={activeDocument.exercise.lessonId} compact onOpen={openPractice} />
       {#if practiceRevealed && activeDocument.exercise?.lessonId === 'second-discharge'}
         <DischargeComparison values={dischargeValues} baseline={baselineValues} canCapture={scenario.discharges?.[1]?.open === false} onCapture={captureDischargeBaseline} pump={scenario.source.pump} status={pumpResult.pump?.status} onCase={chooseDischargeCase} />
       {/if}
     </div>
   {/if}
 
+  {#if shortPortrait && activeDocument.exercise}
+    <button type="button" class="practice-short" onclick={() => { selection = null; sheet = 'full'; }}>Práctica NFA · ver resultados y comparación ›</button>
+  {/if}
   <div class="canvas" data-tour="canvas">
     {#if !lineScenario.sections.length && network}
       <EmptyPumpCanvas {scenario} {network} onPump={() => select({ kind: "pump" })}
@@ -741,9 +776,14 @@
       {result}
       {selection}
       {phone}
+      {landscape}
       {wide}
       visibleBottom={canvasBottom}
+      bottomInsetPx={pressureDockHeight}
+      topInsetPx={activeDocument.exercise ? practiceHeaderHeight + 12 : 0}
       floorM={edit.floorOf(scenario)}
+      onShowReach={() => { select({ kind: "nozzle" }); if (phone && !landscape) sheet = "full"; }}
+      initialOverview={presetId === DEFAULT_PRESET}
       resetKey={`${presetId}#${loads}`}
       onSelect={select}
       onTapEmpty={deselect}
@@ -781,6 +821,19 @@
       {@render side()}
     </div>
     <div class="results">{@render results()}</div>
+  {:else if landscape}
+    <div class="side landscape-panel" bind:this={landscapePanel} aria-label="Controles y resultados">
+      <div class="landscape-pump">{@render pumpPanel("strip")}</div>
+      {@render side()}
+      {@render summary()}
+      {#if practiceReadings}
+        <PracticeSummary readings={practiceReadings} revealed={practiceRevealed} compact onOpen={openPractice} />
+        {#if practiceRevealed && activeDocument.exercise?.lessonId === 'second-discharge'}
+          <DischargeComparison values={dischargeValues} baseline={baselineValues} canCapture={scenario.discharges?.[1]?.open === false} onCapture={captureDischargeBaseline} pump={scenario.source.pump} status={pumpResult.pump?.status} onCase={chooseDischargeCase} />
+        {/if}
+      {/if}
+      {@render results()}
+    </div>
   {/if}
 </div>
 
@@ -811,23 +864,26 @@
   onView={setView}
 />
 
-{#if phone}
-  <Sheet onClosedHeight={(height) => (closedSheetHeight = height)} selectionKey={JSON.stringify([selectedPath, selection])} {summary} {sheet} onSheet={(s) => (sheet = s)}>
+{#if phone && !landscape}
+  <Sheet viewportHeight={viewportHeight} bottomInset={keyboardBottom} onClosedHeight={(height) => (closedSheetHeight = height)} selectionKey={JSON.stringify([selectedPath, selection])} {summary} {sheet} onSheet={(s) => (sheet = s)}>
+    {#if selection?.kind === "pump" && !(activeDocument.exercise && pumpTab === "discharges")}
+      {@render pumpPanel("full")}
+    {/if}
+    {#if !shortPortrait || selection !== null}{@render side()}{/if}
+    {#if selection?.kind === "pump" && activeDocument.exercise && pumpTab === "discharges"}
+      {@render pumpPanel("full")}
+    {/if}
     {#if sheet === "full" && practiceReadings}
       <div class="sheet-practice"><PracticeSummary readings={practiceReadings} revealed={practiceRevealed} compact onOpen={openPractice} />
       {#if practiceRevealed && activeDocument.exercise?.lessonId === 'second-discharge'}
         <DischargeComparison values={dischargeValues} baseline={baselineValues} canCapture={scenario.discharges?.[1]?.open === false} onCapture={captureDischargeBaseline} pump={scenario.source.pump} status={pumpResult.pump?.status} onCase={chooseDischargeCase} />
       {/if}</div>
     {/if}
-    {#if selection?.kind === "pump"}
-      <!-- The strip is a summary; the pump's whole control opens here, above its detail (UX.md §4). -->
-      {@render pumpPanel("full")}
-    {/if}
-    {@render side()}
+    {#if shortPortrait && selection === null}{@render side()}{/if}
     {@render results()}
   </Sheet>
-{:else if !budgetVisible && lineScenario.sections.length}
-  <div class="dock" data-tour="budget"><BudgetBar {result} {reference} referenceLabel={refName} openEnd={lineScenario.nozzle.design === "open-end"} line={budgetLine} compact /></div>
+{:else if !landscape && !budgetVisible && lineScenario.sections.length}
+  <div class="dock" bind:clientHeight={pressureDockHeight} data-tour="budget"><BudgetBar {result} {reference} referenceLabel={refName} openEnd={lineScenario.nozzle.design === "open-end"} line={budgetLine} compact /></div>
 {/if}
 
 <style>
@@ -844,7 +900,7 @@
   .app {
     display: grid;
     gap: var(--gap);
-    padding: var(--gap) var(--gap) 90px;
+    padding: var(--gap) var(--gap) var(--dock-space);
     max-width: 2000px;
     margin: 0 auto;
     grid-template-columns: minmax(0, 1fr);
@@ -856,18 +912,18 @@
     grid-template-areas: "top top" "canvas side" "results side";
     grid-template-rows: auto auto 1fr;
   }
-  .sheet-practice { position: sticky; top: 0; z-index: 6; background: var(--bg); }
+  .sheet-practice { display: grid; gap: 6px; }
   .practice-summary { grid-area: practice; min-width: 0; }
-  .app.wide.has-practice { grid-template-areas: "top top" "practice side" "canvas side" "results side"; grid-template-rows: auto auto auto 1fr; }
-  .app.wide .practice-summary { position: sticky; top: var(--gap); z-index: 6; }
+  .app.wide.has-practice { overflow-anchor: none; grid-template-areas: "top top" "practice side" "canvas side" "results side"; grid-template-rows: auto auto auto 1fr; }
+  .app.wide .practice-summary { align-self: start; }
   .app.wide .head { position: sticky; top: 0; z-index: 5; }
   /* One header row when wide: a long scenario name truncates rather than pushing ? and ⚙ to a second row, which would shift the panel under the dock. */
   .app.wide .top { flex-wrap: nowrap; }
   .app.wide .top h1 { flex: none; white-space: nowrap; }
   .app.wide .top > * { flex-shrink: 0; }
   .app.wide .top > .scenario { flex-shrink: 1; }
-  /* Shorter than the viewport by the header (44 px and a gap) and the dock's 90 px, so its end never sits under the dock, scrolled or not. */
-  .app.wide .side { scroll-padding-top: 190px; position: sticky; top: var(--gap); align-self: start; max-height: calc(100dvh - 2 * var(--gap) - 44px - 90px); overflow: auto; }
+  /* Reserve the measured dock, including wrapped pressure labels. */
+  .app.wide .side { scroll-padding-top: 190px; position: sticky; top: var(--gap); align-self: start; max-height: calc(100dvh - 2 * var(--gap) - 44px - var(--dock-space)); overflow: auto; }
   .dock { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; padding: 8px var(--gap) calc(8px + env(safe-area-inset-bottom)); background: var(--bg); box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.15); }
   .dock > :global(*) { max-width: 1976px; margin: 0 auto; }
   .top { grid-area: top; display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; justify-content: space-between; }
@@ -910,7 +966,7 @@
 
   /* Phones (UX.md §8): one screen, no page scroll; the sheet sits below the canvas. */
   .app.phone {
-    height: 100dvh;
+    height: var(--viewport-height, 100dvh);
     overflow: hidden;
     padding: 8px 8px calc(var(--sheet-closed) + 4px);
     gap: 6px;
@@ -929,4 +985,16 @@
   .app.phone .scenario-menu { left: 0; right: auto; }
   .app.phone .gear { order: 3; flex: none; }
   .app.phone .canvas { min-height: 0; }
+  .practice-entry { min-height: 44px; border: 1px solid var(--line); border-radius: 8px; background: var(--accent-soft); color: var(--accent); font: inherit; font-size: 13px; padding: 8px; cursor: pointer; }
+  .practice-short { grid-area: practice; min-height: 44px; text-align: left; padding: 8px 12px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--accent-soft); color: var(--accent); font: inherit; font-size: 13px; }
+  .app.phone.landscape, .app.phone.landscape.has-practice {
+    padding: max(6px, env(safe-area-inset-top)) max(6px, env(safe-area-inset-right)) max(6px, env(safe-area-inset-bottom)) max(6px, env(safe-area-inset-left));
+    grid-template-columns: minmax(0, 1fr) clamp(350px, 40vw, 380px);
+    grid-template-areas: "top top" "canvas side";
+    grid-template-rows: 44px minmax(0, 1fr);
+  }
+  .landscape .scenario { max-width: none; }
+  .landscape-panel { min-height: 0; min-width: 0; overflow: auto; overscroll-behavior: contain; border-radius: var(--radius); scroll-padding-top: 78px; }
+  .landscape-pump { position: sticky; top: 0; z-index: 8; background: var(--bg); }
+  @media (max-width: 1023px) { .field input { font-size: 16px; } }
 </style>

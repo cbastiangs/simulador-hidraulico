@@ -6,6 +6,7 @@
     pump?: PumpConfig; status?: PumpOperation["status"]; onCase: (reserve: boolean) => void;
     canCapture: boolean; onCapture: () => void;
   } = $props();
+  let dialog: HTMLDialogElement | undefined = $state();
   const labels = ['Descarga 1', 'Total bomba', 'Presión real'];
   function format(value: number | null, index: number) {
     return index === 2 ? u.p(value) : u.q(value);
@@ -17,7 +18,24 @@
   }
 </script>
 
-<section class="comparison" aria-label="Comparación de descargas">
+<section class="comparison" aria-label="Cambios de descargas">
+  {#if baseline}
+    <dl aria-live="polite" aria-atomic="true">
+      {#each ['Δ Descarga 1', 'Δ Total bomba', 'Δ Presión'] as label, index}
+        <div><dt>{label}</dt><dd>{delta(values[index], index)} <small>{index === 2 ? u.pressure : u.flow}</small></dd></div>
+      {/each}
+    </dl>
+  {/if}
+  <div class="quick-actions">
+    {#if !baseline}<button type="button" disabled={!canCapture || values.some(v => v === null)} onclick={onCapture}>Guardar lecturas iniciales</button>{/if}
+    <button type="button" onclick={() => dialog?.showModal()}>{baseline ? 'Ver comparación y explicación' : 'Cómo comparar'} ›</button>
+  </div>
+  {#if !baseline && !canCapture}<p>Cierra Descarga 2 para guardar el inicio.</p>{/if}
+  {#if values.some(v => v === null)}<p role="status">Comparación no disponible.</p>{/if}
+</section>
+<dialog bind:this={dialog} aria-label="Comparación de descargas" onclick={event => event.target === dialog && dialog?.close()}>
+  <div class="dialog-content">
+    <header><h2>Comparación de descargas</h2><button type="button" aria-label="Cerrar comparación" onclick={() => dialog?.close()}>✕</button></header>
   <strong>¿Qué cambia al abrir otra descarga?</strong>
   <p class="conditions">{pump ? (pump.mode === 'pressure' ? `Control de presión · límite ${pump.speedRpm} rpm del eje de bomba` : `RPM fijas · ${pump.speedRpm} rpm del eje de bomba`) : 'Fuente de presión ideal · sin límite de capacidad'}</p>
   {#if status === 'holding'}
@@ -53,9 +71,25 @@
   <button type="button" disabled={!canCapture || values.some(v => v === null)} onclick={onCapture}>{baseline ? 'Actualizar lecturas iniciales' : 'Guardar lecturas iniciales'}</button>
   {#if !canCapture}<p>Cierra Descarga 2 para guardar un nuevo inicio.</p>{/if}
   </details>
-</section>
+
+    <button type="button" class="return" onclick={() => dialog?.close()}>Volver a operar</button>
+  </div>
+</dialog>
 <style>
-  .comparison { padding: 10px 12px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); font-size: 12px; }
+  dl { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 0; padding-top: 6px; }
+  dt { font-size: 11px; color: var(--muted); }
+  dd { margin: 2px 0 0; font-size: 14px; font-weight: 700; overflow-wrap: anywhere; }
+  dd small { font-size: 10px; }
+  .quick-actions { display: flex; gap: 8px; }
+  .quick-actions button { margin: 0; padding: 6px 2px; background: transparent; border: 0; }
+  dialog { width: min(540px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); padding: 0; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); color: var(--ink); }
+  dialog::backdrop { background: #10182088; }
+  .dialog-content { padding: 16px; font-size: 13px; }
+  header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+  h2 { margin: 0; font-size: 18px; }
+  header button { width: 44px; flex: none; margin: 0; }
+  .return { font-weight: 700; }
+  .comparison { padding: 0 10px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); font-size: 12px; }
   fieldset { margin: 8px 0; padding: 8px; border: 1px solid var(--line); min-width: 0; }
   .conditions { font-weight: 600; color: var(--ink); }
   strong { font-size: 13px; } p { margin: 8px 0; line-height: 1.4; color: var(--muted); }

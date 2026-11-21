@@ -99,6 +99,14 @@
       {#if parts.fittings > 0}<div class="fittings" style:width={pct(parts.fittings)} title={`Accesorios ${u.p(parts.fittings)} ${u.pressure}`}>{fit(pct(parts.fittings), f(parts.fittings))}</div>{/if}
       {#if parts.elevation > 0}<div class="elevation" style:width={pct(parts.elevation)} title={`Desnivel ${u.p(parts.elevation)} ${u.pressure}`}>{fit(pct(parts.elevation), f(parts.elevation))}</div>{/if}
     </div>
+    {#if compact}
+      <ul class="compact-legend" aria-label={`Reparto de presión en ${u.pressure}`}>
+        <li><span class="swatch nozzle"></span><span>{endName} <b>{f(parts.nozzle)}</b></span></li>
+        <li><span class="swatch friction"></span><span>Fricción <b>{f(parts.friction)}</b></span></li>
+        {#if fittingCount > 0}<li><span class="swatch fittings"></span><span>Accesorios <b>{noData ? "sin dato" : f(parts.fittings)}</b></span></li>{/if}
+        {#if parts.elevation > 0}<li><span class="swatch elevation"></span><span>Desnivel <b>{f(parts.elevation)}</b></span></li>{/if}
+      </ul>
+    {/if}
     {#if compact && parts.elevation < 0}
       <p class="small">La bajada aporta {u.p(-parts.elevation)} {u.pressure}; la barra incluye ese aporte además de la bomba.</p>
     {/if}
@@ -175,6 +183,11 @@
   .bar .nozzle { background: var(--water-bar); color: var(--on-water); }
   .bar .friction { color: var(--on-friction); }
   @media (prefers-reduced-motion: reduce) { .bar div, .bar.mini span { transition: none; } }
+  .compact-legend { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 3px 14px; font-size: 12px; color: var(--muted); }
+  .compact-legend li { display: flex; align-items: baseline; gap: 5px; white-space: nowrap; }
+  .compact-legend b { color: var(--ink); font-variant-numeric: tabular-nums; }
+  .compact-legend .swatch { width: 8px; height: 8px; border-radius: 2px; }
+  .compact-legend .nozzle { background: var(--water-bar); }
   .legend { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 13px; color: var(--muted); }
   .legend li { display: flex; gap: 8px; align-items: baseline; }
   .legend b { color: var(--ink); }

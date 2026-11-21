@@ -9,7 +9,7 @@ export const EXERCISE_LESSONS: Record<ExerciseLessonId, { question: string; acti
   },
   'nozzle-capacity': {
     question: 'Antes de girar el selector: ¿cómo cambiarán la entrega y la presión en el pitón?',
-    get action() { return `Selecciona el G-Force y sube el anillo de ${u.q(60, 0)} a ${u.q(125, 0)} ${u.flow} nominales. Mantén bomba y manguera. Compara entrega y presión; el número del anillo es una clasificación, no el caudal resuelto.`; },
+    get action() { return `Selecciona el Turbojet 1720 y sube el anillo de ${u.q(60, 0)} a ${u.q(125, 0)} ${u.flow} nominales. Mantén bomba y manguera. Compara entrega y presión; el número del anillo es una clasificación, no el caudal resuelto.`; },
   },
   'second-discharge': {
     question: 'Antes de abrir otra descarga: ¿la bomba podrá mantener la presión y el caudal de la primera línea?',

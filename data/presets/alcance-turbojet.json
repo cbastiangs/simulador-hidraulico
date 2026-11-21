@@ -1,0 +1,36 @@
+{
+  "schema": "simulador-hidraulico/scenario",
+  "version": 1,
+  "name": "Alcance · Akron Turbojet 1720",
+  "methodId": "physical",
+  "source": {
+    "kind": "fixed-pressure",
+    "pressurePsi": 125
+  },
+  "sections": [
+    {
+      "hoseSizeId": "1-1/2",
+      "diameterIn": 1.5,
+      "frictionCoefficient": 24,
+      "lengthM": 30,
+      "endElevationM": 0,
+      "runM": 15
+    }
+  ],
+  "nozzle": {
+    "kind": "selectable",
+    "design": "fog",
+    "specId": "AKR-17204001",
+    "settingsGpm": [
+      30,
+      60,
+      95,
+      125
+    ],
+    "ratedFlowGpm": 95,
+    "ratedPressurePsi": 100,
+    "inletIn": 1.5,
+    "pattern": 0,
+    "open": true
+  }
+}

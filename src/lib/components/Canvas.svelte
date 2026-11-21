@@ -24,6 +24,7 @@
   import Actions from "./Actions.svelte";
   import type { Action, Target } from "$lib/actions.ts";
   import Gauge from "./Gauge.svelte";
+  import RearTruck from "./RearTruck.svelte";
   import JointControls from "./JointControls.svelte";
   import NozzleDrawing from "./NozzleDrawing.svelte";
   import { lineColor } from "$lib/line-colors.ts";
@@ -56,6 +57,8 @@
     selection,
     floorM = 3,
     resetKey,
+    initialOverview = false,
+    onShowReach,
     onToggleLock,
     onSelect,
     onMove,
@@ -67,8 +70,11 @@
     onAction,
     fitSignal = 0,
     phone = false,
+    landscape = false,
     wide = false,
     visibleBottom = Infinity,
+    topInsetPx = 0,
+    bottomInsetPx = 70,
     onTapEmpty,
     onDeselect,
     others = [],
@@ -89,6 +95,8 @@
     floorM?: number;
     /** Changes when a new lay is loaded: auto-fit is restored. */
     resetKey: string;
+    initialOverview?: boolean;
+    onShowReach?: () => void;
     /** Lock or unlock the length of section `i` (UX.md §2). */
     onToggleLock: (i: number) => void;
     /** Select; `open` false when a drag selects, so the phone's sheet stays shut over the canvas. */
@@ -108,10 +116,15 @@
     fitSignal?: number;
     /** Touch layout below 1024 px: the sheet replaces floating toolbars (UX.md §10.9). */
     phone?: boolean;
+    landscape?: boolean;
     /** Desktop three-column layout (UX.md §4): the canvas takes the window's height. */
     wide?: boolean;
     /** Viewport y-coordinate of the sheet’s top edge (UX.md §10.9). */
     visibleBottom?: number;
+    /** Space occupied by the compact practice summary above the desktop canvas. */
+    topInsetPx?: number;
+    /** Measured desktop pressure dock, including its wrapping legend. */
+    bottomInsetPx?: number;
     /** A tap on empty canvas (the phone's sheet closes). */
     onTapEmpty?: () => void;
     /** The floating toolbars' ×. */
@@ -234,7 +247,7 @@
     if (resetKey !== fittedFor) {
       fittedFor = resetKey;
       manualZoom = null;
-      showAll = false;
+      showAll = initialOverview;
       // Start at the truck: the line reads from the pump (UX.md §8.1).
       requestAnimationFrame(() => {
         goHome();
@@ -290,19 +303,38 @@
       streamBounds(fitBounds(scenario.sections, floorM), scenario.sections, ratedReachM(scenario)),
     ),
   );
+  let toolbarHeight = $state(82);
+
   // The canvas takes the height the window has (UX.md §2): the lay sits on the
   // ground at the bottom and the rest is building above it, so a rising hose
-  // can be dragged up. Side by side, the header above the canvas and its toolbar take about 150 px and the floating pressure bar 70 px.
+  // can be dragged up. On desktop, reserve the header and measured toolbar
+  // and pressure dock so wrapping controls never cover the drawing tools.
   const canvasHeight = $derived(
-    phone ? Math.max(200, viewHeight) : Math.max(260, wide ? windowHeight - 220 : windowHeight * 0.5),
+    phone ? Math.max(200, viewHeight) : Math.max(260, wide ? windowHeight - 68 - toolbarHeight - 8 - Math.max(70, bottomInsetPx) - topInsetPx : windowHeight * 0.5),
   );
+  // Display-only ruler: the geometry remains in metres, including in feet mode.
+  const horizontalTicks = $derived.by(() => {
+    const perUnit = PX_PER_M * zoom * u.from(1, "m");
+    const wanted = Math.min(72, Math.max(40, (viewWidth - 116) / 3)) / perUnit;
+    const power = 10 ** Math.floor(Math.log10(wanted));
+    const step = ([1, 2, 5, 10].find(n => n * power >= wanted) ?? 10) * power;
+    const left = Math.max(0, u.to(layout.distanceAt(camX / zoom), "m"));
+    const right = u.to(layout.distanceAt((camX + viewWidth) / zoom), "m");
+    const ticks: { value: number; x: number; label: string }[] = [];
+    for (let value = Math.ceil(left / step) * step; value <= right && ticks.length < 100; value += step) {
+      const x = layout.xAt(u.from(value, "m")) * zoom - camX;
+      if (x >= 18 && x <= viewWidth - 18) ticks.push({ value, x, label: value.toFixed(Math.max(0, -Math.floor(Math.log10(step)))) });
+    }
+    return ticks;
+  });
+
   const fitZoom = $derived.by(() => {
     if (viewWidth === 0) return 1;
-    const w = (fitted.maxX - fitted.minX) * PX_PER_M;
+    const w = fitted.maxX * PX_PER_M;
     const h = (fitted.maxY - fitted.minY) * PX_PER_M;
     // Fit inside the usable height: the bottom inset keeps the ground caption clear.
-    const avail = Math.max(80, canvasHeight - BOTTOM_INSET_PX);
-    return Math.min(2.2, Math.max(MIN_FIT_ZOOM, Math.min(viewWidth / w, avail / h)));
+    const avail = Math.max(80, (phone ? canvasHeight : canvasHeight - 40) - BOTTOM_INSET_PX);
+    return Math.min(2.2, Math.max(MIN_FIT_ZOOM, Math.min(Math.max(80, viewWidth - 140) / w, avail / h)));
   });
 
   // A drag or a press freezes the mapping: bounds, filled bounds and zoom are
@@ -368,7 +400,9 @@
   // view no longer fits a long lay) never shows the world's edge.
   const filled = $derived.by(() => {
     if (frozen) return frozen.filled;
-    const f = fillViewport(bounds, viewWidth, viewHeight, zoom, BOTTOM_INSET_PX);
+    // Reserve screen space for the schematic source without changing hose coordinates.
+    const sourceBounds = { ...bounds, minX: Math.min(bounds.minX, -116 / (PX_PER_M * zoom)) };
+    const f = fillViewport(sourceBounds, viewWidth, viewHeight, zoom, BOTTOM_INSET_PX);
     return { ...f, maxX: Math.max(f.maxX, bounds.maxX + viewWidth / (2 * PX_PER_M * zoom)) };
   });
   const layout = $derived(
@@ -385,6 +419,10 @@
   const outletIn = $derived(scenario.source.outletSizeIn);
   // A wye on a branched lay's drawn path (UX.md §2) is drawn by itself, not as an adapter.
   const pumpJunction = $derived(junctionsOf(scenario).find(j => j.pump));
+  const truckPorts = $derived(pumpJunction?.outlets ?? [{ name: 'Salida', open: true, active: true, empty: false }]);
+  const truckHeight = $derived(Math.max(88, 54 + truckPorts.length * 14));
+  const truckX = $derived(layout.nodes[0].x - 104 * k);
+  const truckY = $derived(layout.groundY - (truckHeight + 3) * k);
   const junctions = $derived(junctionsOf(scenario).filter(j => !j.pump));
   const junctionAtJoint = (i: number): Junction | undefined => junctions.find((j) => j.joint === i);
   // The other lines of a branched lay, each laid out like the edited one: the
@@ -1037,9 +1075,9 @@
 
   /** A gauge's centre: above its coupling; the pump's above the truck, its reading clear of the roof (UX.md §8.1). */
   const gauges = $derived.by(() => {
-    const truckTop = layout.groundY - 3.2 * PX_PER_M;
+    const truckTop = truckY;
     const at = layout.nodes.map((n, i) => {
-      const x = i === 0 ? layout.xAt(-1.5) : n.x;
+      const x = i === 0 ? truckX + 34 * k : n.x;
       let y = i === 0 ? Math.min(layout.groundY - 4.6 * PX_PER_M, truckTop - 42 * gaugeK) : n.y - GAUGE_RISE * gaugeK;
       // The nozzle gauge clears the bale above it (§10.8).
       if (i === last) y = n.y - NOZZLE_GAUGE_RISE * gaugeK;
@@ -1404,7 +1442,7 @@
       ...[layout, ...otherLines.map((o) => o.layout)].flatMap((lay) => [
         ...lay.nodes.map((n, i) => box(n.x, n.y, 30, 30, i === lay.nodes.length - 1 ? 130 : 30, 45)),
       ]),
-      box(layout.xAt(-5.75), layout.groundY, 50, 45, 55, 25),
+      box(truckX + 34 * k, layout.groundY, 42, truckHeight + 12, 42, 24),
       ...hoseLabels.map((l) => box(l.x, l.y, measureLabel(l.text) / 2, 12, measureLabel(l.text) / 2, 12)),
       ...(showGauges ? [...gauges, ...otherGauges.flat().filter((g) => g !== null)].map((g) =>
         box(g.x, g.y, 38 * gaugeK * zoom, 44 * gaugeK * zoom, 38 * gaugeK * zoom, 40 * gaugeK * zoom)) : []),
@@ -1464,6 +1502,12 @@
     }
     const jd = drawing.joints[spot.kind === "joint" ? spot.index : spot.joint];
     if (spot.kind === "outlet") {
+      if (spot.joint === 0 && pumpJunction) {
+        const index = pumpJunction.outlets.findIndex(o => o.path.join('/') === spot.path.join('/'));
+        const y = truckY + (44 + Math.max(0, index) * 14) * k;
+        return { x: layout.nodes[0].x + 28 * k, y: layout.groundY - (24 + Math.max(0, index) * 44) * k,
+          from: { x: truckX + 68 * k, y } };
+      }
       // Above and ahead of its far spout, clear of the wye's own spot.
       const spout = local(jd, 24, -4 * spot.slot);
       return { ...local(jd, 44, -4 * spot.slot - 34 - 34 * (spot.slot - 1)), from: spout };
@@ -1591,15 +1635,25 @@
   }}
 />
 
-<div class="canvas" class:phone style:--k={k}>
-  <div class="body">
+<div class="canvas" class:phone class:landscape style:--k={k}>
+  <div class="body" style:height={phone ? undefined : `${canvasHeight}px`}>
   {#if !phone}<PieceStrip {armed} onPick={pick} />{/if}
+  <div class="drawing">
+  <div class="distance-axis" role="img" aria-label={`Distancia horizontal en ${u.length}; cero en la salida de la bomba`}>
+    <span>Horizontal · {u.length} · 0 = salida de bomba</span>
+    <svg width="100%" height="24" aria-hidden="true">
+      <line x1="0" y1="23" x2="100%" y2="23" />
+      {#each horizontalTicks as tick (tick.value)}
+        <g transform={`translate(${tick.x} 0)`}><line y1="18" y2="24" /><text y="13" text-anchor="middle">{tick.label}</text></g>
+      {/each}
+    </svg>
+  </div>
   <div
     class="scroller"
     class:grabbing
     role="group"
     aria-label="Lienzo: un dedo o arrastrar desplaza, dos dedos acercan"
-    style:height={phone ? undefined : `${canvasHeight}px`}
+    style:height={phone ? undefined : `${canvasHeight - 40}px`}
     style:--ground-screen={`${layout.groundY * zoom - camY}px`}
     bind:this={scroller}
     bind:clientWidth={viewWidth}
@@ -1663,13 +1717,19 @@
           oncontextmenu={(e) => openMenu(e, { kind: "pump" })}
           onpointerdown={(e) => holdStart(e, { kind: "pump" })}
         >
-          <rect class="truck" class:selected={selection?.kind === "pump"} x={layout.xAt(-9.5)} y={layout.groundY - 3.2 * PX_PER_M} width={7 * PX_PER_M} height={2.6 * PX_PER_M} rx="5" />
-          <rect class="window" x={layout.xAt(-8.9)} y={layout.groundY - 2.8 * PX_PER_M} width={1.6 * PX_PER_M} height={0.9 * PX_PER_M} rx="2" />
-          <circle class="wheel" cx={layout.xAt(-8)} cy={layout.groundY - 0.5 * PX_PER_M} r={0.5 * PX_PER_M} />
-          <circle class="wheel" cx={layout.xAt(-4)} cy={layout.groundY - 0.5 * PX_PER_M} r={0.5 * PX_PER_M} />
+          <g transform={`translate(${truckX} ${truckY}) scale(${k})`}>
+            <rect class="truck-hit" x="-4" y="-4" width="76" height={truckHeight + 12} rx="8" />
+            <RearTruck ports={truckPorts} selected={selection?.kind === "pump"} />
+          </g>
         </g>
-        <rect class="outlet" x={layout.xAt(-2.5)} y={layout.nodes[0].y - 0.25 * PX_PER_M} width={layout.nodes[0].x - layout.xAt(-2.5)} height={0.5 * PX_PER_M} />
-        <text class="tag" x={layout.xAt(-5.75)} y={layout.groundY + 16 * k}>Bomba{outletIn ? ` · salida ${sizeLabel(outletIn)}` : ""}</text>
+        <!-- Connections are diagram leaders, not hose length or port elevation. -->
+        {#each truckPorts as port, i}
+          {@const y = truckY + (44 + i * 14) * k}
+          <path class="source-link" class:active={port.active} class:closed={!port.open}
+            d={port.empty ? `M ${truckX + 62 * k} ${y} h ${12 * k}` : `M ${truckX + 62 * k} ${y} H ${layout.nodes[0].x - (26 - i * 2) * k} V ${layout.nodes[0].y} H ${layout.nodes[0].x}`}
+            stroke-width={(port.active ? 2.5 : 1) * k} />
+        {/each}
+        <text class="tag" x={truckX + 34 * k} y={layout.groundY + 16 * k}>Bomba</text>
 
         <!-- The other lines (owner, 2026-10-17): hoses, couplings and nozzle at their true height.
              A tap makes that line the edited one; the edited line draws on top with its handles. -->
@@ -1893,7 +1953,7 @@
 
                 <!-- The height axis (owner, 2026-10-16): pinned to the view's left edge, over the drawing (a halo keeps it legible on the truck), under the gauges, which float above it. -->
         {#each layout.floors as f (f.elevationM)}
-          {#if f.above > 0 && f.above % labelEvery === 0}<text class="floor-label axis" x={camX / zoom + 8 * k} y={f.y + 14 * k}>Piso {f.above + 1} · {u.l(f.elevationM)} {u.length}</text>{/if}
+          {#if f.above > 0 && f.above % labelEvery === 0 && !(f.y > truckY - 78 * k && f.y < layout.groundY && truckX * zoom - camX < 110)}<text class="floor-label axis" x={camX / zoom + 8 * k} y={f.y + 14 * k}>Piso {f.above + 1} · {u.l(f.elevationM)} {u.length}</text>{/if}
         {/each}
         <!-- Gauge tap targets stay under the nozzle, so its bale takes the tap; the dials are drawn after it (below). -->
         {#if showGauges}
@@ -2140,6 +2200,7 @@
     </div>
   </div>
   </div>
+  </div>
   {#if phone && tray}<PieceStrip {armed} onPick={pick} row />{/if}
   <!-- The picked piece, then the last message, stacked at the top of the drawing. -->
   <div class="notes">
@@ -2152,15 +2213,15 @@
     {#if toast}<div class="toast" role="status">{toast}</div>{/if}
   </div>
   <!-- Controls live below the drawing, never over it. -->
-  <div class="toolbar">
+  <div class="toolbar" bind:clientHeight={toolbarHeight}>
   {#if missing.length > 0}
     <button type="button" class="missing-note" onclick={() => onSelect({ kind: "joint", index: missing[0].index })}>
       ⚠ Falta adaptador en {missing.map((j) => (j.index === 0 ? "la salida" : j.index === last ? "el pitón" : `el acople ${j.index}`)).join(", ")}
     </button>
   {/if}
   {#if phone}<button type="button" class="pieces-toggle" class:on={tray || !!armed} aria-expanded={tray} onclick={() => (tray ? (tray = false) : armed ? (armed = null) : (tray = true))}>{tray ? "× Piezas" : armed ? "× Pieza" : "+ Piezas"}</button>{/if}
-  {#if !phone}<span class="hint">Clic derecho o mantener pulsado: más opciones</span>{/if}
-  <span class="badge">{Math.round(zoom * 100)} %{manualZoom === null ? (showAll ? " · todo" : " · auto") : ""}{trueScale ? "" : ` · grosor ×${EXAGGERATION}`}</span>
+  <button type="button" class="reach-control" aria-label="Ver alcance y detalles del pitón" onclick={() => onShowReach ? onShowReach() : onSelect({ kind: "nozzle" })}>{result.state === "flowing" ? jetOf(scenario, result).label : "Alcance · sin chorro"} ›</button>
+  {#if !phone}<span class="badge">{Math.round(zoom * 100)} %{manualZoom === null ? (showAll ? " · todo" : " · auto") : ""}{trueScale ? "" : ` · grosor ×${EXAGGERATION}`}</span>{/if}
   <div class="zoom">
     <button type="button" aria-label="Alejar" onclick={() => setManualZoom(zoom / 1.25)}>−</button>
     <button type="button" aria-label="Acercar" onclick={() => setManualZoom(zoom * 1.25)}>+</button>
@@ -2192,7 +2253,13 @@
   .ground-back { position: absolute; left: 0; right: 0; top: var(--ground-screen, 0px); height: 1.5px; background: var(--ink); opacity: 0.35; pointer-events: none; }
   .canvas.phone { height: 100%; display: flex; flex-direction: column; }
   .body { display: flex; min-width: 0; }
-  .body .scroller { flex: 1; min-width: 0; }
+  .drawing { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+  .body .scroller { flex: 1; min-width: 0; min-height: 0; }
+  .distance-axis { height: 40px; flex: none; overflow: hidden; background: var(--surface); color: var(--muted); pointer-events: none; }
+  .distance-axis span { display: block; height: 16px; padding: 0 8px; font-size: 11px; line-height: 16px; }
+  .distance-axis svg { display: block; }
+  .distance-axis line { stroke: var(--line); }
+  .distance-axis text { fill: var(--ink); font-size: 11px; font-variant-numeric: tabular-nums; }
   .canvas.phone .body { flex: 1; min-height: 0; }
   .spot { cursor: pointer; outline: none; }
   .spot-hit { fill: transparent; }
@@ -2209,6 +2276,7 @@
   .armed { pointer-events: auto; display: flex; align-items: center; gap: 10px; padding: 4px 4px 4px 12px; border-radius: 10px; background: var(--accent); color: #fff; font-size: 13px; font-weight: 600; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2); }
   .armed.erase { background: var(--warn); }
   .armed button { min-height: 44px; padding: 0 12px; border: 0; border-radius: 8px; background: rgba(255, 255, 255, 0.2); color: #fff; font-weight: 700; cursor: pointer; white-space: nowrap; }
+  .reach-control { min-height: 44px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--accent); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
   .pieces-toggle { min-height: 44px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--accent); background: var(--surface); color: var(--accent); font-weight: 700; font-size: 14px; cursor: pointer; }
   .pieces-toggle.on { background: var(--accent-soft); }
   .canvas.phone .scroller { flex: 1; min-height: 0; transition: none; }
@@ -2224,11 +2292,12 @@
   .axis { paint-order: stroke; stroke: var(--bg); stroke-width: calc(3px * var(--k)); stroke-linejoin: round; }
   .tag { text-anchor: middle; font-size: calc(12px * var(--k)); paint-order: stroke; stroke: var(--ground); stroke-width: calc(3px * var(--k)); stroke-linejoin: round; }
   .pump { cursor: pointer; outline: none; }
-  .truck { fill: var(--pump); }
-  .truck.selected, .pump:focus-visible .truck { stroke: var(--accent); stroke-width: calc(3px * var(--k)); }
-  .window { fill: #f8d7d3; }
-  .wheel { fill: var(--ink); }
-  .outlet, .coupling { fill: var(--steel); }
+  .truck-hit { fill: transparent; }
+  .pump:focus-visible .truck-hit, .pump:hover .truck-hit { stroke: var(--accent); stroke-width: 2; }
+  .source-link { fill: none; stroke: var(--steel); pointer-events: none; }
+  .source-link.active { stroke: var(--water); }
+  .source-link.closed { stroke-dasharray: 3 3; }
+  .coupling { fill: var(--steel); }
   .gauge { pointer-events: none; }
   /* Painted fittings are real targets (the ≥44 px handle circle stays as padding & keyboard focus). */
   .fittings { pointer-events: visiblePainted; }
@@ -2269,7 +2338,7 @@
      is a halo drawn by script (.hose-hover). */
   @media (hover: hover) {
     .handle:hover:not(.active):not(.constrained) { stroke: var(--accent); stroke-opacity: 0.8; }
-    .pump:hover .truck { stroke: var(--accent); stroke-width: calc(3px * var(--k)); stroke-opacity: 0.6; }
+
     .gauge-hit:hover { stroke: var(--accent); stroke-width: 2; }
     .stack-badge:hover rect { stroke: var(--accent); stroke-width: 3; }
   }
@@ -2285,7 +2354,6 @@
   .chips { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; justify-content: center; }
   .chips button { min-height: 36px; min-width: 40px; padding: 0 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); font-weight: 600; font-size: 13px; cursor: pointer; }
   .chips button:disabled { opacity: 0.4; cursor: default; }
-  .hint { font-size: 12px; color: var(--muted); }
   .chips .on { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
   .len { font-weight: 700; min-width: 3.5rem; text-align: center; }
   .toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 8px 10px; border-top: 1px solid var(--line); }
@@ -2305,4 +2373,9 @@
   .bar-remove.blocked { opacity: 0.5; }
   .zoom button:disabled { opacity: 0.4; cursor: default; }
   .camera-lock.on { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+  .landscape .toolbar { flex-wrap: nowrap; gap: 4px; padding: 4px; overflow-x: auto; }
+  .landscape .reach-control { flex: none; white-space: nowrap; }
+  .landscape .badge { display: none; }
+  .landscape .pieces-toggle { flex: none; padding: 0 8px; }
+  .landscape .zoom { flex: none; }
 </style>

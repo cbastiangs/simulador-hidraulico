@@ -20,13 +20,20 @@
       }
     ],
     "nozzle": {
-      "kind": "fixed-orifice",
-      "specId": "fog-150",
-      "settingsGpm": [],
+      "kind": "selectable",
+      "specId": "AKR-1723P",
+      "settingsGpm": [
+        95,
+        125,
+        150,
+        200
+      ],
       "ratedFlowGpm": 150,
       "ratedPressurePsi": 100,
-      "pattern": 0.25,
-      "open": true
+      "pattern": 0,
+      "open": true,
+      "design": "fog",
+      "inletIn": 1.5
     }
   },
   "exercise": {

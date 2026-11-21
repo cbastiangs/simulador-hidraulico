@@ -18,6 +18,8 @@
   // Drag the handle to resize (it snaps to the nearest height) or tap it.
   let {
     sheet,
+    viewportHeight,
+    bottomInset = 0,
     selectionKey,
     onClosedHeight,
     onSheet,
@@ -25,6 +27,8 @@
     children,
   }: {
     sheet: SheetState;
+    viewportHeight: number;
+    bottomInset?: number;
     selectionKey: string;
     onClosedHeight: (height: number) => void;
     onSheet: (s: SheetState) => void;
@@ -32,10 +36,9 @@
     children: Snippet;
   } = $props();
 
-  let windowHeight = $state(800);
   /** The closed sheet grows to its summary when that runs to two lines (UX-07), never below CLOSED_PX. */
   let gripHeight = $state(0);
-  const heights = $derived({ ...sheetHeights(windowHeight), closed: Math.max(CLOSED_PX, Math.ceil(gripHeight)) });
+  const heights = $derived({ ...sheetHeights(viewportHeight), closed: Math.max(CLOSED_PX, Math.ceil(gripHeight)) });
 
   $effect(() => { onClosedHeight(heights.closed); });
 
@@ -76,9 +79,7 @@
   }
 </script>
 
-<svelte:window bind:innerHeight={windowHeight} />
-
-<section class="sheet" class:dragging={drag} style:height={`${height}px`} aria-label="Panel">
+<section class="sheet" class:dragging={drag} style:height={`${height}px`} style:bottom={`${bottomInset}px`} aria-label="Panel">
   <div
     class="grip"
     class:room={sheet !== "closed"}
@@ -111,7 +112,7 @@
     >
   {/if}
   <!-- Closed, the body is out of view: out of Tab order and the accessibility tree too (UX-07). -->
-  <div class="body" bind:this={body} inert={sheet === "closed"}>
+  <div onfocusin={(event) => { if ((event.target as HTMLElement).matches("input, textarea, select")) onSheet("full"); }} class="body" bind:this={body} inert={sheet === "closed"}>
     {@render children()}
   </div>
 </section>

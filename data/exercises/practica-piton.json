@@ -21,19 +21,19 @@
     ],
     "nozzle": {
       "kind": "selectable",
-      "specId": "TFT-GF3C2S",
+      "specId": "AKR-17204001",
       "settingsGpm": [
         30,
         60,
         95,
-        125,
-        150
+        125
       ],
       "ratedFlowGpm": 60,
       "ratedPressurePsi": 100,
-      "pattern": 0.25,
+      "pattern": 0,
       "open": true,
-      "inletIn": 1.5
+      "inletIn": 1.5,
+      "design": "fog"
     }
   },
   "exercise": {

@@ -22,29 +22,29 @@ test("every preset parses, survives a JSON round trip, and solves", () => {
   }
 });
 
-test("preset linea-basica: 30 m of 1-1/2\" to a 100 gpm fog nozzle", () => {
-  // 30 m = 98.425 ft. Required: 100 + 24 × 1² × 0.98425 = 123.62 psi.
-  // At 125 psi: Q = √(125 / (0.01 + 0.0024 × 0.98425)) = √(125 / 0.012362) = 100.56 gpm.
+test("preset linea-basica: 30 m of 1-1/2\" to a 95 gpm Turbojet", () => {
+  // 30 m = 98.425 ft. Required: 100 + 24 × 0.95² × 0.98425 = 121.32 psi.
+  // At 125 psi: Q = √(125 / (100/95² + 0.0024 × 0.98425)) = 96.43 gpm.
   const scenario = parseScenario(preset("linea-basica.json"));
   const result = solveScenario(scenario);
-  near(result.requiredPumpPressurePsi, 123.62, 0.01);
-  near(result.flowGpm, 100.56, 0.01);
+  near(result.requiredPumpPressurePsi, 121.32, 0.01);
+  near(result.flowGpm, 96.43, 0.01);
 });
 
 test("preset reduccion-un-piso: physical vs the CGBVP reference", () => {
-  // Friction at 100 gpm: 2 × 0.98425 + 24 × 0.98425 = 25.59 psi; nozzle 100; rise 3 m.
-  // Physical: 3 m = 9.8425 ft × 0.434 = 4.27 → 129.86 (the 2-1/2" → 1-1/2" reducer: no data, 0).
-  // CGBVP: 3 m × 1.5 = 4.5, plus the reducer's fixed 5 psi (p. 45) → 100 + 25.59 + 4.5 + 5 = 135.09.
+  // Friction at 95 gpm: (2 + 24) × 0.95² × 0.98425 = 23.095 psi; nozzle 100; rise 3 m.
+  // Physical: 3 m = 9.8425 ft × 0.434 = 4.27 → 127.37 (the 2-1/2" → 1-1/2" reducer: no data, 0).
+  // CGBVP: 3 m × 1.5 = 4.5, plus the reducer's fixed 5 psi (p. 45) → 100 + 23.095 + 4.5 + 5 = 132.595.
   const scenario = parseScenario(preset("reduccion-un-piso.json"));
-  near(solveScenario(scenario).requiredPumpPressurePsi, 129.86, 0.01);
-  near(solveScenario(scenario, "cgbvp-2019").requiredPumpPressurePsi, 135.09, 0.01);
+  near(solveScenario(scenario).requiredPumpPressurePsi, 127.37, 0.01);
+  near(solveScenario(scenario, "cgbvp-2019").requiredPumpPressurePsi, 132.60, 0.01);
   // Pressure drops at each coupling: pump 135 → after the 2-1/2" and the climb → nozzle.
   const pressures = solveScenario(scenario).nodes.map((n) => n.pressurePsi);
   assert.ok(pressures[0] > pressures[1] && pressures[1] > pressures[2]);
 
   // The same CGBVP 5 psi allowance is discontinuous at zero flow. On level
   // ground, 2 or 5 psi cannot sustain any positive flow; at 6 psi exactly
-  // 1 psi remains for the two hoses and nozzle: Q² = 1 / (0.0026·98.425/100 + 0.01).
+  // 1 psi remains for the two hoses and nozzle: Q² = 1 / (0.0026·98.425/100 + 100/95²).
   const level = { ...scenario, sections: scenario.sections.map((s) => ({ ...s, endElevationM: 0 })) };
   for (const pressurePsi of [2, 5, 6]) {
     const input = { ...level, source: { ...level.source, pressurePsi } };
@@ -57,7 +57,7 @@ test("preset reduccion-un-piso: physical vs the CGBVP reference", () => {
         near(r.issues[0].residualPsi, pressurePsi, 1e-7);
       } else {
         assert.equal(r.state, "flowing");
-        near(r.flowGpm, Math.sqrt(1 / (0.0026 * (30 / 0.3048 / 100) + 0.01)), 1e-6);
+        near(r.flowGpm, Math.sqrt(1 / (0.0026 * (30 / 0.3048 / 100) + 100 / 95 ** 2)), 1e-6);
         near(r.terms.reduce((sum, term) => sum + term.valuePsi, 0), 6, 1e-7);
       }
     }
@@ -85,7 +85,8 @@ test("the document carries values; the catalog id is provenance only", () => {
     doc.nozzle.specId = specId;
     const parsed = parseScenario(JSON.parse(JSON.stringify(doc)));
     assert.equal(joints(parsed).at(-1).downIn, 2.5);
-    near(solveScenario(parsed).requiredPumpPressurePsi, 116.811, 0.001);
+    // 100 + 12 × 0.95² × (30/0.3048/100) + 5 = 115.659 psi.
+    near(solveScenario(parsed).requiredPumpPressurePsi, 115.659, 0.001);
   }
 });
 

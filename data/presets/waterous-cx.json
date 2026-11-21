@@ -62,13 +62,20 @@
     }
   ],
   "nozzle": {
-    "kind": "fixed-orifice",
-    "specId": null,
-    "settingsGpm": [],
-    "ratedFlowGpm": 100,
+    "kind": "selectable",
+    "specId": "AKR-17204001",
+    "settingsGpm": [
+      30,
+      60,
+      95,
+      125
+    ],
+    "ratedFlowGpm": 95,
     "ratedPressurePsi": 100,
-    "pattern": 0.25,
-    "open": true
+    "pattern": 0,
+    "open": true,
+    "design": "fog",
+    "inletIn": 1.5
   },
   "wye": {
     "branches": [
@@ -87,14 +94,21 @@
           }
         ],
         "nozzle": {
-          "kind": "fixed-orifice",
-          "specId": "fog-250",
-          "settingsGpm": [],
+          "kind": "selectable",
+          "specId": "PRO-368",
+          "settingsGpm": [
+            95,
+            125,
+            150,
+            200,
+            250
+          ],
           "ratedFlowGpm": 250,
           "ratedPressurePsi": 100,
-          "pattern": 0.25,
+          "pattern": 0,
           "open": true,
-          "inletIn": 2.5
+          "inletIn": 2.5,
+          "design": "fog"
         }
       },
       {
@@ -112,14 +126,21 @@
           }
         ],
         "nozzle": {
-          "kind": "fixed-orifice",
-          "specId": "fog-250",
-          "settingsGpm": [],
+          "kind": "selectable",
+          "specId": "PRO-368",
+          "settingsGpm": [
+            95,
+            125,
+            150,
+            200,
+            250
+          ],
           "ratedFlowGpm": 250,
           "ratedPressurePsi": 100,
-          "pattern": 0.25,
+          "pattern": 0,
           "open": true,
-          "inletIn": 2.5
+          "inletIn": 2.5,
+          "design": "fog"
         }
       }
     ]

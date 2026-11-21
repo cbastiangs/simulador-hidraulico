@@ -975,3 +975,48 @@ pump-shaft rpm ceilings. Its live explanation distinguishes maintaining
 pressure from reaching the ceiling; opening another discharge does not
 necessarily reduce first-line flow. This remains separate from M11-5
 calibration and uses the existing solver and family curve.
+
+**Rear-facing schematic source approved (2026-11-13):** following the visual
+review, the owner approved a rear-facing truck symbol with separated,
+numbered discharge indicators. The hose/elevation editor stays a side view;
+connections are explicitly schematic, preserving equipment and hydraulic
+coordinates. This small visual change does not resume the deferred physical
+M11-5 pump-panel project. See UX.md, “Rear-facing schematic truck”.
+
+**Practice layout polish (2026-11-13):** compact reference/delivery and
+baseline-change summaries keep the operating canvas visible. Full discharge
+comparison and repeat-case explanations open separately. Phone discharge
+controls precede teaching content, and desktop drawing height accounts for
+the practice header. Existing reveal/reset and baseline semantics remain.
+Verified phone/desktop screenshots are in `reports/practice-layout-2026-11-13/`;
+see UX.md for checks and small-screen behavior.
+
+**Optional phone landscape (2026-11-21):** compact landscape uses a drawing
+and scrollable inspector side by side; portrait keeps the bottom sheet.
+Short screens move practice details behind an explicit entry, and the sheet
+tracks the visual viewport for keyboard access. Rotation preserves edits and
+practice comparisons; orientation is never forced. See UX.md and
+`reports/mobile-layout-2026-11-21/` for verification and screenshots.
+
+**Compact pressure labels (2026-11-21):** the operating bar now has a
+wrapping name/value legend for touch users, including small elevation and
+accessory terms. The desktop workspace reserves the measured dock height.
+Downhill and zero-flow explanations remain explicit. This addresses visual
+review finding 5; camera framing and scenario-menu organization remain open.
+
+**Documented starting nozzle (owner approved, 2026-11-21):** fresh sessions
+start with a single line and Akron Turbojet 1720 at the simulator's 95 gpm
+setting, straight stream, inside its published reach envelope. Retain generic
+nozzles and Bifurcada as examples, and never replace restored/shared work.
+Reach is visible by default and opens the nozzle details. This is a supported
+starting point, not a claim of a complete measured nozzle model.
+
+**Reach-ready examples and horizontal ruler (owner approved, 2026-11-21):**
+use documented reach-capable nozzles across general examples and focused
+lessons where compatible: Turbojet 1720 for 60/95 gpm settings, Turbojet
+1723P for 150 gpm, and Protek 368 for 250 gpm with the existing 2½″ inlet.
+The explicit G-Force 75/100 psi comparison retains its named nozzles; open
+outlets remain open. Preserve pump-case demand and exercise assignments.
+A horizontal ruler follows world distance and zoom, with zero at the pump
+outlet; equipment icons remain schematic. Existing saved/shared work is not
+migrated. Reach still requires the engine's supported operating envelope.

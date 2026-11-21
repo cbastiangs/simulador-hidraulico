@@ -2,6 +2,7 @@
   import { u } from "$lib/display-units.svelte.ts";
   import type { Scenario, ScenarioTreeResult } from "$hydraulics/scenario.ts";
   import { PIECES, type PieceId } from "$lib/pieces.ts";
+  import RearTruck from "./RearTruck.svelte";
   import PieceStrip from "./PieceStrip.svelte";
   let { scenario, network, onConnect, onGate, onPump }: {
     scenario: Scenario; network: ScenarioTreeResult;
@@ -13,7 +14,10 @@
   <h2>Bomba sin mangueras</h2>
   <p>Elige una manguera en Piezas y toca la descarga donde quieres conectarla.</p>
   <button type="button" class="truck" aria-label="Bomba: elegir salida" onclick={onPump}>
-    <svg viewBox="0 0 360 100" aria-hidden="true"><path d="M75 65V30h55l25 15h130v35H75Z" fill="var(--pump)"/><path d="M84 39h39l16 13H84Z" fill="var(--surface)"/><circle cx="110" cy="80" r="13" fill="var(--ink)"/><circle cx="255" cy="80" r="13" fill="var(--ink)"/></svg>
+    <svg viewBox={`0 0 100 ${Math.max(88, 54 + (scenario.discharges?.length ?? 1) * 14) + 12}`} aria-hidden="true">
+      <g transform="translate(16 4)"><RearTruck ports={scenario.discharges?.map(d => ({ name: d.name, open: d.open }))} /></g>
+    </svg>
+    <span class="schematic">Vista trasera · salidas esquemáticas</span>
     Controlar bomba
   </button>
   <div class="ports">
@@ -34,8 +38,9 @@
   .empty-canvas { min-height: 360px; height: 100%; max-height: 700px; box-sizing: border-box; overflow: auto; padding: 18px; display: grid; align-content: center; gap: 12px; border-radius: var(--radius); background: var(--surface); }
   h2,h3,p { margin: 0; } h2 { font-size: 18px; } h3 { font-size: 12px; text-transform: uppercase; color: var(--muted); } p { color: var(--muted); font-size: 13px; }
   button { min-height: 44px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font: inherit; font-size: 13px; padding: 6px; cursor: pointer; }
-  .truck { border: 0; color: var(--accent); }.truck svg { display: block; width: 100%; max-height: 90px; }
+  .truck { border: 0; color: var(--accent); }.truck svg { display: block; width: 100%; height: 144px; }
+  .schematic { display: block; color: var(--muted); font-size: 11px; margin: 4px 0; }
   .ports { display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: 8px; }.port { display: grid; gap: 6px; font-size: 13px; text-align: center; }.connection { display: grid; gap: 3px; }.ring { font-size: 24px; }.armed { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
   .pieces { display: grid; gap: 4px; }
-  @media(max-width:1023px) { .empty-canvas { min-height: 0; padding: 12px; align-content: start; }.truck svg { max-height: 60px; } }
+  @media(max-width:1023px) { .empty-canvas { min-height: 0; padding: 12px; align-content: start; }.truck svg { height: 100px; } }
 </style>

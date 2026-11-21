@@ -1515,3 +1515,162 @@ case with capacity available. Loading restores the generic equipment and
 closes discharge 2, clears the baseline, and is undoable. Clearly disclose
 that reset and the CX family provenance. Source changes invalidate the
 baseline so speed/control edits cannot masquerade as a discharge-only change.
+
+### Rear-facing schematic truck (owner approved, 2026-11-13)
+
+Use a compact rear-facing source symbol in the side-view editor and the
+empty-pump canvas. Number discharge connections in scenario outlet order,
+space them separately on the symbol, and highlight the outlet feeding the
+edited path. Closed connections have capped markers and dashed leaders.
+These are schematic indicators; tapping the truck opens the existing pump
+controls. Full names, sizes and gates remain in Descargas. The source drawing
+reserves screen space and keeps a readable size when zooming.
+
+Mark the symbol “ESQUEMA”: M11-5's actual outlets are distributed around
+the vehicle, not all on its rear. Leaders connect to the existing hydraulic
+origin and do not represent hose length, internal piping or port elevation.
+Hoses retain the side-view metre/elevation geometry. This is not the deferred
+realistic M11-5 pump-panel layout, nor a change to hydraulic inputs. Broader
+practice-layout and camera changes from the visual review remain separate.
+
+Verified at 390×844 and 1024×844: default branched lay, M11-5's seven
+indicators, full-fit view, multiple connected discharges, connecting an empty
+outlet through Piezas and undo, and the empty-pump view. Truck selection opens
+the existing controls. Tests, typecheck (zero warnings) and static build pass.
+Screenshots: `reports/rear-truck-2026-11-13/phone.png` and `desktop.png`.
+
+### Practice workspace allocation (owner approved, 2026-11-13)
+
+Keep the operating workspace compact: the live NFA reference/delivery/margin
+stays visible, while the discharge comparison shows only the three changes
+from its captured baseline. Capturing the baseline remains directly available.
+The full Before/Now/Change table, pump explanation and repeat-case controls
+open in a dismissible comparison dialog; they never expand the canvas header.
+The existing exercise dialog retains the prediction/action prompt and setup.
+Hidden/revealed answers, session-only baselines and source-change invalidation
+retain their existing rules.
+
+On desktop, subtract the measured practice header from the drawing's viewport
+height so equipment stays in the first screen. On phone, the compact header
+leaves the remaining space for the drawing. In the expanded inspector, show
+selected equipment controls before practice details; practice content is no
+longer sticky above controls. For practice pump discharges, put the discharge
+list before the full pump card. The pressure-budget grip continues to show
+actual pressure. This implements the practice-layout priority from the visual
+audit; broader camera framing and menu organization remain separate work.
+
+The compact NFA card labels its shared flow unit once in its heading to
+avoid wrapped unit suffixes consuming phone height. At viewport heights up
+to 760 px the redundant convention footnote is omitted from the compact
+card; the NFA exercise keeps its full basis and assignments. Unavailable or
+unassigned-result messages remain visible.
+
+Verified at 390×844 and 1024×844: reveal/hide, baseline capture, opening the
+second discharge, the full comparison dialog and Escape dismissal, undo,
+repeat-case loading and reload. The 3200 rpm case retains −3.4 gpm on line 1,
++272.3 gpm total and −3.4 psi; the 4000 rpm case keeps first-line flow and
+pressure unchanged. Unit switching preserves the baseline; retry hides the
+answers and clears it. Phone drawing height after capture is about 283 px,
+versus the previous thin strip. At 360×740 with bar/L/min it remains about
+206 px. The second gate is visible without scrolling the expanded phone
+panel. No page errors or horizontal overflow in the final walkthroughs.
+Tests, typecheck (zero errors/warnings) and static build pass.
+Screenshots: `reports/practice-layout-2026-11-13/`.
+
+### Phone landscape and short viewports (owner approved, 2026-11-21)
+
+Rotation is optional. Compact landscape windows (640–1023 px wide, wider
+than tall and at most 600 px high) use the drawing on the left and a
+scrollable inspector on the right, replacing the bottom sheet. Pump controls
+stay at the top of that inspector; equipment controls precede practice and
+calculation details. The canvas keeps touch gestures and a compact toolbar.
+Selection, scenario edits, reveal state and captured comparison survive
+rotation. Portrait retains the bottom sheet.
+
+Use the visual viewport to keep the portrait sheet above the on-screen
+keyboard. Focusing a text/number field in the sheet expands it, and viewport
+changes bring the focused field into view. Preserve normal browser zoom;
+never force orientation or disable scaling. Short portrait screens move
+practice details into the sheet behind an explicit practice entry, leaving
+space for the drawing. Controls keep 44 px targets and safe-area padding.
+
+Verified at 390×844, 844×390, 667×375, 1024×844 and 390×480:
+editing hose length, rotation, captured baseline preservation, comparison
+Escape dismissal and short-screen practice access. Valve changes preserve
+inspector scroll; dismissing a dialog preserves the underlying selection.
+No page errors or page-level horizontal overflow. A simulated visual viewport
+of 430 px keeps the focused field and sheet above the keyboard boundary;
+physical-device keyboard behavior still needs a hardware check. Hydraulic
+tests, typecheck (zero errors/warnings) and static build pass.
+Screenshots: `reports/mobile-layout-2026-11-21/`.
+
+### Compact pressure breakdown (2026-11-21)
+
+The operating pressure bar includes a wrapping text legend beneath its slices,
+so touch users can identify small losses without hover tooltips. Each entry
+pairs a colored swatch with its name and current value; units are shared with
+the pump-pressure heading. Show nozzle/end pressure, hose friction, installed
+accessories (including zero or unknown loss), and positive elevation loss.
+Keep downhill pressure credit as an explicit sentence and retain the existing
+isolated, insufficient-pressure and closed-nozzle explanations. The full
+results panel still supplies the teaching explanations. No hydraulic laws
+or pressure proportions change.
+
+The desktop canvas and inspector reserve the measured dock height rather
+than assuming a fixed pressure-bar height, keeping camera controls clear of
+wrapped legends and downhill explanations. Checked at 390×844, 1024×844,
+390×480 and 667×375 with uphill, downhill and closed-nozzle cases; no page
+errors or horizontal page overflow. Tests, typecheck and static build pass.
+Screenshots: `reports/pressure-labels-2026-11-21/`.
+
+### Reach discoverability and documented starting lay (2026-11-21)
+
+The starting example is a single 30 m line with a named Akron Turbojet 1720,
+95 gpm nominal at 100 psi, straight stream. Fit that example's initial view
+to the lay and stream; manual pan/zoom and gesture-time camera freezing remain.
+Existing examples, restored work and share links retain their own content.
+A persistent reach button below the drawing opens the selected line's nozzle
+inspector. Its first reading includes the reach and the basis/limits before
+the operating controls. Show a numeric current reach only when the existing
+engine marks it supported; otherwise say illustrative or no stream. In fog,
+a separately labelled straight-stream reference may be shown if supported.
+Nominal rating and actual delivered pressure/flow remain distinct.
+
+Reach opens the full inspector on portrait phones in one tap. The desktop
+canvas reserves the measured toolbar height; the compact landscape inspector
+has room for the single-line ideal-pressure shortcut and live flow. Verified
+at 390×844, 1024×844, 844×390 and 667×375: the initial stream endpoint is
+inside the drawing, the starting result is ~96.4 gpm / 103.0 psi / 44 m,
+and the reach button opens the named nozzle and its explanation. Fog shows a
+separate straight-stream reference, 400 psi supply yields an illustrative
+out-of-range result, and a closed nozzle shows no stream. Shared generic
+scenarios stay generic after reload and automatic restoration. No page
+errors or horizontal page overflow. Tests, typecheck (zero errors/warnings)
+and static build pass. Screenshots: `reports/reach-default-2026-11-21/`.
+
+### Horizontal ruler and reach-ready examples (2026-11-21)
+
+A separate ruler above the drawing uses the same horizontal world mapping as
+hose endpoints. Label it as horizontal distance, with zero at the pump outlet.
+Use readable 1/2/5-series intervals in the selected display unit (m or ft),
+following pan and zoom; do not confuse horizontal run with deployed hose
+length or the stream's reach measured from the nozzle tip. Reserve ruler
+space rather than covering equipment or drawing annotations.
+General 100 gpm examples now use Turbojet 1720 at its supported 95 gpm
+setting; selector lessons use that model at their original 60/95 settings.
+The diameter exercise retains 150 gpm using Turbojet 1723P, and pump lessons
+retain 250 gpm / 2½″ inlets using Protek 368. Begin these in straight stream.
+Keep the named G-Force pressure comparison and open outlets unchanged.
+Do not adjust supply pressure just to obtain a numeric reach: an operating
+point outside published data continues to show illustrative reach.
+
+Verified 390×844, 1024×844, 667×375 and 390×480 in metres, plus 390×844
+in feet. Ruler tick spacing matches the rendered world transform before and
+after pan/zoom; the overview includes the stream endpoint. No page errors
+or page-level horizontal overflow. All 16 preset/exercise documents parse
+and solve. The 3200 rpm discharge exercise still changes by +272.334 gpm
+total, −3.388 psi and −3.398 gpm on line 1; the 4000 rpm case keeps line 1
+flow and pressure unchanged. Existing arithmetic checks now use the actual
+95 gpm nozzle rating where the examples changed. Tests (10 files), typecheck
+(zero errors/warnings) and static build pass. Screenshots:
+`reports/horizontal-scale-2026-11-21/`.

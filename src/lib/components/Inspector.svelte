@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { streamReach, NOZZLE_REACH } from "$hydraulics/reach.ts";
   import { u } from "$lib/display-units.svelte.ts";
   import { hoseSizeName, jointName } from "$lib/names.ts";
   import { NOZZLE_SPECS } from "$hydraulics/catalog.ts";
@@ -71,6 +72,9 @@
         : spec.kind === "selectable" ? `Selector ${u.q(spec.settingsGpm[0], 0)}–${u.q(spec.settingsGpm.at(-1), 0)} ${u.flow}` : `${u.q(spec.ratedFlowGpm)} ${u.flow}`;
   const design = $derived(scenario.nozzle.design ?? "fog");
   const displayNozzle = $derived(resolvedNozzle(scenario.sections, scenario.nozzle));
+  const reach = $derived(streamReach(scenario.nozzle.specId, design, result.flowGpm, result.nozzlePressurePsi ?? 0, scenario.nozzle.pattern));
+  const straightReach = $derived(streamReach(scenario.nozzle.specId, design, result.flowGpm, result.nozzlePressurePsi ?? 0, 0));
+  const reachTable = $derived(scenario.nozzle.specId ? NOZZLE_REACH[scenario.nozzle.specId] : undefined);
   const nozzleSpec = $derived(NOZZLE_SPECS.find((spec) => spec.id === scenario.nozzle.specId));
   const manufacturer: Source | null = $derived(nozzleSpec?.manufacturerSource ? SOURCES[nozzleSpec.manufacturerSource] : null);
   const nozzleInlet = $derived(scenario.nozzle.inletIn ?? nozzleSpec?.inletIn);
@@ -154,6 +158,19 @@
         <p>{nozzleKind} · {u.p(n.ratedPressurePsi)} {u.pressure} nominal{manufacturer ? " · ficha del fabricante" : n.specId === null || !nozzleSpec ? " · personalizado" : " · genérico"}</p>
       {/if}
     </header>
+    <section class="reach-reading" aria-label="Alcance del chorro">
+      <b>{result.state !== "flowing" ? "Sin chorro" : reach.fitted ? `Alcance ≈ ${u.l(reach.reachM, 0)} ${u.length}` : "Alcance ilustrativo"}</b>
+      {#if result.state === "flowing"}
+        {#if reach.fitted}
+          <p>Estimación ajustada a datos publicados: gotas más lejanas, a la altura del pitón. Chorro directo, aire quieto; no es alcance efectivo de extinción.</p>
+        {:else if straightReach.fitted}
+          <p>En chorro directo: ≈ {u.l(straightReach.reachM, 0)} {u.length}. El alcance con neblina es ilustrativo.</p>
+        {:else}
+          <p>{reachTable ? "La presión o el caudal están fuera del rango publicado de este pitón." : "Este pitón no tiene una curva de alcance publicada incorporada."} El dibujo no expresa una distancia validada.</p>
+        {/if}
+        {#if reachTable}<p>Rango de referencia: {u.p(reachTable.psi[0], 0)}–{u.p(reachTable.psi[1], 0)} {u.pressure} · {u.q(reachTable.gpm[0], 0)}–{u.q(reachTable.gpm[1], 0)} {u.flow}.</p>{/if}
+      {:else}<p>El alcance se muestra cuando esta línea entrega agua.</p>{/if}
+    </section>
     {#if design === "open-end"}
       <p class="note">
         No hay manija: la línea fluye mientras esté cargada, y se corta en la bomba. Sin boquilla, la manguera
@@ -375,6 +392,9 @@
 </aside>
 
 <style>
+  .reach-reading { padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--accent-soft); }
+  .reach-reading b { color: var(--ink); }
+  .reach-reading p { margin: 6px 0 0; font-size: 13px; color: var(--muted); }
   .model-picker { width: 100%; min-height: 44px; margin: 6px 0 12px; padding: 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); font: inherit; }
   .equipment-rating { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; font-size: 13px; }
   .equipment-rating > div { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
