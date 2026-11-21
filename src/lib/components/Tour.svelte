@@ -30,7 +30,6 @@
     selection,
     onFit,
     onDeselect,
-    onMenu,
     onEnd,
   }: {
     running: boolean;
@@ -41,8 +40,6 @@
     onFit: () => void;
     /** Clear the selection; on a phone this also closes the sheet. */
     onDeselect: () => void;
-    /** Open or close the header's Escenario menu (a phone's last step points at an item inside it). */
-    onMenu: (open: boolean) => void;
     onEnd: () => void;
   } = $props();
 
@@ -171,13 +168,8 @@
     },
     {
       title: "Volver a verlo",
-      // The control itself: "?" when wide; on a phone the menu opens and "Ver recorrido" is the target.
-      text: () =>
-        phone
-          ? "Para repetir el recorrido: «Ver recorrido», al final de este menú. Aquí también están los otros tendidos, copiar y pegar."
-          : "Para repetir el recorrido, pulsa «?». Otros tendidos, y copiar o pegar el tuyo, están en Escenario.",
-      target: () => find(phone ? "help-item" : "help"),
-      enter: () => phone && onMenu(true),
+      text: () => "Abre Ayuda (?) para repetir el recorrido o consultar métodos y fuentes. En Escenario puedes elegir ejemplos y prácticas.",
+      target: () => find("help"),
       button: "Listo",
     },
   ];
@@ -255,7 +247,6 @@
     tour = null;
     at = -1;
     pointed = null;
-    onMenu(false);
     try {
       localStorage.setItem(SEEN, "1");
     } catch {}

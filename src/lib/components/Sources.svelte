@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { resolve } from "$app/paths";
   import { LAWS } from "$hydraulics/laws.ts";
   import { METHODS, SOURCES, type MethodId, type SourceId } from "$hydraulics/references.ts";
   import { METHOD_LABELS } from "$lib/methods.ts";
@@ -44,6 +45,7 @@
       </li>
     {/each}
   </ul>
+  <p><a href={resolve("/acerca-de") + "#metodos"}>Ver todos los métodos y fuentes</a></p>
 </details>
 
 <style>

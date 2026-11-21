@@ -3,7 +3,7 @@
 
   // Novedades (UX.md §8.6). "update" lists what is new since the last visit
   // and opens by itself once after an update; "all" is the full list, from
-  // the Escenario menu. Closing either counts as read.
+  // the Ayuda menu. Closing either counts as read.
   let { open, unread, onClose }: { open: boolean; unread: Release[]; onClose: () => void } = $props();
 
   const update = $derived(unread.length > 0);
@@ -39,7 +39,7 @@
       </section>
     {/each}
     {#if update && all.length > unread.length}
-      <p class="empty">Las anteriores están en Escenario → Novedades.</p>
+      <p class="empty">Las anteriores están en Ayuda → Novedades.</p>
     {/if}
   </div>
 </dialog>

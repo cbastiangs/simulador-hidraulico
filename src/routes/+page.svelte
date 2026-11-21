@@ -1,4 +1,23 @@
+<script module lang="ts">
+  import type { AppDocument } from "$lib/document.ts";
+
+  // Keep the editing session in memory while the user consults the reference page.
+  let aboutReturn: {
+    document: AppDocument;
+    base: AppDocument;
+    presetId: string | null;
+    past: AppDocument[];
+    future: AppDocument[];
+    practiceEpoch: number;
+    revealedPracticeKey: string | null;
+    dischargeBaseline: { key: string; values: number[] } | null;
+    autoSaveEnabled: boolean;
+  } | undefined;
+</script>
+
 <script lang="ts">
+  import { beforeNavigate } from "$app/navigation";
+  import { resolve } from "$app/paths";
   import { u } from "$lib/display-units.svelte.ts";
   import { enduranceLabel } from "$lib/readings.ts";
   import { pathResult, solveScenario, solveScenarioTree, type Scenario, type TreeSegmentResult } from "$hydraulics/scenario.ts";
@@ -30,6 +49,7 @@
   import DischargesPanel from "$lib/components/DischargesPanel.svelte";
   import TruckPanel from "$lib/components/TruckPanel.svelte";
   import TankPanel from "$lib/components/TankPanel.svelte";
+  import ScenarioPicker from "$lib/components/ScenarioPicker.svelte";
   import SavedLays from "$lib/components/SavedLays.svelte";
   import Offline from "$lib/components/Offline.svelte";
   import Novedades from "$lib/components/Novedades.svelte";
@@ -37,7 +57,7 @@
   import { drainTank, tankMinutes } from "$hydraulics/tank.ts";
   import { workingLay, saveWorking, downloadScenario } from "$lib/library.ts";
   import { LESSONS } from "$lib/lessons.ts";
-  import { parseDocument, wrapScenario, withScenario, type AppDocument, type Exercise } from "$lib/document.ts";
+  import { parseDocument, wrapScenario, withScenario, type Exercise } from "$lib/document.ts";
   import { exerciseReadings } from "$lib/fire-flow.ts";
   import DischargeComparison from "$lib/components/DischargeComparison.svelte";
   import PracticeSummary from "$lib/components/PracticeSummary.svelte";
@@ -53,6 +73,12 @@
   const presets = Object.entries(files)
     .map(([path, doc]) => ({ id: path.split("/").pop()!.replace(".json", ""), scenario: parseDocument(doc) }))
     .sort((a, b) => (a.id === DEFAULT_PRESET ? -1 : b.id === DEFAULT_PRESET ? 1 : a.id.localeCompare(b.id)));
+
+  const examples = presets.filter(preset => !preset.scenario.exercise);
+  const practiceOrder = ["practica-diametro", "practica-piton", "practica-descargas", "practica-descargas-reserva", "practica-nfa"];
+  const rank = (id: string) => practiceOrder.includes(id) ? practiceOrder.indexOf(id) : practiceOrder.length;
+  const practices = presets.filter(preset => preset.scenario.exercise).sort((a, b) => rank(a.id) - rank(b.id));
+  let picker: ScenarioPicker;
 
   /** The preset loaded last; null when the scenario came from a link or a paste. */
   let presetId = $state<string | null>(presets[0].id);
@@ -263,7 +289,13 @@
     const target = event.target as HTMLElement;
     if (target.closest("input, textarea, select, [contenteditable]") || document.querySelector("dialog[open]")) return;
     // Esc clears the selection, unless it is closing a menu.
-    if (event.key === "Escape" && scenarioMenu?.open) return void (scenarioMenu.open = false);
+    if (event.key === "Escape") {
+      const openMenu = [scenarioMenu, helpMenu].find(menu => menu?.open);
+      if (openMenu) {
+        closeMenu(openMenu);
+        return;
+      }
+    }
     if (event.key === "Escape" && !document.querySelector("[role=menu]")) return deselect();
     if (!(event.ctrlKey || event.metaKey)) return;
     const key = event.key.toLowerCase();
@@ -377,7 +409,7 @@
   // Novedades (UX.md §8.6): once after an update, or from the Escenario menu.
   let novedadesOpen = $state(false);
   let unread = $state<Release[]>([]);
-  function openNovedades() { if (scenarioMenu) scenarioMenu.open = false; unread = []; novedadesOpen = true; }
+  function openNovedades() { closeMenu(helpMenu); unread = []; novedadesOpen = true; }
   function closeNovedades() { novedadesOpen = false; unread = []; markSeen(); }
   const comparing = $derived(compareId !== null && compareId !== scenario.methodId ? compareId : null);
   const referenceNetwork = $derived(comparing && network ? solveScenarioTree(scenario, comparing) : null);
@@ -419,6 +451,21 @@
   // reset; later copy and paste. A blank line and reset are undoable and
   // refit the canvas; a preset starts a fresh history.
   let scenarioMenu: HTMLDetailsElement | undefined = $state();
+  let helpMenu: HTMLDetailsElement | undefined = $state();
+  function closeMenu(menu: HTMLDetailsElement | undefined) {
+    if (!menu?.open) return;
+    menu.open = false;
+    menu.querySelector("summary")?.focus();
+  }
+  function openPicker(group: "examples" | "practices") {
+    closeMenu(scenarioMenu);
+    picker.show(group);
+  }
+  function closeOutsideMenus(event: PointerEvent) {
+    for (const menu of [scenarioMenu, helpMenu]) {
+      if (menu?.open && !menu.contains(event.target as Node)) menu.open = false;
+    }
+  }
   /** Changed since the preset was loaded: what "Reiniciar" would undo. */
   const edited = $derived(activeDocument !== base);
   function newLine() {
@@ -492,6 +539,7 @@
   let touring = $state(false);
   function startTour() {
     if (scenarioMenu) scenarioMenu.open = false;
+    closeMenu(helpMenu);
     notice = "";
     noticeAction = null;
     touring = true;
@@ -499,6 +547,21 @@
   $effect(() => {
     untrack(async () => {
       const linked = await openLink(false);
+      const returning = aboutReturn;
+      aboutReturn = undefined;
+      if (!linked && returning) {
+        activeDocument = returning.document;
+        base = returning.base;
+        presetId = returning.presetId;
+        past = returning.past;
+        future = returning.future;
+        practiceEpoch = returning.practiceEpoch;
+        revealedPracticeKey = returning.revealedPracticeKey;
+        dischargeBaseline = returning.dischargeBaseline;
+        autoSaveEnabled = returning.autoSaveEnabled;
+        storageReady = true;
+        return;
+      }
       let restored = false;
       if (!linked) {
         try { const saved = workingLay(); if (saved) { loadShared(saved, false); restored = true; } }
@@ -561,6 +624,16 @@
     try { saveWorking(current); lastSavedAt = Date.now(); saveStatus = "Última tendida guardada automáticamente en este navegador"; }
     catch { saveStatus = "No se pudo guardar automáticamente. Exporta un archivo para conservar tu trabajo."; }
   }
+  beforeNavigate(({ to }) => {
+    if (to?.route.id !== "/acerca-de" || !storageReady) return;
+    pauseClock();
+    persist();
+    aboutReturn = {
+      document: activeDocument, base, presetId, past, future, practiceEpoch, revealedPracticeKey,
+      dischargeBaseline: $state.snapshot(dischargeBaseline),
+      autoSaveEnabled,
+    };
+  });
   async function importFile(file?: File) {
     if (!file) return;
     try {
@@ -609,7 +682,7 @@
 <svelte:head><title>Simulador hidráulico</title></svelte:head>
 <svelte:window
   onkeydown={onKey}
-  onpointerdown={(e) => scenarioMenu?.open && !scenarioMenu.contains(e.target as Node) && (scenarioMenu.open = false)}
+  onpointerdown={closeOutsideMenus}
   bind:innerHeight={windowHeight}
 />
 
@@ -716,36 +789,38 @@
       <button type="button" onclick={redo} disabled={future.length === 0} aria-label="Rehacer" title="Rehacer (Ctrl+Shift+Z)">↷<span class="word">Rehacer</span></button>
     </div>
     <details class="scenario" bind:this={scenarioMenu}>
-      <summary data-tour="escenario" aria-label={`Escenario: ${scenario.name}`} title="Escenario: elegir otro, copiar, pegar, reiniciar"><span class="name">{scenario.name}</span><span class="caret" aria-hidden="true">▾</span></summary>
+      <summary data-tour="escenario" aria-label={`Escenario: ${scenario.name}`} title={scenario.name} onclick={() => { if (helpMenu) helpMenu.open = false; }}>
+        <span class="scenario-title"><span class="scenario-label">Escenario</span><span class="name">{scenario.name}</span></span>
+        <span class="caret" aria-hidden="true">▾</span>
+      </summary>
       <div class="scenario-menu">
-        <button type="button" onclick={() => { scenarioMenu!.open = false; libraryOpen = true; }}>Mis líneas…</button>
-        <p class="save-status">{saveStatus}</p>
+        <button type="button" onclick={() => openPicker("examples")}>Tendidas de ejemplo…</button>
+        <button type="button" onclick={() => openPicker("practices")}>Prácticas guiadas…</button>
+        <button type="button" onclick={newLine}>Línea en blanco</button>
         <hr />
-        <span class="menu-title">Empezar desde</span>
-        <button type="button" onclick={openPractice}>Abrir práctica de esta tendida</button>
-        {#each presets as p (p.id)}
-          <button type="button" class:on={p.id === presetId} aria-current={p.id === presetId} onclick={() => choosePreset(p.id)}>{p.scenario.scenario.name}</button>
-        {/each}
-        <button type="button" class="blank" onclick={newLine}>Línea en blanco</button>
-        <hr />
+        <button type="button" onclick={() => { closeMenu(scenarioMenu); libraryOpen = true; }}>Mis líneas…</button>
         <button type="button" onclick={() => copy("link")}>Copiar enlace</button>
-        <button type="button" onclick={() => copy("text")}>Copiar como texto</button>
-        <button type="button" onclick={paste}>Pegar escenario…</button>
-        <button type="button" onclick={() => downloadScenario(activeDocument)}>Exportar archivo (.json)</button>
-        <button type="button" onclick={() => { scenarioMenu!.open = false; fileInput?.click(); }}>Importar archivo…</button>
-        <hr />
-        <button type="button" disabled={!edited} title={edited ? undefined : "Sin cambios desde que se cargó"} onclick={resetPreset}>Reiniciar este escenario</button>
-        {#if phone}
-          <!-- A phone's header has no room for "?" (UX.md §8.4). -->
-          <hr />
-          <button type="button" data-tour="help-item" onclick={startTour}>Ver recorrido</button>
-        {/if}
-        <hr />
-        <button type="button" onclick={openNovedades}>Novedades</button>
-        <hr /><Offline />
+        <details class="more-file">
+          <summary>Archivos, texto y reinicio</summary>
+          <button type="button" onclick={() => copy("text")}>Copiar como texto</button>
+          <button type="button" onclick={paste}>Pegar escenario…</button>
+          <button type="button" onclick={() => downloadScenario(activeDocument)}>Exportar archivo (.json)</button>
+          <button type="button" onclick={() => { closeMenu(scenarioMenu); fileInput?.click(); }}>Importar archivo…</button>
+          <button type="button" disabled={!edited} onclick={resetPreset}>Reiniciar este escenario</button>
+        </details>
+        <p class="save-status">{saveStatus}</p>
       </div>
     </details>
-    {#if !phone}<button type="button" class="gear" data-tour="help" aria-label="Ver recorrido" title="Ver recorrido: cómo se usa" onclick={startTour}>?</button>{/if}
+    <details class="help" bind:this={helpMenu}>
+      <summary class="gear" data-tour="help" aria-label="Ayuda" title="Ayuda" onclick={() => { if (scenarioMenu) scenarioMenu.open = false; }}>?</summary>
+      <div class="scenario-menu">
+        <a href={resolve("/acerca-de")}>Acerca de · métodos y fuentes</a>
+        <button type="button" onclick={startTour}>Ver recorrido</button>
+        <button type="button" onclick={openNovedades}>Novedades</button>
+        <hr />
+        <Offline />
+      </div>
+    </details>
     <button type="button" class="gear" aria-label="Ajustes" title="Ajustes: método, altura de piso, accesorios, vista" onclick={() => (settingsOpen = true)}>⚙</button>
   </header>
 
@@ -838,6 +913,7 @@
 </div>
 
 <input class="file-input" type="file" accept=".json,application/json" bind:this={fileInput} onchange={e => importFile(e.currentTarget.files?.[0])} aria-label="Importar archivo de escenario" />
+<ScenarioPicker bind:this={picker} {examples} {practices} current={presetId} onPick={choosePreset} />
 <SavedLays open={libraryOpen} scenario={activeDocument} onOpen={s => loadShared(s, true)} onClose={() => libraryOpen = false} />
 <ScenarioText mode={textMode} text={textMode === "copy" ? textCopy : ""} error={pasteError} onOpen={openPasted} onClose={() => (textMode = null)} />
 {#if notice}
@@ -846,9 +922,11 @@
     {#if noticeAction}<button type="button" onclick={noticeAction.run}>{noticeAction.label}</button>{/if}
   </div>
 {/if}
-<Tour running={touring} {phone} {scenario} {selection} onFit={() => (fitSignal += 1)} onDeselect={deselect} onMenu={(open) => scenarioMenu && (scenarioMenu.open = open)} onEnd={() => (touring = false)} />
+<Tour running={touring} {phone} {scenario} {selection} onFit={() => (fitSignal += 1)} onDeselect={deselect} onEnd={() => (touring = false)} />
 
-<FireFlowPractice open={practiceOpen} doc={activeDocument} readings={practiceReadings} revealed={practiceRevealed} onReveal={revealPractice} resetKey={practiceEpoch} onClose={() => practiceOpen = false} onAdd={addExercise} onchange={changeExercise} />
+{#if storageReady}
+  <FireFlowPractice open={practiceOpen} doc={activeDocument} readings={practiceReadings} revealed={practiceRevealed} onReveal={revealPractice} resetKey={practiceEpoch} onClose={() => practiceOpen = false} onAdd={addExercise} onchange={changeExercise} />
+{/if}
 
 <Novedades open={novedadesOpen} {unread} onClose={closeNovedades} />
 
@@ -936,18 +1014,24 @@
   .notice button { min-height: 44px; padding: 0 12px; border-radius: 8px; border: 0; background: var(--accent); color: #fff; font: inherit; cursor: pointer; }
   .gear { width: 44px; height: 44px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); font-size: 20px; cursor: pointer; color: var(--ink); }
   .scenario { position: relative; min-width: 0; max-width: 420px; }
-  .scenario summary { list-style: none; display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); cursor: pointer; font-weight: 600; font-size: 14px; }
-  .scenario summary::-webkit-details-marker { display: none; }
+  .scenario > summary { list-style: none; display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); cursor: pointer; font-weight: 600; font-size: 14px; }
+  .scenario > summary::-webkit-details-marker, .help > summary::-webkit-details-marker { display: none; }
+  .scenario-title { display: grid; gap: 1px; min-width: 0; }
+  .scenario-label { color: var(--muted); font-size: 10px; font-weight: 600; }
+  .help { position: relative; flex: none; }
+  .help > summary { display: grid; place-items: center; list-style: none; }
+  .help .scenario-menu { max-width: min(320px, calc(100vw - 76px)); }
+  .more-file[open] { display: grid; }
+  .more-file > summary { min-height: 44px; padding: 11px 12px; cursor: pointer; font-size: 14px; border-radius: 6px; }
+  .more-file > summary:hover { background: var(--accent-soft); }
+  .more-file > button { display: block; width: 100%; }
   .scenario .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .scenario .caret { margin-left: auto; color: var(--muted); }
-  .scenario-menu { max-height: calc(100dvh - 130px); overflow-y: auto; position: absolute; right: 0; top: 50px; z-index: 30; width: max-content; min-width: 100%; max-width: min(420px, calc(100vw - 16px)); display: grid; padding: 6px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2); }
-  .scenario-menu .menu-title { padding: 6px 12px 4px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
-  .scenario-menu button { min-height: 44px; padding: 0 12px 0 30px; text-align: left; border: 0; border-radius: 6px; background: transparent; color: var(--ink); font-size: 14px; cursor: pointer; position: relative; }
-  .scenario-menu button:hover:not(:disabled) { background: var(--accent-soft); }
+  .scenario-menu { max-height: calc(100dvh - 130px); overflow-y: auto; position: absolute; right: 0; top: 50px; z-index: 65; width: max-content; min-width: 100%; max-width: min(420px, calc(100vw - 16px)); display: grid; padding: 6px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2); }
+  .scenario-menu :is(button, a) { min-height: 44px; padding: 0 12px; text-align: left; border: 0; border-radius: 6px; background: transparent; color: var(--ink); font-size: 14px; cursor: pointer; position: relative; }
+  .scenario-menu a { display: flex; align-items: center; text-decoration: none; }
+  .scenario-menu :is(button, a):hover:not(:disabled) { background: var(--accent-soft); }
   .scenario-menu button:disabled { opacity: 0.45; cursor: default; }
-  .scenario-menu button.on { font-weight: 700; }
-  .scenario-menu button.on::before { content: "✓"; position: absolute; left: 10px; color: var(--accent); }
-  .scenario-menu button.blank { color: var(--accent); font-weight: 600; }
   .scenario-menu hr { width: 100%; margin: 4px 0; border: 0; border-top: 1px solid var(--line); }
   .pump { grid-area: pump; display: grid; gap: var(--gap); align-content: start; }
   .line-tools { display: grid; gap: 8px; background: var(--surface); border-radius: var(--radius); padding: 12px 14px; }
@@ -982,8 +1066,8 @@
   .app.phone .history { order: 2; margin-left: 0; }
   .app.phone .history button { min-width: 44px; padding: 0; font-size: 20px; }
   .app.phone .scenario { flex: 1; }
-  .app.phone .scenario-menu { left: 0; right: auto; }
-  .app.phone .gear { order: 3; flex: none; }
+  .app.phone .scenario > .scenario-menu { left: 0; right: auto; }
+  .app.phone .help, .app.phone .gear { order: 3; flex: none; }
   .app.phone .canvas { min-height: 0; }
   .practice-entry { min-height: 44px; border: 1px solid var(--line); border-radius: 8px; background: var(--accent-soft); color: var(--accent); font: inherit; font-size: 13px; padding: 8px; cursor: pointer; }
   .practice-short { grid-area: practice; min-height: 44px; text-align: left; padding: 8px 12px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--accent-soft); color: var(--accent); font: inherit; font-size: 13px; }

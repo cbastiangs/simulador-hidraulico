@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { resolve } from "$app/paths";
   import { streamReach, NOZZLE_REACH } from "$hydraulics/reach.ts";
   import { u } from "$lib/display-units.svelte.ts";
   import { hoseSizeName, jointName } from "$lib/names.ts";
@@ -170,6 +171,7 @@
         {/if}
         {#if reachTable}<p>Rango de referencia: {u.p(reachTable.psi[0], 0)}–{u.p(reachTable.psi[1], 0)} {u.pressure} · {u.q(reachTable.gpm[0], 0)}–{u.q(reachTable.gpm[1], 0)} {u.flow}.</p>{/if}
       {:else}<p>El alcance se muestra cuando esta línea entrega agua.</p>{/if}
+      <p><a href={resolve("/acerca-de") + "#alcance"}>Cómo se estima el alcance</a></p>
     </section>
     {#if design === "open-end"}
       <p class="note">

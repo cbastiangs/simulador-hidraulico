@@ -515,14 +515,16 @@ and dropped: the pump was edited in two places and line settings in three.
   size, fittings; Camión, Control and Abastecimiento with M3). A hose, a
   coupling, the nozzle: its editor, with × back to Línea.
 - **Under the canvas:** view only (zoom, Ver todo, Cámara, Enfocar).
-  **Header of the page:** undo, the **Escenario** menu, **Ajustes (⚙)**.
-- **One Escenario menu (owner, 2026-10-18)** replaces the preset dropdown
-  and the "⋯" menu. Its button shows the scenario's name. The menu lists
-  "Empezar desde" and the presets, with the loaded one ticked, then
-  "Línea en blanco" and "Reiniciar este escenario" (greyed out until
-  something changes), "Copiar enlace", "Copiar como texto" and "Pegar
-  escenario…". Loading a preset starts a fresh history; a blank line,
-  reset and a paste are undo steps.
+  **Header of the page:** undo and redo, **Escenario**, **Ayuda (?)**, and **Ajustes (⚙)**.
+- **Escenario** shows the active lay's name and offers examples, guided
+  practices, a blank lay, saved lays, and link copying. Examples and
+  practices open the same chooser with the relevant group selected.
+  Practices are ordered 1–2–3, with the reserve case immediately after
+  exercise 3. File import and export, text exchange, and reset sit under
+  "Archivos, texto y reinicio". Loading an example starts a fresh history.
+  A blank lay, reset and paste are undo steps.
+- **Ayuda (?)** is available at every width. It opens methods and sources,
+  the tour, release notes, and installation and offline information.
 - **The first lay is "Bifurcada" (owner, 2026-10-18)**, replacing "Ataque al
   2.º piso", whose nozzle opened off the edge of a phone. Its hoses keep
   their 30 m but are laid short and snaked on the ground (`runM`, drawing
@@ -691,7 +693,7 @@ actions; "inspector" = the side column (desktop) or the sheet at full.
 | | undo, redo | header; Ctrl+Z, Ctrl+Shift+Z | header icons |
 | Read | gauges, flow, pressure split | canvas, panel, floating bar | canvas, top strip, sheet |
 | | calculation, concepts | below the canvas | sheet, full |
-| Help | welcome tour, again | "?" in the header | "Ver recorrido" in the Escenario menu |
+| Help | reference and welcome tour | Ayuda (?) | Ayuda (?) |
 
 ### 8.4 Welcome tour (owner, 2026-10-18; replaces the 2026-10-15 steps)
 
@@ -699,9 +701,8 @@ actions; "inspector" = the side column (desktop) or the sheet at full.
 shows it again, never breaks the page). It starts on the default lay
 (§4, "Bifurcada"). A shared link or a pasted scenario never starts it: the
 notice that names the lay offers "¿Primera vez? Ver recorrido" instead, and
-the tour then runs on that lay. Reopened from **"?" in the header** (wide
-and tablet) and **"Ver recorrido" in the Escenario menu** (phone, whose
-header has no room left at 360–390 px).
+the tour then runs on that lay. Reopen it from **Ayuda (?) → Ver recorrido**
+at any width.
 
 **Generic steps.** Every step points at a kind of thing (the pump, a
 nozzle, a coupling, a hose, the pressure bar), never at a preset's piece,
@@ -723,7 +724,7 @@ at any step; ending it counts as seen.
 | 6 | a coupling's handle (else the nozzle's) | "Arrastra esta pieza a otro piso: subir cuesta presión." | a move |
 | 7 | a hose | "Toca una manguera para cambiar diámetro o largo. Mantén pulsado (clic derecho) para más." | a hose is selected |
 | 8 | the pressure bar (phone: the closed sheet; wide: the dock or the results' bar) | "En qué se gasta la presión: pitón, fricción, altura." | Siguiente |
-| 9 | The control that reopens the tour: wide, the "?"; phone, the Escenario menu opens and "Ver recorrido" is highlighted inside it (owner, 2026-10-18: the step named the control without showing it); the menu closes when the tour ends | Wide: "Para repetir el recorrido, pulsa «?». Otros tendidos, y copiar o pegar el tuyo, están en Escenario." Phone: "Para repetir el recorrido: «Ver recorrido», al final de este menú. Aquí también están los otros tendidos, copiar y pegar." | Listo |
+| 9 | Highlight Ayuda (?) at every width | "Abre Ayuda (?) para repetir el recorrido o consultar métodos y fuentes. En Escenario puedes elegir ejemplos y prácticas." | Listo |
 
 Steps 4, 6 and 7 re-frame the lay first ("Ver todo"), since the person may
 have panned or zoomed in step 2.
@@ -755,8 +756,8 @@ the three newest unread versions and "Entendido". Closing it counts as read.
 A first visit (the tour not yet seen, whether it starts or a link only
 offers it) marks everything read and shows nothing: a new user meets the
 app, not its history. The tour always wins over the dialog. The full list
-is in the **Escenario menu → "Novedades"**; Ajustes → Acerca de names the
-version. Read state is one value in this browser (`novedades.seen.v1`); a
+is in **Ayuda → Novedades**. The About page also shows the version and
+published release notes. Read state is one value in this browser (`novedades.seen.v1`); a
 failed storage read or write only means the dialog may show again.
 
 **Going forward only.** The catalog starts empty on 2026-11-02; earlier work
@@ -863,7 +864,7 @@ allowed, with the reason.
 | **Fire** | ⏳ M5 | fire size ⏳ M5 | — | — | required vs delivered flow ⏳ M5 (NFA first) | — |
 | **Canvas view** | — | pan, zoom, fit ✅; zoom to selection ✅ ("Enfocar") | — | — | — | — |
 | **History** | — | undo, redo ✅ | — | — | — | — |
-| **Help** | — | — | — | — | tour ✅ (§8.4; "?" wide, Escenario › Ver recorrido on a phone) | — |
+| **Help** | — | — | — | — | tour ✅ (§8.4; Ayuda › Ver recorrido) | — |
 
 ### Truck profiles (2026-10-26)
 
@@ -1674,3 +1675,26 @@ flow and pressure unchanged. Existing arithmetic checks now use the actual
 95 gpm nozzle rating where the examples changed. Tests (10 files), typecheck
 (zero errors/warnings) and static build pass. Screenshots:
 `reports/horizontal-scale-2026-11-21/`.
+
+### About and sources
+
+Provide a shareable reference page at `/acerca-de`. Place the entry near the
+top of the Ayuda menu and link to the method and reach sections from their
+respective controls. Include method conventions, reach ranges, model limits,
+source documents and published release notes. Prerender the article for direct
+visits and offline use. Returning in the same tab preserves the current lay,
+its reset point, undo history and practice comparison. Persist the working
+lay before leaving when local autosave is available.
+
+Verified at 390×844 and 1024×844 with an edit, navigation to the reference
+page, return, and undo. The nozzle link opens the reach section directly.
+The landscape discharge exercise keeps its captured comparison after a
+round trip. The reference page also loads with JavaScript disabled and
+offline after the service worker has cached the build. Screenshots:
+`reports/about-page/`.
+
+The scenario chooser and Help menu were checked at 360×740, 390×844,
+667×375 and 1024×844. The walkthrough covered opening the first guided
+practice, switching the chooser to examples, saving a lay, copying its link,
+file-action discovery, Escape dismissal, and About with a return to the same
+lay. Screenshots: `reports/scenario-navigation/`.

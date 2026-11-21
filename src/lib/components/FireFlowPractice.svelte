@@ -24,7 +24,12 @@
   const signed = (n: number, format: (v: number) => string) => `${n > 0 ? '+' : ''}${format(n)}`;
   function retry() { onReveal(false); exploring = false; areaGuessM2 = null; flowGuessGpm = null; }
   const estimateKey = $derived([resetKey, e?.lengthM, e?.widthM, e?.involvedFraction].join(':'));
-  $effect(() => { void estimateKey; untrack(retry); });
+  let previousEstimateKey: string | undefined;
+  $effect(() => {
+    const key = estimateKey;
+    if (previousEstimateKey !== undefined && previousEstimateKey !== key) untrack(retry);
+    previousEstimateKey = key;
+  });
   $effect(() => {
     if (open && dialog && !dialog.open) dialog.showModal();
     else if (!open && dialog?.open) dialog.close();
