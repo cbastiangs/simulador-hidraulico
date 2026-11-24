@@ -190,7 +190,7 @@ calibration remains separate; this adds no hydraulic law.
 - **Outlets:** size, preconnect or not, each with a discharge valve that can
   be partly closed ("gated").
 - **Intakes and supply:** tank volume, tank-to-pump line flow limit; later
-  hydrant and drafting.
+  hydrant and open-water drafting (§7.3a).
 - **Control:** pressure governor (holds a set-point until the envelope) or
   RPM mode (pressure moves with flow).
 
@@ -294,6 +294,23 @@ rather than returning an exact root (`MODEL.md` §2, §3.10).
 ### 7.3 Pump and truck (§6)
 
 Envelope, outlets, discharge valves, governor modes, tank.
+
+### 7.3a Pump supply from open water (owner, 2026-11-22)
+
+Future supply work includes drafting from a pool or other open water source.
+A proposed first exercise uses one primed pump, one hard-suction line with a
+strainer, and an existing discharge lay. Vary the lift from the water surface
+to the pump and the length or diameter of the suction line. Show the resulting
+intake pressure, discharge pressure, and delivered flow. The intake model can
+also support a pressurized supply, such as a hydrant, once its source curve is
+adopted.
+
+Use a steady-state solve for the first exercise. Before adding laws to
+`MODEL.md`, verify the pump curve's pressure basis, suction-line loss data,
+and the supported drafting envelope for the selected equipment. The CX family
+curve alone does not establish M11-5 drafting performance. See the
+[drafting and cavitation review](manual-summaries/hydraulics/cgbvp-hydraulics-review.md#10-priming-drafting-suction-height-and-cavitation)
+and [Waterous pump guidance](https://www.waterousco.com/news/pump-specification-guide/).
 
 ### 7.4 Branching
 
@@ -1020,3 +1037,28 @@ outlets remain open. Preserve pump-case demand and exercise assignments.
 A horizontal ruler follows world distance and zoom, with zero at the pump
 outlet; equipment icons remain schematic. Existing saved/shared work is not
 migrated. Reach still requires the engine's supported operating envelope.
+
+**Pool drafting exercise (2026-11-23).** The first fixed-RPM pool practice
+is available under guided practices. One lift control operates a generic
+primed CX, a direct 5″ suction and one level 2½″ discharge line. The engine
+uses the bounded F-2093 suction table and 810304 net pump curve (MODEL §3.8).
+
+**Hydrant before relay (2026-11-24).** Guided practices now compare one 2½″
+feed, two equal feeds to separate 2½″ intakes, and two feeds through a siamese
+to one 2½″ intake. The teaching truck is generic. Characterization of actual
+intake and siamese losses is pending. See MODEL §3.9.
+
+**Sandbox hydrant.** The working series or branched lay can now use the
+hydrant configurations from the guided comparison. Feed lines remain
+schematic, level 30 m runs. Pump control and discharge edits share an
+operating point with the supply. Pool drafting remains a guided exercise.
+
+**Intake pressure before priming.** Prioritize the steady-state interaction
+between available supply pressure, intake losses, pump head and discharge
+demand. Verify the signed intake pressure balance for a primed draft and
+a pressurized feed. Treat the hydrant model's zero-gauge boundary separately
+from cavitation and prime loss. Quantitative priming time comes later, with
+a specific primer's evacuation performance, air volume and lift.
+
+The sandbox now shares the primed pool intake law with the fixed exercise.
+Switch between hydrant and pool on the same lay before adding timed priming.

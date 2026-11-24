@@ -57,6 +57,6 @@ export function applyApparatus(scenario: Scenario, value: Apparatus): Scenario {
     name: outlet.name, outletSizeIn: outlet.sizeIn,
   }));
   return parseScenario({ ...scenario, apparatusName: profile.name, sections: [], wye: undefined, discharges,
-    source: { ...scenario.source, outletSizeIn: undefined, fittings: undefined, pump: profile.pump,
+    source: { ...scenario.source, outletSizeIn: undefined, fittings: undefined, pump: profile.pump, pool: profile.pump ? scenario.source.pool : undefined, hydrant: profile.pump ? scenario.source.hydrant : undefined,
       tank: profile.tankCapacityGal === undefined ? undefined : { capacityGal: profile.tankCapacityGal, remainingGal: profile.tankCapacityGal } } });
 }

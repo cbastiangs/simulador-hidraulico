@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { resolve } from "$app/paths";
   import type { AppDocument } from "$lib/document.ts";
 
   let { examples, practices, current, onPick }: {
@@ -59,6 +60,16 @@
         {#if item.id === current}<span class="current">Tendida actual</span>{/if}
       </button>
     {/each}
+    {#if group === "practices"}
+      <a class="option practice-link" href={resolve("/hidrante")}>
+        <strong>Abastecimiento desde hidrante</strong>
+        <span>Compara una línea, dos entradas y una siamesa de 2½″.</span>
+      </a>
+      <a class="option practice-link" href={resolve("/piscina")}>
+        <strong>Abastecimiento desde piscina</strong>
+        <span>Varía la altura de aspiración con la bomba a rpm fijas.</span>
+      </a>
+    {/if}
   </div>
 </dialog>
 
@@ -75,6 +86,7 @@
   .groups button[aria-pressed=true], .option[aria-current=true] { border-color: var(--accent); background: var(--accent-soft); }
   .choices { min-height: 0; overflow: auto; display: grid; gap: 6px; padding: 2px 14px 14px; overscroll-behavior: contain; }
   .option { display: grid; gap: 2px; min-width: 0; padding: 8px 12px; text-align: left; overflow-wrap: anywhere; }
+  .practice-link { min-height: 44px; color: inherit; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; text-decoration: none; }
   .option:hover { background: var(--accent-soft); }
   .option span { color: var(--muted); font-size: 13px; }
   .option .current { font-weight: 600; }

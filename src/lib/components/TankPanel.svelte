@@ -16,7 +16,7 @@
 <section class="tank" aria-label="Abastecimiento">
   <h3>Abastecimiento</h3>
   {#if !tank}
-    <p>Sin límite de volumen. Para simular un tanque, indica su capacidad; no hay un valor verificado para M11-5.</p>
+    <p>Esta tendida usa un volumen de agua ilimitado. Indica la capacidad del tanque para simular su vaciado.</p>
     <form onsubmit={e => { e.preventDefault(); if (capacity && capacity > 0) setTank({ capacityGal: capacity, remainingGal: capacity }); }}>
       <label>Capacidad del tanque · US gal<input aria-label="Capacidad del tanque" type="number" min="1" step="any" required bind:value={capacity} /></label>
       <button type="submit">Usar tanque</button>

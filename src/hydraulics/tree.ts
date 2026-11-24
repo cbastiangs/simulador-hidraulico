@@ -61,7 +61,7 @@ type Evaluation = {
  * including discontinuous training allowances and dry-hose boundaries.
  */
 export function solveScenarioTree(input: Scenario, methodId: MethodId = input.methodId): ScenarioTreeResult {
-  if (input.source.tank?.remainingGal === 0) {
+  if (!input.source.hydrant && !input.source.pool && input.source.tank?.remainingGal === 0) {
     const r = solveScenarioTree({ ...input, source: { ...input.source, tank: undefined, pump: undefined, pressurePsi: 0 } }, methodId);
     const empty = (n: TreeSegmentResult): TreeSegmentResult => ({ ...n, flowGpm: 0,
       result: emptySupplyResult(n.result), inletPressurePsi: null, outletPressurePsi: null,
@@ -70,17 +70,17 @@ export function solveScenarioTree(input: Scenario, methodId: MethodId = input.me
   }
   if (input.source.pump) {
     const fixed = (pressurePsi: number) => solveScenarioTree({ ...input,
-      source: { ...input.source, pump: undefined, pressurePsi } }, methodId);
+      source: { ...input.source, tank: undefined, hydrant: undefined, pool: undefined, pump: undefined, pressurePsi } }, methodId);
     const pump = solvePump(input.source.pump, input.source.pressurePsi, p => {
       const r = fixed(p); return { flowGpm: r.totalFlowGpm, balanced: r.balanced };
-    });
+    }, input.source.hydrant ?? input.source.pool);
     const r = fixed(pump.pressurePsi ?? 0);
     function annotate(node: TreeSegmentResult): TreeSegmentResult {
       return { ...node, result: { ...(pump.pressurePsi === null ? unavailablePumpResult(node.result) : node.result), pump },
-        ...(pump.pressurePsi === null ? { inletPressurePsi: null, outletPressurePsi: null } : {}),
+        ...(pump.pressurePsi === null ? { flowGpm: 0, inletPressurePsi: null, outletPressurePsi: null } : {}),
         branches: node.branches.map(annotate) };
     }
-    return { ...r, root: annotate(r.root), balanced: r.balanced && pump.pressurePsi !== null };
+    return { ...r, totalFlowGpm: pump.flowGpm === null ? 0 : r.totalFlowGpm, root: annotate(r.root), balanced: r.balanced && pump.pressurePsi !== null };
   }
 
   const scenario = resolveNozzles(parseScenario(input));

@@ -14,6 +14,7 @@
   import type { Action, Target } from "$lib/actions.ts";
   import Actions from "./Actions.svelte";
   import JointControls from "./JointControls.svelte";
+  import DiameterComparison from "./DiameterComparison.svelte";
   import NumberField from "./NumberField.svelte";
   import NozzleCloseUp from "./NozzleCloseUp.svelte";
   import JunctionPanel from "./JunctionPanel.svelte";
@@ -29,6 +30,7 @@
     onchange,
     onSelect,
     requiredPsi,
+    diameterReferenceGpm,
     result,
     onAction,
     onClose,
@@ -45,6 +47,7 @@
     onchange: (s: Scenario) => void;
     onSelect: (s: Selection) => void;
     requiredPsi: number | null;
+    diameterReferenceGpm?: number;
     result: SeriesResult;
     /** Run an action from lib/actions.ts: the panel shows every action for the selection. */
     onAction: (action: Action, target: Target) => void;
@@ -363,11 +366,14 @@
     </header>
     <label class="field">
       <span class="label">Diámetro</span>
-      <select value={s.hoseSizeId ?? ""} onchange={(e) => onchange(edit.setSectionHose(scenario, i, e.currentTarget.value))}>
+      <select id="section-hose-size" value={s.hoseSizeId ?? ""} onchange={(e) => onchange(edit.setSectionHose(scenario, i, e.currentTarget.value))}>
         {#if s.hoseSizeId === null}<option value="">{s.diameterIn}″ (manual)</option>{/if}
         {#each HOSE_SIZES as size (size.id)}<option value={size.id}>{hoseSizeName(size, true)}</option>{/each}
       </select>
     </label>
+    {#if diameterReferenceGpm !== undefined}
+      <DiameterComparison {scenario} {result} referenceGpm={diameterReferenceGpm} />
+    {/if}
     <div class="lock-row">
       <span class="label">Largo</span>
       <button type="button" class="secondary" class:on={!s.lengthFree} aria-pressed={!s.lengthFree} onclick={() => onchange(edit.toggleLengthLock(scenario, i))}>{s.lengthFree ? "🔓 Libre" : "🔒 Largo fijo"}</button>

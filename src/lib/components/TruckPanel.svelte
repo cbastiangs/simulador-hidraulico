@@ -61,7 +61,7 @@
     <aside class="reference" aria-label="Datos de M11-5">
       <strong>M11-5 · equipo confirmado</strong>
       <p>7 descargas y 3 entradas, confirmadas por el propietario el 06/11/2026. Tanque de 500 US gal, confirmado el 30/10/2026.</p>
-      <p>Entradas: piloto, 6″ y 2½″; copiloto, 6″. Solo referencia de equipo: no se simula alimentación por estas entradas.</p>
+      <p>Entradas: piloto, 6″ y 2½″; copiloto, 6″. El hidrante del simulador usa entradas esquemáticas y pérdidas configurables.</p>
       <p>Bomba identificada: Waterous CXVC22C, 1500 gpm nominales. Se usa la curva de familia CX (Waterous 810304), sin calibración para esta unidad. El caudal entregado depende de la tendida.</p>
       <p>Inicio a 4000 rpm del eje de la bomba: valor de simulación. La lectura de 2400 rpm del gobernador sigue sin identificar; no se usa como límite.</p>
     </aside>

@@ -541,12 +541,32 @@ P(Q,N) = (N/4000)² P_ref(Q/(N/4000)). Reference points (gpm, psi):
 the first M3 implementation. F-2115's two 4000 rpm points cross-check within
 5 psi; do not replace the graph with those different published values.
 
-Source intake pressure is assumed zero. The first model permits 2600–4800
+In the lay editor, source intake pressure defaults to zero. Hydrant supply follows §3.9. The first model permits 2600–4800
 **pump-shaft** rpm, plus zero for stopped; the chosen 4800 rpm model ceiling
 is below the publication's 5200 rpm maximum. All allowed zero-flow heads
 are below its 350 psi maximum. Speed scaling is an approximation, not a
 claim that the other published curves have been digitized. Engine power,
 suction capacity, tank plumbing and transients remain unmodelled.
+
+**Primed pool practice (2026-11-23).** For this fixed exercise use the
+4000 shaft-rpm 810304 curve directly as net pressure. The atmosphere is at
+sea level, the water cool, and one clean 5″ × 20 ft hard suction with a
+strainer connects directly to the pump. Waterous F-2093 fig. 3 gives combined
+entrance and friction losses of 0.5 and 1.0 ft of water at 250 and 350 US gpm.
+Interpolate linearly between those points. Following its gauge convention,
+P_intake = −(lift in feet + tabulated loss in feet)/2.31, and
+P_discharge = P_net + P_intake. The tabulated loss enters once.
+[Waterous F-2093](https://www.waterousco.com/media/pdfs/f2093.pdf)
+
+Balance discharge against the existing level, 30 m, C=2, 2½″ attack line
+with the fixed 250 gpm at 100 psi nozzle opening from the second-discharge
+exercise. Solve only within the two suction data points. The exercise limits
+lift to 0.5–3 m. F-2115 p. 3 lists the CXN/CXR/CXV at 1000 gpm and 150 psi
+net with one 5″ × 20 ft intake and 14 ft maximum sea-level lift. That row
+bounds the choice of teaching conditions. It supplies neither a measured
+exercise result nor an NPSH curve. Priming, cavitation and unit-specific
+performance remain outside this exercise.
+[Waterous F-2115](https://www.waterousco.com/media/pdfs/f2115.pdf)
 
 Pressure control uses P_source(Q) = min(requested psi, P_curve(Q,N_limit));
 RPM control uses P_curve(Q,N). Solve the existing lay at trial discharge
@@ -654,10 +674,54 @@ and tank-to-pump plumbing remain unmodelled and are stated on screen.
 - **`supply.tank`** ✅ volume/endurance/teaching clock (2026-10-26), as
   defined above. ⏳ Tank-to-pump line capacity and suction losses require
   apparatus data; no arbitrary maximum gpm is imposed.
-- **`supply.hydrant`** ⏳ later: static/residual curve,
+- **`supply.hydrant`** ✅ fixed comparison exercise: static/residual curve,
   Q₂ = Q₁ · ((P_s − P₂)/(P_s − P₁))^0.54 (`published` NFPA 291 [E8];
   the same form is printed, with a worked example, by [E16]; `verify`
   against NFPA 291 itself).
+
+**Hydrant comparison (2026-11-24).** Use the USFA chapter 3 diagram 3-1
+example (65 psi static, 30 psi residual at 500 gpm), treating the residual
+hydrant as the teaching supply node. Hydrant barrel and individual outlet
+losses are omitted. Invert the published 0.54 flow-test relation to obtain
+P(Q) = 65 − 35 (Q/500)^(1/0.54) over 0–500 gpm.
+[USFA, p. 62](https://www.usfa.dhs.gov/downloads/pdf/publications/Water_Supply_Systems_Volume_II.pdf)
+and [Stillwater, projection equation](https://stillwaterok.gov/DocumentCenter/View/585/Hydrant-Flow-Test-Example-PDF).
+
+One or two equal 30 m runs of 2½″ (C=2) feed a generic CX at 4000 shaft rpm
+and the level 30 m, 250 gpm at 100 psi discharge lay. Each parallel line
+carries Q/2. Each path incurs one hose loss. A separate intake carries its
+own branch flow, while a siamese outlet and its single intake carry total Q.
+Unknown intake plumbing and siamese losses default to zero for a hose-only
+upper bound. Optional sensitivity inputs apply the existing quadratic
+appliance law (§3.10) as Δp_ref (q/350)^2, once per traversed component.
+For the siamese the reference is for both branches flowing equally.
+The 0–10 psi controls are exercise choices. Actual device-specific curves
+for this 2½″ combination are outstanding. No numerical ranking of separate
+versus merged intakes follows from nominal diameter alone.
+
+**Adjustable hydrant.** Hold upstream static/residual pressures at 65/30 psi.
+Vary the flow at 30 psi from 400–1500 US gpm, with 500 reproducing the
+published teaching example. Other settings are hypothetical supply curves.
+The range brackets the fixed rig operating points. For the Kennedy Guardian
+K81-D use Δp=(Q_total/Cv)² for water. Published Cv for one and two 2½″ outlets
+is 379 and 488 respectively. For the single 4″ and 4½″ pumper outlets use
+583 and 600 from the 1000 gpm rows. Applying constant Cv at exercise flow is
+an approximation. The coefficient includes the hydrant body. Count it once
+downstream of the network curve. A large outlet has an ideal reducer or
+splitter feeding the same 2½″ hoses. Legacy links retain ideal outlet losses.
+[Kennedy Guardian, flow analysis](https://www.kennedyvalve.com/upl/downloads/kenn/products/documents/product-brochure-5-1-4-kennedy-guardian-hydrant-models-k81d.pdf)
+
+**Sandbox hydrant.** Optional version-1 source.hydrant stores the connection,
+outlet, capacity and two reference losses above. For each trial discharge,
+use total delivered flow across all open paths to solve
+P_discharge = P_intake(Q) + P_net(Q, rpm). The ideal governor can hold a
+positive requested discharge between intake and available discharge. Requests
+below inlet pressure require regulation outside this model. The supported
+range ends at the tested supply flow, zero residual intake or the end of
+the pump curve, whichever comes first. Beyond it, report unavailable.
+Stopped means the discharge is isolated. A connected hydrant takes over
+supply while the tank retains its stored water. Connecting an ideal-source
+lay selects the CX family's reference RPM so it has a net pressure curve.
 
 ### 3.10 Branching and appliances ⏳ M4
 
@@ -1125,3 +1189,38 @@ geometry or crashes (see AGENTS.md).
 | Heat-absorption effectiveness η (not evaporated fraction) | `extinguish.absorption` | M5 (required input; no default) | **Audited 2026-10-22; no default adopted.** The cited 0.2 is Särdqvist 1996 pp. 55–56, applied to a 10.8 MJ/kg flame-extinction capacity (3.6 × 3), not the 2002 book and not a 20% evaporation/contact fraction. The 2002 book gives no numeric water efficiency and says `c_w` has no data. 0.32/0.50/0.75 are design assumptions/calibrations (Barnett 1992, TP 2004/1, Grimwood); 0.385 L/s/MW is a flow factor; the 20% contact figure is an unverified Särdqvist & Holmstedt 2001 claim. NISTIR 4625's four small-room tests give Särdqvist-derived 0.11/0.24/0.29 against an extinction capacity already assuming ~30–35% of fire heat removed; ~0.3 is an upper limit, not general efficiency. Future adjusted capacity requires an explicit assumption or narrowly matched measurement ([audit](../reports/Water%20application%20efficiency%20audit.md)) |
 | Specific measured peak HRR references (not generic fire presets) | `extinguish.absorption` | M5 (reference math built; no presets) | NIST Design Fires specimen/assembly Tests017/016/027/029/034/038: 0.447/0.621/1.733/1.984/4.021/4.563 MW (§3.12 links; [report](../reports/Extinguishment%20heat%20balance%20foundations.md) retains uncertainty/conditions). No sustained-load or product-preset selection; no extinguishing-flow/η evidence |
 | NFA fire-flow formula | `extinguish.fire-flow` | M5 (first) | verified 2026-10-16: NFA *Strategy and Tactics for Initial Company Operations* Student Manual 3rd ed (2016), SM2-28–30 (PDF pp. 102–103), Q = area_ft² / 3, 40 × 30 ft = 400 gpm; JIBC FIRE-1114 ch. 5 cross-check (same area at 25 % = 100 gpm) |
+
+**Primed pool in the sandbox.** The pool surface is at atmospheric pressure.
+For the direct 5-inch, 20-foot suction with strainer, interpolate the Waterous
+F-2093 figure 3 head losses between published flows from 250 through 1000 US
+gpm. At zero flow friction vanishes. Between zero and 250 gpm or above 1000
+gpm, report an unavailable operating point. Subtract (static lift in feet +
+loss in feet) / 2.31 from net pump psi to obtain discharge gauge pressure.
+The 0.5–3 m lift control assumes cool water near sea level. The 1000 gpm cap
+uses the single 5-inch CX configuration in F-2115 p.3 as a teaching bound.
+Prime, air leakage and cavitation transients are outside this steady model.
+[Waterous F-2093](https://www.waterousco.com/media/pdfs/f2093.pdf) ·
+[Waterous F-2115](https://www.waterousco.com/media/pdfs/f2115.pdf)
+
+**Jet-assisted draft comparison.** For an unassisted 6-inch, 20-foot suction,
+use the corresponding single-hose column of Waterous F-2093 figure 3, over
+the same sandbox range. Existing scenarios default to 5 inches. For the
+6-inch rig, TFT LIA-450 §5.2 describes a 1½-inch jet feed with a 1-inch
+nozzle. Its figure 5.2B measures tank transfer with no pump suction applied.
+Direct draft pressure recovery still needs a device curve or pump-connected
+measurements. The sandbox therefore calculates a break-even condition.
+At an assumed differential across the jet nozzle, estimate its flow by the
+smooth-bore law (§3.4). At fixed shaft RPM and the same attack demand Q,
+the pump must pass Q + Qjet. Required intake gauge pressure is the original
+discharge gauge pressure minus the net head at Q + Qjet. This pressure is
+downstream of all suction losses. Computing the actual assisted flow also
+requires the intake pressure achieved by the device. The jet nozzle
+differential is a sensitivity input independent of the discharge gauge.
+[Waterous F-2093](https://www.waterousco.com/media/pdfs/f2093.pdf) ·
+[TFT LIA-450](https://webdataapi.tft.com/documents/lia-450_07.pdf)
+
+An optional assisted intake gauge reading closes the steady-state balance at
+one operating point. Hold that reading and the assumed nozzle differential
+fixed. Solve Pdis = Pintake + Hnet(Qattack + Qjet, RPM) against the same
+attack lay, within the intersection of the pump and pool flow domains.
+Each new operating condition needs its own readings for a measured comparison.

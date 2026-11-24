@@ -2,7 +2,7 @@
   import type { AppDocument } from "$lib/document.ts";
 
   // Keep the editing session in memory while the user consults the reference page.
-  let aboutReturn: {
+  let workspaceReturn: {
     document: AppDocument;
     base: AppDocument;
     presetId: string | null;
@@ -19,13 +19,13 @@
   import { beforeNavigate } from "$app/navigation";
   import { resolve } from "$app/paths";
   import { u } from "$lib/display-units.svelte.ts";
-  import { enduranceLabel } from "$lib/readings.ts";
+  import { poolRangeMessage, hydrantLimitMessage, enduranceLabel } from "$lib/readings.ts";
   import { pathResult, solveScenario, solveScenarioTree, type Scenario, type TreeSegmentResult } from "$hydraulics/scenario.ts";
   import Breakdown from "$lib/components/Breakdown.svelte";
   import BudgetBar from "$lib/components/BudgetBar.svelte";
   import PowerSplit from "$lib/components/PowerSplit.svelte";
   import { powerSplit } from "$hydraulics/power.ts";
-  import { untrack } from "svelte";
+  import { tick, untrack } from "svelte";
   import EmptyPumpCanvas from "$lib/components/EmptyPumpCanvas.svelte";
   import Canvas from "$lib/components/Canvas.svelte";
   import Concepts from "$lib/components/Concepts.svelte";
@@ -48,6 +48,7 @@
   import { leafColor } from "$lib/line-colors.ts";
   import DischargesPanel from "$lib/components/DischargesPanel.svelte";
   import TruckPanel from "$lib/components/TruckPanel.svelte";
+  import SupplyPanel from "$lib/components/SupplyPanel.svelte";
   import TankPanel from "$lib/components/TankPanel.svelte";
   import ScenarioPicker from "$lib/components/ScenarioPicker.svelte";
   import SavedLays from "$lib/components/SavedLays.svelte";
@@ -313,6 +314,14 @@
   const lineScenario = $derived(view?.scenario ?? scenario);
   const result = $derived(network && view ? pathResult(network.root, view.path) : solveScenario(scenario));
   const practiceReadings = $derived(exerciseReadings(activeDocument, result, network));
+  const diameterPractice = $derived(activeDocument.exercise?.lessonId === "diameter" &&
+    !network && scenario.sections.length === 1 && !!practiceReadings?.lines[0]?.assigned);
+  async function inspectPracticeHose() {
+    practiceOpen = false;
+    select({ kind: "section", index: 0 });
+    await tick();
+    document.getElementById("section-hose-size")?.focus();
+  }
   const pumpResult = $derived(network?.root.result ?? result);
   let dischargeBaseline = $state<{ key: string; values: number[] } | null>(null);
   const dischargeValues = $derived.by(() => {
@@ -547,8 +556,8 @@
   $effect(() => {
     untrack(async () => {
       const linked = await openLink(false);
-      const returning = aboutReturn;
-      aboutReturn = undefined;
+      const returning = workspaceReturn;
+      workspaceReturn = undefined;
       if (!linked && returning) {
         activeDocument = returning.document;
         base = returning.base;
@@ -625,10 +634,10 @@
     catch { saveStatus = "No se pudo guardar automáticamente. Exporta un archivo para conservar tu trabajo."; }
   }
   beforeNavigate(({ to }) => {
-    if (to?.route.id !== "/acerca-de" || !storageReady) return;
+    if ((to?.route.id !== "/acerca-de" && to?.route.id !== "/piscina" && to?.route.id !== "/hidrante") || !storageReady) return;
     pauseClock();
     persist();
-    aboutReturn = {
+    workspaceReturn = {
       document: activeDocument, base, presetId, past, future, practiceEpoch, revealedPracticeKey,
       dischargeBaseline: $state.snapshot(dischargeBaseline),
       autoSaveEnabled,
@@ -653,7 +662,7 @@
     if (!clockRunning) return;
     const now = performance.now();
     const tank = scenario.source.tank;
-    if (!tank || totalFlow === null) { clockRunning = false; return; }
+    if (scenario.source.hydrant || scenario.source.pool || !tank || totalFlow === null) { clockRunning = false; return; }
     const next = drainTank(tank, totalFlow, (now - lastTick) / 1000);
     lastTick = now;
     activeDocument = { ...activeDocument, scenario: { ...scenario, source: { ...scenario.source, tank: next } } };
@@ -662,7 +671,7 @@
   function pauseClock() { advanceClock(); clockRunning = false; }
   function toggleClock() {
     if (clockRunning) return pauseClock();
-    if (!scenario.source.tank?.remainingGal || totalFlow === null || totalFlow <= 0) return;
+    if (scenario.source.hydrant || scenario.source.pool || !scenario.source.tank?.remainingGal || totalFlow === null || totalFlow <= 0) return;
     past = [...past.slice(-(HISTORY_MAX - 1)), activeDocument]; future = [];
     lastTick = performance.now(); clockRunning = true;
   }
@@ -705,7 +714,7 @@
     <nav class="pump-tabs" aria-label="Panel de bomba">
       <button type="button" aria-pressed={pumpTab === "truck"} onclick={() => pumpTab = "truck"}>Camión</button>
       <button type="button" aria-pressed={pumpTab === "discharges"} onclick={() => pumpTab = "discharges"}>Descargas</button>
-      <button type="button" aria-pressed={pumpTab === "tank"} onclick={() => pumpTab = "tank"}>Tanque</button>
+      <button type="button" aria-pressed={pumpTab === "tank"} onclick={() => pumpTab = "tank"}>Abastecimiento</button>
       <button type="button" aria-pressed={pumpTab === "curve"} onclick={() => pumpTab = "curve"}>Curva y control</button>
     </nav>
     {#if pumpTab === "truck"}
@@ -713,7 +722,8 @@
     {:else if pumpTab === "discharges"}
       <DischargesPanel {scenario} {network} onchange={applyTree} onConfigure={() => pumpTab = "truck"} onLine={path => { selectLine(path); select({ kind: "section", index: 0 }); }} />
     {:else if pumpTab === "tank"}
-      <TankPanel {scenario} flowGpm={totalFlow} running={clockRunning} onchange={changeTank} onToggle={toggleClock} />
+      <SupplyPanel {scenario} operation={pumpResult.pump} onchange={next => { pauseClock(); applyTree(next); }} />
+      {#if !scenario.source.hydrant && !scenario.source.pool}<TankPanel {scenario} flowGpm={totalFlow} running={clockRunning} onchange={changeTank} onToggle={toggleClock} />{/if}
     {:else}
       <PumpCurvePanel {scenario} operation={pumpResult.pump} onchange={applyTree} />
     {/if}
@@ -727,6 +737,7 @@
     onchange={(s) => applyLine(s, `inspector:${JSON.stringify(selection)}`)}
     onSelect={select}
     requiredPsi={result.requiredPumpPressurePsi}
+    diameterReferenceGpm={diameterPractice && practiceRevealed ? practiceReadings?.reference.requiredFlowGpm : undefined}
     {result}
     branched={!!network}
     onAction={runAction}
@@ -740,7 +751,7 @@
 
 {#snippet results()}
   {#if pumpResult.pump?.pressurePsi === null}
-    <p class="card" role="status">{#if pumpResult.pump.status === "empty"}Tanque vacío: sin entrega. Rellena el tanque en Abastecimiento; la presión aguas abajo es desconocida.{:else}No hay un punto de operación disponible. Revisa la curva de la bomba y la tendida; no se extrapolan caudales.{/if}</p>
+    <p class="card" role="status">{#if pumpResult.pump.status === "empty"}Tanque vacío: sin entrega. Rellena el tanque en Abastecimiento; la presión aguas abajo es desconocida.{:else if pumpResult.pump.poolLimit}{poolRangeMessage()}{:else if pumpResult.pump.hydrantLimit}{hydrantLimitMessage(pumpResult.pump.hydrantLimit)} Sin punto de operación calculado.{:else}No hay un punto de operación disponible. Revisa la curva de la bomba y la tendida. {#if scenario.source.hydrant}El hidrante requiere admisión positiva o nula, caudal dentro de su ensayo y descarga igual o mayor que la admisión.{/if}{/if}</p>
   {:else if !lineScenario.sections.length && network}
     <TreeResults {scenario} {network} reference={referenceNetwork} referenceLabel={refName} />
   {:else}
@@ -767,7 +778,16 @@
 
 {#snippet pumpPanel(mode: "strip" | "head" | "full" | "bar")}
   <PumpPanel {scenario} result={pumpResult} branched={!!network} balanced={network?.balanced ?? pumpResult.issues.length === 0} onchange={(s) => apply(s, "pump")} strip={mode === "strip"} head={mode === "head"} full={mode === "full"} onOpen={() => select({ kind: "pump" })} />
-  {#if scenario.source.tank && mode !== "full"}
+  {#if (scenario.source.hydrant || scenario.source.pool) && mode !== "full"}
+    {@const op = pumpResult.pump}
+    <button class="supply-readings" type="button" title="Abrir abastecimiento" onclick={() => { pumpTab = "tank"; select({ kind: "pump" }); }}>
+      {#each [...(scenario.source.hydrant ? [["Hidrante", op?.hydrantPsi]] : [["Piscina", 0]]), ["Admisión", op?.intakePsi], ["Aporte bomba", op?.addedPsi], ["Descarga", op?.pressurePsi]] as [label, value]}
+        <span>{label}<b>{u.p(value as number | null | undefined)} <small>{u.pressure}</small></b></span>
+      {/each}
+      {#if op?.poolLimit}<em>{poolRangeMessage()}</em>{:else if op?.hydrantLimit}<em>{hydrantLimitMessage(op.hydrantLimit)}</em>
+      {:else if op?.status === "stopped"}<em>Bomba detenida · descarga aislada</em>{/if}
+    </button>
+  {:else if scenario.source.tank && !scenario.source.hydrant && mode !== "full"}
     <div class="tank-strip"><button type="button" onclick={() => { pumpTab = "tank"; select({ kind: "pump" }); }}>Tanque · {scenario.source.tank.remainingGal.toFixed(0)} gal · {scenario.source.tank.remainingGal === 0 ? "vacío" : totalFlow === null ? "autonomía —" : totalFlow === 0 ? "sin consumo" : enduranceLabel(endurance!)}</button>
       {#if clockRunning}<button type="button" onclick={pauseClock}>Pausar</button>{/if}</div>
   {/if}
@@ -925,7 +945,7 @@
 <Tour running={touring} {phone} {scenario} {selection} onFit={() => (fitSignal += 1)} onDeselect={deselect} onEnd={() => (touring = false)} />
 
 {#if storageReady}
-  <FireFlowPractice open={practiceOpen} doc={activeDocument} readings={practiceReadings} revealed={practiceRevealed} onReveal={revealPractice} resetKey={practiceEpoch} onClose={() => practiceOpen = false} onAdd={addExercise} onchange={changeExercise} />
+  <FireFlowPractice open={practiceOpen} doc={activeDocument} readings={practiceReadings} revealed={practiceRevealed} onReveal={revealPractice} resetKey={practiceEpoch} onClose={() => practiceOpen = false} onAdd={addExercise} onCompareHoses={diameterPractice ? inspectPracticeHose : undefined} onchange={changeExercise} />
 {/if}
 
 <Novedades open={novedadesOpen} {unread} onClose={closeNovedades} />
@@ -972,6 +992,12 @@
   .pump-tabs button[aria-pressed=true] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
   .file-input { display: none; }.save-status { padding: 4px 12px; margin: 0; font-size: 12px; color: var(--muted); max-width: 310px; }
   .lesson { padding: 10px; border-left: 3px solid var(--accent); background: var(--accent-soft); font-size: 14px; }.lesson p { margin: 6px 0 0; font-size: 13px; }
+  .supply-readings { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); width:100%; min-height:44px; padding:6px 2px; border:1px solid var(--line); border-radius:8px; background:var(--surface); color:var(--ink); font:inherit; cursor:pointer; }
+  .supply-readings span { display:grid; gap:2px; text-align:center; color:var(--muted); font-size:11px; }
+  .supply-readings span + span { border-left:1px solid var(--line); }
+  .supply-readings b { color:var(--ink); font-size:14px; }
+  .supply-readings small { font-weight:400; }
+  .supply-readings em { grid-column:1/-1; padding:5px; font-size:12px; font-style:normal; }
   .tank-strip { display: flex; gap: 4px; background: var(--surface); border-radius: 8px; }
   .tank-strip button { min-height: 44px; padding: 6px 10px; background: transparent; border: 0; color: var(--ink); font: inherit; font-size: 12px; cursor: pointer; }.tank-strip button:first-child { flex: 1; text-align: left; }
   /* Layout by width: docs/UX.md §4. */

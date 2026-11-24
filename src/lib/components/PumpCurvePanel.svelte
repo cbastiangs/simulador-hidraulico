@@ -2,18 +2,19 @@
   import { u } from "$lib/display-units.svelte.ts";
   import { WATEROUS_CX, type PumpOperation, type PumpPoint } from "$hydraulics/pump.ts";
   import type { Scenario } from "$hydraulics/scenario.ts";
+  import { poolRangeMessage, hydrantLimitMessage } from "$lib/readings.ts";
   import NumberField from "./NumberField.svelte";
   let { scenario, operation, onchange }: { scenario: Scenario; operation?: PumpOperation; onchange: (s: Scenario) => void } = $props();
   const pump = $derived(scenario.source.pump);
   function choose(real: boolean) {
-    onchange({ ...scenario, source: { ...scenario.source, pump: real
+    onchange({ ...scenario, source: { ...scenario.source, pool: real ? scenario.source.pool : undefined, hydrant: real ? scenario.source.hydrant : undefined, pump: real
       ? { curve: structuredClone(WATEROUS_CX), mode: "pressure", speedRpm: 4000 } : undefined } });
   }
   function control(changes: Partial<NonNullable<typeof pump>>) {
     if (pump) onchange({ ...scenario, source: { ...scenario.source, pump: { ...pump, ...changes } } });
   }
   const maxQ = $derived(Math.max(1, ...(operation?.curve.map(p => p.flowGpm) ?? [])));
-  const maxP = $derived(Math.max(1, ...(operation?.curve.map(p => p.pressurePsi) ?? [])));
+  const maxP = $derived(Math.max(1, operation?.pressurePsi ?? 0, ...(operation?.curve.map(p => p.pressurePsi) ?? [])));
   const x = (q: number) => 44 + 260 * q / maxQ;
   const y = (p: number) => 174 - 140 * p / maxP;
   const points = (ps: PumpPoint[]) => ps.map(p => `${x(p.flowGpm)},${y(p.pressurePsi)}`).join(" ");
@@ -33,7 +34,8 @@
     <option value="cx">Waterous CX · familia</option>
   </select>
   {#if pump}
-    <p>Familia CX · no calibrada a M11-5. Admisión a {u.p(0, 0)} {u.pressure}; sin límite de potencia del motor ni de caudal de admisión.</p>
+    <p>Familia CX · no calibrada a M11-5. {#if scenario.source.hydrant || scenario.source.pool}{scenario.source.pool ? "Piscina cebada" : "Hidrante"} · admisión {u.p(operation?.intakePsi)} {u.pressure}.{:else}Admisión a {u.p(0, 0)} {u.pressure}.{/if}</p>
+    {#if scenario.source.hydrant || scenario.source.pool}<p>Al elegir la fuente ideal se desconecta el abastecimiento externo.</p>{/if}
     <div class="modes" role="group" aria-label="Control de la bomba">
       <button type="button" aria-pressed={pump.mode === "pressure"} onclick={() => control({ mode: "pressure" })}>Presión</button>
       <button type="button" aria-pressed={pump.mode === "rpm"} onclick={() => control({ mode: "rpm" })}>RPM fijas</button>
@@ -43,15 +45,15 @@
       onchange={n => control({ speedRpm: n <= 0 ? 0 : Math.min(pump!.curve.maxRpm, Math.max(pump!.curve.minRpm, n)) })} />
     <p>{pump.curve.minRpm}–{pump.curve.maxRpm} rpm de eje, no de motor; 0 detiene la bomba.</p>
     {#if operation}
-      <strong class="status" role="status">{status}</strong>
+      <strong class="status" role="status">{operation.poolLimit ? poolRangeMessage() : operation.hydrantLimit ? hydrantLimitMessage(operation.hydrantLimit) : status}</strong>
       <div class="readings">
         <span>Solicitada: {pump.mode === "pressure" ? `${u.p(scenario.source.pressurePsi, 0)} ${u.pressure}` : "control por RPM"}</span>
         <b>Descarga: {u.p(operation.pressurePsi)} {u.pressure} · {u.q(operation.flowGpm)} {u.flow}</b>
       </div>
       {#if operation.status === "limited"}<p>La tendida demanda más agua de la que la bomba sostiene a la presión solicitada. La descarga real baja hasta equilibrarse. Cerrar una salida o cambiar el límite de giro cambia ese equilibrio.</p>
-      {:else if operation.status === "outside-curve"}<p>La tendida exige un punto fuera de los datos disponibles. Reduce la demanda cerrando una salida o elige otra configuración; el modelo no puede afirmar cuánto entregaría aquí.</p>
+      {:else if operation.status === "outside-curve" && !operation.hydrantLimit && !operation.poolLimit}<p>La tendida exige un punto fuera de los datos disponibles. Reduce la demanda cerrando una salida o elige otra configuración; el modelo no puede afirmar cuánto entregaría aquí.</p>
       {:else if operation.status === "holding"}<p>La bomba puede sostener la presión solicitada con las salidas abiertas actualmente.</p>
-      {:else if operation.status === "unbalanced"}<p>Las pérdidas o una condición de la manguera impiden equilibrar esta tendida. Revisa los avisos del cálculo y modifica la presión o la configuración.</p>{/if}
+      {:else if operation.status === "unbalanced" && !operation.hydrantLimit && !operation.poolLimit}<p>Las pérdidas o una condición de la manguera impiden equilibrar esta tendida. Revisa los avisos del cálculo y modifica la presión o la configuración.</p>{/if}
       {#if pump.speedRpm > 0 && operation.status !== "empty"}
         <svg viewBox="0 0 340 212" role="img" aria-label="Curva de bomba y demanda de la tendida, con el punto de operación">
           <path d="M44 28 V174 H312" class="axis" />
@@ -68,7 +70,7 @@
             <circle class="point" cx={x(operation.flowGpm)} cy={y(operation.pressurePsi)} r="5" />
           {/if}
         </svg>
-        <div class="legend"><span class="supply-key">— Bomba</span><span class="system-key">– – Tendida</span><span>● Operación</span></div>
+        <div class="legend"><span class="supply-key">— {scenario.source.hydrant ? "Bomba + hidrante" : scenario.source.pool ? "Bomba + piscina" : "Bomba"}</span><span class="system-key">– – Tendida</span><span>● Operación</span></div>
       {/if}
     {/if}
     <details>

@@ -1,5 +1,7 @@
+import { POOL } from "$hydraulics/pool.ts";
 import { u } from "$lib/display-units.svelte.ts";
 import type { BalanceIssue } from "$hydraulics/balance.ts";
+import type { HydrantLimit } from "$hydraulics/pump.ts";
 import type { SeriesResult } from "$hydraulics/series.ts";
 import { SECONDS_PER_MINUTE } from "$hydraulics/units.ts";
 
@@ -32,4 +34,16 @@ export function balanceMessage(issue: BalanceIssue): string {
   if (issue.code === "high-point") return `El caudal exigiría presión negativa en un acople (${u.p(issue.residualPsi)} ${u.pressure}); la línea no entrega agua.`;
   if (issue.code === "allowance-gap") return "La pérdida fija o escalonada de los accesorios no permite un caudal exacto con esta presión.";
   return "No se encontró un caudal que equilibre la presión de la línea.";
+}
+
+export function hydrantLimitMessage(limit: HydrantLimit) {
+  switch (limit) {
+    case "intake-zero": return `Límite del modelo de hidrante: admisión a ${u.p(0, 0)} ${u.pressure} manométricos.`;
+    case "test-flow": return "La demanda supera el intervalo de caudal del ensayo del hidrante.";
+    case "below-inlet": return "La presión de descarga solicitada es menor que la presión de admisión.";
+  }
+}
+
+export function poolRangeMessage() {
+  return `Fuera del intervalo de aspiración con datos (${u.q(POOL.minGpm, 0)}–${u.q(POOL.maxGpm, 0)} ${u.flow}).`;
 }

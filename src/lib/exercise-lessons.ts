@@ -5,7 +5,7 @@ import { u } from './display-units.svelte.ts';
 export const EXERCISE_LESSONS: Record<ExerciseLessonId, { question: string; action: string }> = {
   diameter: {
     question: 'Antes de cambiar: ¿bastará una manguera de 2½″ para alcanzar la referencia?',
-    action: 'Anota el caudal y la pérdida por fricción actuales. Selecciona el tramo y cambia 1½″ por 2½″ sin cambiar largo, bomba ni pitón. Compara las nuevas lecturas: ¿bajó la fricción?, ¿aumentó la entrega?, ¿alcanza la referencia? Vuelve a 1½″ para comprobar la diferencia.',
+    action: 'Selecciona el tramo y cambia de 1½″ a 2½″. Mantén el largo, la bomba y el pitón. ¿Qué pasó con la fricción y la entrega? ¿Por qué la referencia del piso sigue igual?',
   },
   'nozzle-capacity': {
     question: 'Antes de girar el selector: ¿cómo cambiarán la entrega y la presión en el pitón?',

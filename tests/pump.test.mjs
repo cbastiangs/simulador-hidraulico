@@ -60,3 +60,14 @@ test('independent discharges conserve total flow without a wye loss at the manif
     {...s.discharges[1],sections:[],nozzle:{...nozzle,design:'open-end'}}]});
   near(spill.totalFlowGpm,1678.5);
 });
+
+test("Waterous F-2093: signed intake plus net pressure reproduces both 128 psi discharge examples", async () => {
+  const { dischargePressureAt } = await import("../src/hydraulics/pump.ts");
+  // F-2093 fig. 3 worked draft: ~6 psi vacuum and 134 psi net. Fig. 4
+  // pressurized feed: 40 psi inlet and 88 psi net. Curve ordinates below
+  // stand in for those two published operating points, independent of CX.
+  const at = (net, intake) => dischargePressureAt([{ flowGpm: 850, pressurePsi: net }], 850, intake);
+  near(at(134, -6), 128);
+  near(at(88, 40), 128);
+  near(at(128, 0), 128);
+});

@@ -1498,6 +1498,14 @@ and reverse the change. For the second discharge, explicitly compare total
 flow with first-line flow and actual pressure. Keep these instructions in
 the existing collapsible prompt; no new hydraulic law or exercise state.
 
+**Diameter practice (2026-11-24).** After revealing the reference, the
+learner can go directly to the hose diameter selector. For a single section
+with one assigned nozzle, the inspector shows friction, nozzle delivery and
+the floor reference together. After a diameter change, the adjacent 1½″
+column uses the current pump, length, elevation, nozzle and method so the
+two readings stay comparable during further edits. Retry hides the comparison.
+Phone and desktop captures are in `reports/diameter-practice/`.
+
 **Second-discharge comparison (2026-11-12):** after revealing the exercise,
 users capture a session-only baseline with discharge 2 closed. A compact
 Before / Now / Change table shows discharge 1 flow, total pump flow and
@@ -1698,3 +1706,45 @@ The scenario chooser and Help menu were checked at 360×740, 390×844,
 practice, switching the chooser to examples, saving a lay, copying its link,
 file-action discovery, Escape dismissal, and About with a return to the same
 lay. Screenshots: `reports/scenario-navigation/`.
+
+**Pool practice (2026-11-23).** Open the fixed drafting rig from Escenario ›
+Prácticas guiadas. Returning to the editor restores the working lay and its
+undo history. The lift slider moves the pool surface relative to the intake.
+The intake and discharge gauge readings and nozzle flow stay together on
+screen. The practice URL carries the lift in metres for repeat comparisons.
+
+**Hydrant practice (2026-11-24).** Switch A/B/C above one schematic.
+A common table shows flow per supply line, receiving pressure and nozzle
+delivery for all cases. The source and discharge equipment stay fixed.
+Show the hose-only assumption next to the comparison. Optional intake and
+siamese loss inputs update all cases and travel with the layout in the URL.
+
+Show the two-intake gain over the siamese at the selected source and loss
+settings. The hydrant outlet and upstream flow at the stated residual pressure
+are independent controls. Large pumper outlets split before the two hoses.
+Both settings travel in the practice URL.
+
+**Supply on the working lay.** Bomba › Abastecimiento switches between the
+tank and a hydrant. The working discharge layout stays in place. Hydrant mode
+shows intake and discharge together in the pump header. Existing pump controls
+stay selected. A lay with an ideal source gets the generic CX at fixed reference
+RPM on connection. Tank volume is retained and its clock pauses. The source
+choice and settings participate in normal undo, storage and sharing.
+
+With the sandbox hydrant connected, read four pressures in supply order:
+hydrant outlet, pump intake, pressure added by the pump and discharge. Use
+the solved discharge minus intake for the governor's actual contribution.
+A stopped, isolated discharge shows zero boost and static intake. When an
+operating point exceeds the available domain, leave its readings unknown
+and identify the limiting boundary (zero gauge intake, hydrant flow-test
+range, pump curve, or a discharge request below inlet pressure).
+
+In Bomba › Abastecimiento, Piscina cebada preserves the discharge lay and
+pump controls. Adjust lift and read signed intake, pump contribution and
+discharge. Show the supported flow range when demand falls outside the table.
+
+For the 6-inch pool suction, show a fixed-RPM comparison of the unassisted
+lay and the intake pressure needed to maintain its attack flow with a
+1½-inch jet feed. The scenario gauges show the unassisted operating point.
+Entering an assisted intake gauge reading (measured or assumed) also shows
+the conditional attack flow, total pump flow and discharge pressure.

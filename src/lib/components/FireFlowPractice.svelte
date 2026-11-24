@@ -8,9 +8,10 @@
   import { u } from '$lib/display-units.svelte.ts';
   import { exerciseFloor } from '$lib/geometry/exercise.ts';
   import NumberField from './NumberField.svelte';
-  let { open, doc, readings, revealed, onReveal, resetKey, onClose, onAdd, onchange }: {
+  let { open, doc, readings, revealed, onReveal, resetKey, onClose, onAdd, onCompareHoses, onchange }: {
     open: boolean; doc: AppDocument; readings: ReturnType<typeof exerciseReadings>; revealed: boolean; onReveal: (value: boolean) => void; resetKey: number;
     onClose: () => void; onAdd: () => void; onchange: (e: Exercise | undefined, key?: string) => void;
+    onCompareHoses?: () => void;
   } = $props();
   let dialog: HTMLDialogElement | undefined = $state();
   let exploring = $state(false);
@@ -82,6 +83,7 @@
             <div class="buttons"><button type="button" class="primary" onclick={() => onReveal(true)}>Comprobar</button><button type="button" onclick={() => { exploring = true; onReveal(true); }}>Explorar sin estimar</button></div>
           {:else}
             <div class="reference" data-testid="nfa-reference"><span>Caudal de referencia NFA</span><strong>{u.q(readings.reference.requiredFlowGpm)} <small>{u.flow}</small></strong></div>
+            {#if onCompareHoses}<button type="button" class="primary" onclick={onCompareHoses}>Comparar mangueras en la tendida</button>{/if}
             <p>Área afectada: <b>{area(e.lengthM * e.widthM * e.involvedFraction)} {areaUnit}</b></p>
             <p class="formula">Q = {readings.reference.floorAreaFt2.toFixed(1)} ft² ÷ 3 × {Number(e.involvedFraction.toFixed(6))} = {readings.reference.requiredFlowGpm.toFixed(1)} US gpm</p>
             <p class="note">La fórmula usa el área total del piso en ft² y aplica una sola vez la fracción afectada. Las dimensiones en metros se convierten antes de calcular.</p>

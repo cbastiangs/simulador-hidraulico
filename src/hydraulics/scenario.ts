@@ -1,5 +1,7 @@
+import { parsePool, type PoolSupply } from "./pool.ts";
 import { solveScenarioTree } from "./tree.ts";
 import { parseTank, emptySupplyResult, type Tank } from "./tank.ts";
+import { parseHydrant, type HydrantSupply } from "./supply.ts";
 import { parsePump, solvePump, type PumpConfig } from "./pump.ts";
 import { NOZZLE_SPECS, WYE_DEVICES, type WyeDevice } from "./catalog.ts";
 import { ratingOf, reactionOf, type NozzleDesign, type Reaction } from "./nozzle.ts";
@@ -35,6 +37,8 @@ export type ScenarioSource = {
   /** Optional real pump snapshot. pressurePsi then means requested governor pressure. */
   pump?: PumpConfig;
   tank?: Tank;
+  hydrant?: HydrantSupply;
+  pool?: PoolSupply;
   kind: "fixed-pressure";
   pressurePsi: number;
   /**
@@ -219,6 +223,12 @@ function parseSingleScenario(value: unknown, allowEmpty = false): Scenario {
   }
 
   const source = record(doc.source, "source");
+  let pool: PoolSupply | undefined;
+  if (source.pool !== undefined) {
+    if (!source.pump || source.hydrant !== undefined) throw new ScenarioError("source.pool", "requires a pump and an exclusive source");
+    try { pool = parsePool(source.pool); }
+    catch { throw new ScenarioError("source.pool", "invalid lift"); }
+  }
   if (doc.apparatusName !== undefined && (typeof doc.apparatusName !== "string" || !doc.apparatusName.trim() || doc.apparatusName.length > 80)) {
     throw new ScenarioError("apparatusName", "must be nonempty text of at most 80 characters");
   }
@@ -261,6 +271,8 @@ function parseSingleScenario(value: unknown, allowEmpty = false): Scenario {
     ...(doc.floorHeightM === undefined ? {} : { floorHeightM: number(doc.floorHeightM, "floorHeightM", "greater than zero") }),
     source: {
       kind: oneOf(source.kind, "source.kind", ["fixed-pressure"] as const),
+      ...(pool && { pool }),
+      ...(source.hydrant === undefined ? {} : { hydrant: parseSourceHydrant(source.hydrant, source.pump) }),
       ...(source.tank === undefined ? {} : { tank: parseSourceTank(source.tank) }),
       ...(source.pump === undefined ? {} : { pump: parseSourcePump(source.pump) }),
       pressurePsi: number(source.pressurePsi, "source.pressurePsi", "zero or more"),
@@ -297,6 +309,12 @@ function parseSingleScenario(value: unknown, allowEmpty = false): Scenario {
       ...(tipIn === undefined ? {} : { tipIn }),
     },
   };
+}
+
+function parseSourceHydrant(value: unknown, pump: unknown): HydrantSupply {
+  if (!pump) throw new ScenarioError("source.hydrant", "requires a pump curve");
+  try { return parseHydrant(value); }
+  catch { throw new ScenarioError("source.hydrant", "invalid supply settings"); }
 }
 
 function parseSourceTank(value: unknown): Tank {
@@ -493,15 +511,15 @@ export function toSeriesLine(scenario: Scenario): SeriesLine {
  */
 export function solveScenario(scenario: Scenario, methodId: MethodId = scenario.methodId): SeriesResult {
   if (scenario.discharges) return solveScenarioTree(scenario, methodId).root.result;
-  if (scenario.source.tank?.remainingGal === 0) {
+  if (!scenario.source.hydrant && !scenario.source.pool && scenario.source.tank?.remainingGal === 0) {
     return emptySupplyResult(solveScenario({ ...scenario, source: { ...scenario.source, tank: undefined, pump: undefined, pressurePsi: 0 } }, methodId));
   }
   if (scenario.source.pump) {
     const fixed = (pressurePsi: number) => solveScenario({ ...scenario,
-      source: { ...scenario.source, pump: undefined, pressurePsi } }, methodId);
+      source: { ...scenario.source, tank: undefined, hydrant: undefined, pool: undefined, pump: undefined, pressurePsi } }, methodId);
     const pump = solvePump(scenario.source.pump, scenario.source.pressurePsi, p => {
       const r = fixed(p); return { flowGpm: r.flowGpm, balanced: !r.issues.length };
-    });
+    }, scenario.source.hydrant ?? scenario.source.pool);
     const result = fixed(pump.pressurePsi ?? 0);
     return { ...(pump.pressurePsi === null ? unavailablePumpResult(result) : result), pump };
   }
