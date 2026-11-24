@@ -1062,3 +1062,7 @@ a specific primer's evacuation performance, air volume and lift.
 
 The sandbox now shares the primed pool intake law with the fixed exercise.
 Switch between hydrant and pool on the same lay before adding timed priming.
+
+The 6-inch pool rig now includes a fixed-RPM jet-assist comparison. It
+reports the intake pressure needed to preserve attack flow and accepts an
+observed intake pressure to compare delivered flow on the same lay.
