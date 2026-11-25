@@ -15,8 +15,8 @@
   <h2>Bomba sin mangueras</h2>
   <p>Elige una manguera en Piezas y toca la descarga donde quieres conectarla.</p>
   <button type="button" class="truck" aria-label="Bomba: elegir salida" onclick={onPump}>
-    <svg viewBox={`0 0 100 ${rearTruckHeight(scenario.discharges?.length ?? 1) + 12}`} aria-hidden="true">
-      <g transform="translate(16 4)"><RearTruck ports={scenario.discharges?.map(d => ({ name: d.name, open: d.open }))} /></g>
+    <svg viewBox={`-30 -4 106 ${rearTruckHeight(scenario.discharges?.length ?? 1) + 12}`} aria-hidden="true">
+      <RearTruck ports={scenario.discharges?.map(d => ({ name: d.name, open: d.open }))} />
     </svg>
     <span class="schematic">Vista trasera · salidas esquemáticas</span>
     Controlar bomba

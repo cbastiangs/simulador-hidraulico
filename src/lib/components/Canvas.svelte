@@ -298,10 +298,14 @@
     const gpm = design === "smooth-bore" ? smoothBoreFlowGpm(n.tipIn!, n.ratedPressurePsi) : n.ratedFlowGpm;
     return streamReach(n.specId, design, gpm, n.ratedPressurePsi, 0, n.aimDeg);
   }
+  const hoseBounds = $derived(others.reduce(
+    (bounds, line) => growBounds(bounds, line.scenario.sections, floorM),
+    fitBounds(scenario.sections, floorM),
+  ));
   const fitted = $derived(
     others.reduce(
-      (b, o) => streamBounds(growBounds(b, o.scenario.sections, floorM), o.scenario.sections, ratedStream(o.scenario)),
-      streamBounds(fitBounds(scenario.sections, floorM), scenario.sections, ratedStream(scenario)),
+      (b, o) => streamBounds(b, o.scenario.sections, ratedStream(o.scenario)),
+      streamBounds(hoseBounds, scenario.sections, ratedStream(scenario)),
     ),
   );
   let toolbarHeight = $state(82);
@@ -411,7 +415,7 @@
       result.nodes.map((n) => n.pressurePsi),
       filled,
       floorM,
-      fitted.maxY,
+      hoseBounds.maxY,
     ),
   );
   const last = $derived(layout.nodes.length - 1);
@@ -421,7 +425,7 @@
   const pumpJunction = $derived(junctionsOf(scenario).find(j => j.pump));
   const truckPorts = $derived(pumpJunction?.outlets ?? [{ name: 'Salida', open: true, active: true, empty: false }]);
   const truckHeight = $derived(rearTruckHeight(truckPorts.length));
-  const truckX = $derived(layout.nodes[0].x - 104 * k);
+  const truckX = $derived(layout.nodes[0].x - 89 * k);
   const truckY = $derived(layout.groundY - (truckHeight + 3) * k);
   const junctions = $derived(junctionsOf(scenario).filter(j => !j.pump));
   const junctionAtJoint = (i: number): Junction | undefined => junctions.find((j) => j.joint === i);
@@ -431,7 +435,7 @@
   // 2026-10-17). What hides behind is reached by hover (desktop), a second
   // tap on the same spot, the long-press list, or the "×2" badge.
   const otherLines = $derived(
-    others.map((o) => ({ ...o, key: o.path.join("/"), layout: layoutWorld(o.scenario.sections, o.result.nodes.map((n) => n.pressurePsi), filled, floorM, fitted.maxY) })),
+    others.map((o) => ({ ...o, key: o.path.join("/"), layout: layoutWorld(o.scenario.sections, o.result.nodes.map((n) => n.pressurePsi), filled, floorM, hoseBounds.maxY) })),
   );
   const editedKey = $derived(editedPath.join("/"));
   const lineOrder = $derived(linePaths.map((p) => p.join("/")));
@@ -1081,7 +1085,7 @@
   const gauges = $derived.by(() => {
     const truckTop = truckY;
     const at = layout.nodes.map((n, i) => {
-      const x = i === 0 ? truckX + 34 * k : n.x;
+      const x = i === 0 ? truckX + 10 * k : n.x;
       let y = i === 0 ? Math.min(layout.groundY - 4.6 * PX_PER_M, truckTop - 42 * gaugeK) : n.y - GAUGE_RISE * gaugeK;
       // The nozzle gauge clears the bale above it (§10.8).
       if (i === last) y = n.y - nozzleGaugeRise * gaugeK;
@@ -1446,7 +1450,7 @@
       ...[layout, ...otherLines.map((o) => o.layout)].flatMap((lay) => [
         ...lay.nodes.map((n, i) => box(n.x, n.y, 30, 30, i === lay.nodes.length - 1 ? 130 : 30, 45)),
       ]),
-      box(truckX + 34 * k, layout.groundY, 49, truckHeight + 12, 42, 24),
+      box(truckX, layout.groundY, 29, truckHeight + 12, 74, 24),
       ...hoseLabels.map((l) => box(l.x, l.y, measureLabel(l.text) / 2, 12, measureLabel(l.text) / 2, 12)),
       ...(showGauges ? [...gauges, ...otherGauges.flat().filter((g) => g !== null)].map((g) =>
         box(g.x, g.y, 38 * gaugeK * zoom, 44 * gaugeK * zoom, 38 * gaugeK * zoom, 40 * gaugeK * zoom)) : []),
@@ -1723,7 +1727,7 @@
           onpointerdown={(e) => holdStart(e, { kind: "pump" })}
         >
           <g transform={`translate(${truckX} ${truckY}) scale(${k})`}>
-            <rect class="truck-hit" x="-13" y="-4" width="85" height={truckHeight + 12} rx="8" />
+            <rect class="truck-hit" x="-28" y="-4" width="100" height={truckHeight + 12} rx="8" />
             <RearTruck ports={truckPorts} selected={selection?.kind === "pump"} />
           </g>
         </g>
@@ -1731,10 +1735,10 @@
         {#each truckPorts as port, i}
           {@const y = truckY + rearOutletY(i) * k}
           <path class="source-link" class:active={port.active} class:closed={!port.open}
-            d={port.empty ? `M ${truckX + 69 * k} ${y} h ${12 * k}` : `M ${truckX + 69 * k} ${y} H ${layout.nodes[0].x - (26 - i * 2) * k} V ${layout.nodes[0].y} H ${layout.nodes[0].x}`}
+            d={port.empty ? `M ${truckX + 69 * k} ${y} h ${12 * k}` : `M ${truckX + 69 * k} ${y} H ${layout.nodes[0].x - (16 - i * 2) * k} V ${layout.nodes[0].y} H ${layout.nodes[0].x}`}
             stroke-width={(port.active ? 2.5 : 1) * k} />
         {/each}
-        <text class="tag" x={truckX + 34 * k} y={layout.groundY + 16 * k}>Bomba</text>
+        <text class="tag" x={truckX + 10 * k} y={layout.groundY + 16 * k}>Bomba</text>
 
         <!-- The other lines (owner, 2026-10-17): hoses, couplings and nozzle at their true height.
              A tap makes that line the edited one; the edited line draws on top with its handles. -->

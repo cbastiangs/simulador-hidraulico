@@ -12,38 +12,40 @@
   <g transform={`translate(-11 ${rearTruckHeight(ports.length) - rearBodyHeight})`}>
     <!-- Rear-left view. The cab sits beyond the hose bed, farther up the page. -->
     <g stroke-linejoin="round" stroke-linecap="round">
-      <path fill="#3e4345" d="m3 43 17 11h35v11H20L3 54Z"/>
+      <path fill="#3e4345" d="m-12 37 32 17h35v11H20l-32-18Z"/>
       <g fill="#262a2d" stroke="#202427">
-        <ellipse cx="6.2" cy="48.8" rx="3.7" ry="7.7" transform="rotate(-9 6.2 48.8)"/>
+        <ellipse cx="-6.4" cy="44" rx="4.1" ry="7.6" transform="rotate(-11 -6.4 44)"/>
         <path d="M46 57h9v9q0 4-3 4h-4q-2 0-2-4Z"/>
         <path d="m12 53 10 3v11q0 4-4 3l-3-1q-3-1-3-6Z"/>
       </g>
 
-      <path class="body" d="M2 13 7 6h29l5 4v6h6l9 6v38l-3 4H20l-7-4v-4q0-8-4-9-2-1-2 3v3l-5-4Z"/>
+      <path class="body" d="m-13 10 5-6h32l7 5v5h10l15 8v38l-3 4H20l-7-4v-4q0-8-4-9-2-1-2 3v3l-9-5q0-8-4-10-3-1-3 4l-4-2Z"/>
       <!-- Receding cab roof, side glass and rectangular warning bar. -->
-      <path fill="#fbecd0" stroke="#463b33" stroke-width="1.1" d="m2 13 5-7h29l5 4H11l-6 7-3-2Z"/>
-      <path fill="#b73e30" d="M11 11h29v7H9Z"/>
-      <path fill="#37494e" stroke="#483733" d="m3.5 16 5-5v12l-5 2Z"/>
-      <path fill="#b4c8c4" d="m4.4 16.6 3-3.2v3.2l-3 3.8Z"/>
-      <path fill="#48454a" d="M11 4h23v3H11z"/>
-      <rect x="12" y="2" width="21" height="3.4" rx=".9" fill="#c24433" stroke="#513833" stroke-width=".9"/>
-      <path fill="#fff0d2" d="M18 2.4h9v2.4h-9z"/>
-      <path fill="#f8c873" d="m3 27 5-1v2l-5 1Z"/>
+      <path fill="#fbecd0" stroke="#463b33" stroke-width="1.1" d="m-13 10 5-6h32l7 5-31 2-3 5Z"/>
+      <path fill="#b73e30" d="m0 11 31-2v9L4 22l-7-5Z"/>
+      <path fill="#37494e" stroke="#503c35" d="m-11 13 7 4v10l-7-4Zm9 5 6 4v8l-6-3Z"/>
+      <path fill="#b4c8c4" d="m-10 14.5 5 3v2.6l-5-3Zm9 5 4 2.6v2l-4-2.5Z"/>
+      <path fill="none" stroke="#873a31" d="m-3 27 .5 13m8-10v13"/>
+      <path fill="none" stroke="#f5db9d" stroke-width="2" d="M-11 29 7 40"/>
+      <ellipse cx="-6.5" cy="44" rx="2" ry="4.1" transform="rotate(-11 -6.5 44)" fill="#a3aaa8"/>
+      <path fill="#48454a" d="M-3 2h23v3H-3z"/>
+      <rect x="-2" y="0" width="21" height="3.4" rx=".9" fill="#c24433" stroke="#513833" stroke-width=".9"/>
+      <path fill="#fff0d2" d="M4 .4h9v2.4H4z"/>
 
       <!-- Locker on the visible flank, a wheel under its arch, and running board. -->
-      <path fill="#a5362b" d="m9 18 12 8v34l-6-4q-1-11-6-12Z"/>
-      <path fill="#a8aba5" stroke="#553b35" stroke-width="1" d="m10 24 8 5v15l-8-5Z"/>
-      <path fill="none" stroke="#687373" stroke-width="1" d="m11 29 6 4m-6 0 6 4m-6 0 6 4"/>
+      <path fill="#a5362b" d="m5 18 16 8v34l-6-4q-1-11-10-14Z"/>
+      <path fill="#a8aba5" stroke="#553b35" stroke-width="1" d="m6 21 12 7v16L6 37Z"/>
+      <path fill="none" stroke="#687373" stroke-width="1" d="m7 26 10 6m-10-2 10 6m-10-2 10 6"/>
       <path fill="none" stroke="#efd2a2" stroke-width="1.4" d="m10 42 7 4"/>
       <ellipse cx="12.8" cy="56.7" rx="4.1" ry="8.1" transform="rotate(-11 12.8 56.7)" fill="#303438" stroke="#22262a"/>
       <ellipse cx="12.2" cy="56.4" rx="2.1" ry="4.3" transform="rotate(-11 12.2 56.4)" fill="#a3aaa8"/>
       <path fill="none" stroke="#cf6650" stroke-width="1.6" d="M8 49q.5-5 3-4 5 2 6 13"/>
 
       <!-- Longitudinal hose folds lie between raised steel bed rails. -->
-      <path fill="#70372c" stroke="#503832" stroke-width="1" d="m10 17 31-1 13 8-34 4Z"/>
+      <path fill="#70372c" stroke="#503832" stroke-width="1" d="m5 16 32-2 17 10-34 4Z"/>
       <path fill="none" stroke="#d0a06a" stroke-width="3" d="m16 18 9 6m-2-6 9 6m-2-6 9 6m-2-6 9 6"/>
       <path fill="#ecd0a1" d="m15 17 3-.2 9 6h-3zm14 0h3l9 6h-3Z"/>
-      <path fill="none" stroke="#deded1" stroke-width="1.8" d="m10 16 12 8m19-10 13 8"/>
+      <path fill="none" stroke="#deded1" stroke-width="1.8" d="m5 16 17 9m15-12 17 10"/>
 
       <!-- Rear face: a recessed hose opening above the reflective tailgate. -->
       <path fill="#d94d35" stroke="#58352f" stroke-width="1.2" d="m19 23 4-1 2 3h22l2-4h6l1 3v35H19Z"/>

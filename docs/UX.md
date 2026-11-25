@@ -73,10 +73,11 @@ steady-flow visualization, not water-front travel or hose-filling simulation.
   The canvas takes the height the window has (owner, 2026-10-14: "height was
   my gripe"; replaces sizing it to the lay): the window height minus about
   240 px of page above it when side by side, 55 % of the window on a phone, 260 px
-  at least. The lay sits on the ground at the bottom and the rest is
-  building: floor bands continue up, and a coupling or the nozzle can be
-  dragged to any visible floor. The height does not change with the lay, so
-  nothing jumps when editing. Floor labels
+  at least. The lay sits on the ground at the bottom. At street level, draw
+  three floor guides above it. For an elevated lay, extend the guides to the
+  hose bounds of the highest branch, including the margin above its couplings.
+  Leave the sky above those guides clear. Dragging a coupling into that space
+  reveals higher guides during the gesture. Floor labels
   name every 1st, 2nd, 5th, 10th… floor above the street, whichever keeps
   two labels at least 22 px apart (owner, 2026-10-16; replaces hiding them
   all under 20 px, which left a phone with none); "Piso 1" is always named.
@@ -659,7 +660,7 @@ welcome tour is interactive.
   24 px apart, whichever is closer. It opens at the truck with the ground at
   the foot; the rest of a long lay is a pan away. **"Ver todo"** (and a
   double tap) shows the whole lay, truck and nozzle included, however small;
-  the badge says "todo". A canvas taller than the lay adds building above
+  the badge says "todo". A canvas taller than the lay adds sky above
   only, so the ground stays at the foot (owner, 2026-10-16: the floor line
   sat in the middle of the screen; replaces "equal parts").
 - **Free movement and a lockable camera** (owner, 2026-10-16). No native
@@ -1745,7 +1746,9 @@ Draw the truck like a plate in a printed fire-service manual. Use a dark
 outer contour, flat vermilion and oxblood body panels, a cream cab roof and
 folds of tan canvas. Let the roof, ladder and step break the silhouette.
 Show the rear from slightly to the left. A visible cab window, side locker
-and wheel give the body depth at the editor's roughly 60 px width. Keep
+and wheel give the body depth. Allow about 70 screen pixels for the body in
+the editor, with enough of the cab side visible to distinguish its windows
+and both wheels. Keep the numbered outlets at their usual size. Keep
 the rear face square to the numbered outlet strip, with the “ESQUEMA”
 plate on the tailboard beneath the chevrons.
 For hard suction, use a gentle bend, conspicuous transverse ribs and metal
