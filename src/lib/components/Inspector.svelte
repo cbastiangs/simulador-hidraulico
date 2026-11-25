@@ -1,12 +1,12 @@
 <script lang="ts">
   import { resolve } from "$app/paths";
-  import { streamReach, NOZZLE_REACH } from "$hydraulics/reach.ts";
+  import { DEFAULT_AIM_DEG, streamReach, NOZZLE_REACH } from "$hydraulics/reach.ts";
   import { u } from "$lib/display-units.svelte.ts";
   import { hoseSizeName, jointName } from "$lib/names.ts";
   import { NOZZLE_SPECS } from "$hydraulics/catalog.ts";
   import { HOSE_SIZES, SOURCES, type Source } from "$hydraulics/references.ts";
   import { couplingOf, endBoreIn, reactionAt, resolvedNozzle, type Scenario } from "$hydraulics/scenario.ts";
-  import { sectionFlowGpm, jointFlowGpm } from "$lib/readings.ts";
+  import { sectionFlowGpm, jointFlowGpm, reachLabel } from "$lib/readings.ts";
   import type { SeriesResult } from "$hydraulics/series.ts";
   import * as edit from "$lib/edit.ts";
   import { runsOf } from "$lib/geometry/world.ts";
@@ -76,9 +76,9 @@
         : spec.kind === "selectable" ? `Selector ${u.q(spec.settingsGpm[0], 0)}–${u.q(spec.settingsGpm.at(-1), 0)} ${u.flow}` : `${u.q(spec.ratedFlowGpm)} ${u.flow}`;
   const design = $derived(scenario.nozzle.design ?? "fog");
   const displayNozzle = $derived(resolvedNozzle(scenario.sections, scenario.nozzle));
-  const reach = $derived(streamReach(scenario.nozzle.specId, design, result.flowGpm, result.nozzlePressurePsi ?? 0, scenario.nozzle.pattern));
-  const straightReach = $derived(streamReach(scenario.nozzle.specId, design, result.flowGpm, result.nozzlePressurePsi ?? 0, 0));
-  const reachTable = $derived(scenario.nozzle.specId ? NOZZLE_REACH[scenario.nozzle.specId] : undefined);
+  const aim = $derived(scenario.nozzle.aimDeg ?? DEFAULT_AIM_DEG);
+  const reach = $derived(streamReach(scenario.nozzle.specId, design, result.flowGpm, result.nozzlePressurePsi ?? 0, scenario.nozzle.pattern, aim));
+  const reachTable = $derived(design !== "open-end" && scenario.nozzle.specId ? NOZZLE_REACH[scenario.nozzle.specId] : undefined);
   const nozzleSpec = $derived(NOZZLE_SPECS.find((spec) => spec.id === scenario.nozzle.specId));
   const manufacturer: Source | null = $derived(nozzleSpec?.manufacturerSource ? SOURCES[nozzleSpec.manufacturerSource] : null);
   const nozzleInlet = $derived(scenario.nozzle.inletIn ?? nozzleSpec?.inletIn);
@@ -120,16 +120,43 @@
 
 {#snippet reachReading()}
   <section class="reach-reading" aria-label="Alcance del chorro">
-    <b>{result.state !== "flowing" ? "Sin chorro" : reach.fitted ? `Alcance ≈ ${u.l(reach.reachM, 0)} ${u.length}` : "Alcance ilustrativo"}</b>
+    <b>{result.state !== "flowing" ? "Sin chorro" : reachLabel(reach)}</b>
+    <div class="aim-control">
+      <label for="stream-aim">Inclinación sobre la horizontal <strong>{aim}°</strong></label>
+      <input id="stream-aim" type="range" min="0" max="90" step="1" value={aim} aria-valuetext={`${aim} grados sobre la horizontal`}
+        oninput={e => onchange(edit.setNozzleAim(scenario, e.currentTarget.valueAsNumber))} />
+      <div class="aim-scale" aria-hidden="true"><span>0°</span><span>90°</span></div>
+    </div>
+    {#if reachTable?.testAngleDeg != null}
+      {@const testAngle = reachTable.testAngleDeg}
+      <div class="aim-source"><span>Ensayo de referencia · <b>{reachTable.testAngleDeg}°</b></span>
+        {#if aim !== testAngle}<button type="button" onclick={() => onchange(edit.setNozzleAim(scenario, testAngle))}>Usar {reachTable.testAngleDeg}°</button>{/if}
+      </div>
+    {:else}
+      <p>{reachTable ? "La tabla de alcance no indica el ángulo de ensayo." : "Sin ángulo de ensayo documentado para esta configuración."}</p>
+    {/if}
     {#if result.state === "flowing"}
+      {#if reach.angleProjectionM !== null}
+        <p>Distancia horizontal hasta volver a la altura del pitón. La tabla solo documenta el ensayo a {reachTable?.testAngleDeg}°.</p>
+      {/if}
       {#if reach.fitted}
-        <p>Estimación ajustada a datos publicados: gotas más lejanas, a la altura del pitón. Chorro directo, aire quieto; no es alcance efectivo de extinción.</p>
-      {:else if straightReach.fitted}
-        <p>En chorro directo: ≈ {u.l(straightReach.reachM, 0)} {u.length}. El alcance con neblina es ilustrativo.</p>
+        <p>Estimación de las gotas más lejanas en chorro directo y aire quieto, a la altura del pitón.</p>
+      {:else if reach.referenceM !== null}
+        <p>Referencia de la tabla en chorro directo{reachTable?.testAngleDeg != null ? ` a ${reachTable.testAngleDeg}°` : " (ángulo sin indicar)"}: ≈ {u.l(reach.referenceM, 0)} {u.length} al caudal y presión actuales.</p>
       {:else}
-        <p>{reachTable ? "La presión o el caudal están fuera del rango publicado de este pitón." : "Este pitón no tiene una curva de alcance publicada incorporada."} El dibujo no expresa una distancia validada.</p>
+        <p>{reachTable ? "La presión o el caudal están fuera del rango publicado de este pitón." : "Este pitón no tiene una curva de alcance publicada incorporada."}</p>
       {/if}
       {#if reachTable}<p>Rango de referencia: {u.p(reachTable.psi[0], 0)}–{u.p(reachTable.psi[1], 0)} {u.pressure} · {u.q(reachTable.gpm[0], 0)}–{u.q(reachTable.gpm[1], 0)} {u.flow}.</p>{/if}
+      <div class="reach-limit">
+        {#if reach.referenceM !== null && reachTable}
+          {#if reachTable.maxTableDeviationPct !== null}
+            <p>Referencia de ensayo: la mayor diferencia entre la fórmula y los {reachTable.fitRows} puntos de la tabla es de aproximadamente {String(reachTable.maxTableDeviationPct).replace(".", ",")} %.</p>
+          {:else}
+            <p>La referencia se ajustó a solo dos puntos de ensayo.</p>
+          {/if}
+        {/if}
+        <p>El margen de error en campo es desconocido. El cálculo omite el viento y la deriva lateral.</p>
+      </div>
     {:else}<p>El alcance se muestra cuando esta línea entrega agua.</p>{/if}
     <p><a href={resolve("/acerca-de") + "#alcance"}>Cómo se estima el alcance</a></p>
   </section>
@@ -407,6 +434,14 @@
 
 <style>
   .reach-reading { padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--accent-soft); }
+  .aim-control { margin: 12px 0 6px; }
+  .aim-control label, .aim-scale, .aim-source { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .aim-control label, .aim-source { font-size: 13px; }
+  .aim-control input { display: block; width: 100%; height: 32px; margin: 0; accent-color: var(--accent); }
+  .aim-scale { font-size: 11px; color: var(--muted); }
+  .aim-source { margin-top: 8px; }
+  .aim-source button { min-height: 44px; padding: 4px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--accent); cursor: pointer; }
+  .reach-limit { margin-top: 10px; padding-top: 4px; border-top: 1px solid var(--line); }
   .reach-reading b { color: var(--ink); }
   .reach-reading p { margin: 6px 0 0; font-size: 13px; color: var(--muted); }
   .model-picker { width: 100%; min-height: 44px; margin: 6px 0 12px; padding: 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); font: inherit; }

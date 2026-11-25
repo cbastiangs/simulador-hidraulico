@@ -14,6 +14,7 @@
     coloradoPumperChart: "Colorado DFPC, Pumper chart 2020",
     tftGf3c2s: "TFT G-Force GF3C2S",
     tftGf3d2s: "TFT G-Force GF3D2S",
+    akron439: "Akron 439",
     akron1720: "Akron Turbojet 1720",
     akron48634028: "Akron Assault 48634028",
     akron1723p: "Akron Mid-Range Turbojet 1723P",

@@ -1,3 +1,4 @@
+import type { StreamReach } from "$hydraulics/reach.ts";
 import { POOL } from "$hydraulics/pool.ts";
 import { u } from "$lib/display-units.svelte.ts";
 import type { BalanceIssue } from "$hydraulics/balance.ts";
@@ -8,6 +9,14 @@ import { SECONDS_PER_MINUTE } from "$hydraulics/units.ts";
 /** Format an engine reading without turning an unavailable value into a number. */
 export const reading = (value: number | null | undefined, digits = 1) =>
   value == null || !Number.isFinite(value) ? "—" : value.toFixed(digits);
+
+/** Horizontal span from the tip to the end of the simulated stream. */
+export function reachLabel(reach: StreamReach) {
+  const distance = `${u.l(reach.reachM, 1)} ${u.length}`;
+  if (reach.fitted) return `Alcance ≈ ${distance}`;
+  if (reach.angleProjectionM !== null) return `Proyección ≈ ${distance} · sin validar`;
+  return `Dibujo ilustrativo · ${distance}`;
+}
 
 /** Keep a short, positive endurance visible instead of rounding it to 0.0 min. */
 export const enduranceLabel = (minutes: number) => minutes < 1

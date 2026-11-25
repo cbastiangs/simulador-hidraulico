@@ -967,8 +967,8 @@ drawn in world metres, landing where a real stream would. This is the
 Each nozzle with a published reach table has its own fit to that table:
 
 **R = c · Q^a · (NP/100)^b** m, "overall" reach (farthest droplets), Q the
-actual flow (gpm), NP the nozzle pressure (psi), straight stream, 32°, still
-air. `published` fits, least squares in log space to the "overall" rows of
+actual flow (gpm), NP the nozzle pressure (psi), straight stream. The Akron
+tables specify 32° in still air. The Protek table omits the angle. `published` fits, least squares in log space to the "overall" rows of
 `data/catalog/nozzle-reach.csv` (sources in
 `docs/reference/nozzles/SOURCES.md`). Test: `tests/nozzle.test.mjs`, each
 curve within 6 % of every row of its own table.
@@ -976,21 +976,20 @@ curve within 6 % of every row of its own table.
 | Catalog id | c | a | b | Table (stated inside it) | Points, max error |
 |---|---|---|---|---|---|
 | AKR-17204001 (Akron Turbojet 1720) | 9.83 | 0.328 | 0.076 | 75–125 psi, 26–140 gpm | 12 (4 settings × 3 pressures), 4.1 % |
-| AKR-1723P (Akron Mid-Range Turbojet) | 10.90 | 0.308 | 0.184 | 75–125 psi, 82–224 gpm | 12, 4.3 % |
-| PRO-368 (Protek 368) | 13.16 | 0.263 | 0.167 | 75–125 psi, 82–280 gpm | 15, 5.3 %; angle not stated by the page |
-| smooth-bore-7-8 (generic 7/8″ tip) | 56.69 | 0 | 0.3014 | 50–80 psi | 2 (Akron style 1430 7/8″ tip), exact; one tip, so NP alone |
-| smooth-bore-15-16 (generic 15/16″ tip) | 61.48 | 0 | 0.4185 | 50–80 psi | 2 (Akron style 439 15/16″ tip), exact; one tip, so NP alone |
+| AKR-1723P (Akron Mid-Range Turbojet) | 10.90 | 0.308 | 0.184 | 75–125 psi, 82–224 gpm | 12, 4.1 % |
+| PRO-368 (Protek 368) | 13.16 | 0.263 | 0.167 | 75–125 psi, 82–280 gpm | 15, 5.2 %; angle not stated by the page |
+| smooth-bore-7-8 (generic 7/8″ tip) | 56.69 | 0 | 0.3014 | 50–80 psi | 2 (Akron style 1430 7/8″ tip), <0.01%; one tip, so NP alone |
+| AKR-439-15-16 (also used by the generic 15/16″ tip) | 61.48 | 0 | 0.4185 | 50–80 psi | 2 (Akron style 439 15/16″ tip), <0.01%; one tip, so NP alone |
 
 - **Stated** ("alcance ≈ 50 m") only for those nozzles, in straight stream
-  (pattern ≤ 0.05), inside their table's pressures and flows. Outside it the
-  nozzle keeps its own curve but the canvas says "alcance ilustrativo", with
-  no number, so the arc doesn't jump at the edge.
+  (pattern ≤ 0.05), at the documented test angle and inside the table’s pressure and flow ranges. Outside it the
+  nozzle keeps its own curve to keep the arc continuous. The canvas labels its measured span “Dibujo ilustrativo”.
 - **Every other nozzle** (TFT G-Force, Akron Assault 48634028, MAFCO SS402,
   generic fog, the other smooth-bore tips, open end) draws an illustrative
   stream from the cross-maker curve **R = 14.3 · Q^0.25** m (`published`
   fit to the 11 "overall" handline rows at 100 psi: Akron 1720/1723P,
   Elkhart Chief XD, Protek 368; 95–250 gpm, max error 11 %, rms 4 %),
-  never with a number. No data exist for those nozzles (SOURCES.md records
+  with the ruler labelled as illustrative. No matching reach curve exists for those nozzles (SOURCES.md records
   where we looked); nor for the generic 1″ and 1⅛″ tips (one Protek 1″ point,
   effective only, is not a curve).
 - **Pressure enters through the flow.** Once Q is the actual flow, the
@@ -1010,9 +1009,23 @@ curve within 6 % of every row of its own table.
 - Q^0.25 to Q^0.33: doubling the flow adds 19–26 % reach. Drag-limited, so
   not the ballistic R = v²·sin 2θ / g (37 m/s at 100 psi would give 125 m
   at 32°; manual pp. 76–77).
-- Drawing: the nozzle is tilted to the data's 32° (no aiming yet, ⏳ M2) and
-  the arc lands at the nozzle's height; its shape is illustrative (rises
-  along the nozzle, falls more steeply), the landing distance is the law's.
+- Each nozzle stores an optional aim above horizontal (0–90°, default 32°).
+  At other angles the same-height arc is illustrative. For drawing only,
+  scale its horizontal span by sin(2θ)/sin(64°) and its vertical control
+  offsets by sin²(θ)/sin²(32°). This preserves the existing curve at 32°,
+  aligns its initial tangent with the nozzle, and gives a finite vertical
+  stream at 90°. At 0° the same-height arc vanishes and the tip spray remains.
+  With a documented reference angle, a straight stream and in-range flow and
+  pressure, the interface may give the geometry's horizontal distance as an
+  explicitly unvalidated projection. Its field error is unknown. The 0° and
+  90° endpoints give zero same-height span in this construction.
+  The percentages in the table above are the maximum absolute relative
+  deviations of the shipped coefficients from the tabulated overall distances,
+  rounded to one decimal. The two-point fits have no spare points to assess
+  predictive error. Field uncertainty has not been quantified for these fits.
+  Wind speed, direction and drift are outside this model.
+  The table fit can still be shown separately as a straight-stream reference
+  at its reported angle (or with the angle explicitly unspecified).
   `src/hydraulics/reach.ts`.
 
 ## 4. Methods and the default model

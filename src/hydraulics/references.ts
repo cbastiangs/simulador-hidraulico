@@ -42,6 +42,12 @@ export const SOURCES = {
     published: "read 2026-10-24",
     url: "https://tft.com/product/gf3d2s/",
   },
+  akron439: {
+    title: "Dual Stacked Tips · Style 439",
+    publisher: "Akron Brass",
+    published: "read 2026-11-25",
+    url: "https://www.akronbrass.com/dual-stacked-tips",
+  },
   akron1720: {
     title: "Turbojet 1720 / 17204001",
     publisher: "Akron Brass",

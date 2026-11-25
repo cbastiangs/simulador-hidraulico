@@ -875,7 +875,7 @@ allowed, with the reason.
 | **Coupling** | with a hose ✅ | fittings ✅ | drag ✅; first-drag camera stability ✅ (§10.8) | join the two hoses ✅ | pressure here, lost before it ✅ (tap its gauge) | — |
 | **Fitting** | adapter ✅; valve: engine only, no toggle (a coupling kind later) | ✕ (a kind has one loss) | moves with its coupling | ✅ | its loss and basis ✅ | auto fittings switch ✅ |
 | **Nozzle** | put back ✅ ("Poner pitón": the one it came from) | bale ✅, model ✅ (chips grouped Combinado / Chorro sólido / Sin pitón), ring ✅, typed rating ✅ (fog only); smooth-bore tips ✅ (owner, 2026-10-17) | drag ✅ | remove ✅ ("Quitar pitón": an open end, MODEL.md §3.4d; owner, 2026-10-17) | rating vs actual ✅ (mark on its gauge, warning in its panel under 95 %; none for an open end); **reaction ✅** (lbf and kgf with the formula, its panel) | — |
-| **Stream** | — | pattern ✅; aim ⏳ M2 | — | — | jet speed ✅ (drops); reach ✅ (arc in metres, MODEL §3.14: a distance where fitted, "ilustrativo" elsewhere) | — |
+| **Stream** | — | pattern and aim ✅ | — | — | jet speed ✅ (drops); reach ✅ (arc in metres, MODEL §3.14: a distance where fitted, "ilustrativo" elsewhere) | — |
 | **Water flow** | — | ✕: flow is solved, the app's core lesson; "I want X gpm" is target planning ⏳ | — | — | flow ✅, hose speed ✅, where the pressure went ✅ | — |
 | **Gauge** | — | — | — | hide ✅ (Ajustes › Vista) | tap: reading, loss before it ✅ | — |
 | **Building** | — | floor height ✅ (Línea, 2–6 m) | — | — | — | obstacles, routes ⏳ (ROADMAP §10b) |
@@ -1313,8 +1313,8 @@ dots 1.6 px apart.
 
 **The stream out of the nozzle (owner, 2026-11-02).** The owner expected the
 particle work to show the water leaving the nozzle; only the static cone did.
-The stream is now an arc in world metres beyond the cone: every nozzle is
-drawn tilted 32°, the angle the reach data were measured at, and its arc
+The stream is now an arc in world metres beyond the cone: each nozzle starts
+at 32° and its arc
 lands at the engine's reach (MODEL §3.14) at the nozzle's height. White
 drops (one per 0.125 gal) run along it at the jet's exit speed, 12.18·√NP
 ft/s, on the line's own water clock; they are hidden under reduced motion,
@@ -1323,12 +1323,12 @@ per nozzle; MODEL §3.14 lists them), in straight stream inside that table,
 reads "alcance ≈ N m" at the arc's end (display units). The same nozzle on a
 fog pattern reads, muted, "en Directo: alcance ≈ N m", the number its table
 gives at that flow and pressure on straight stream (owner, 2026-11-06: the
-default pattern otherwise hides it). Outside its table, and on every nozzle
-without one, the label reads "alcance ilustrativo", muted, no number. A label
-with a number stays on screen: when the landing is off screen it sits where
-the arc leaves the canvas, and moves as the view pans; within 200 px of the
-nozzle it drops the word "alcance" ("≈ 47 m"). "ilustrativo" stays at
-the landing, so it never covers a gauge's reading.
+default pattern otherwise hides it). The active line has a horizontal dimension line from its tip to the stream
+endpoint. Its toolbar button and inspector report the current span to one
+decimal place in the selected unit so a small pressure adjustment is visible.
+An unsupported span is labelled “Dibujo ilustrativo” to identify what the
+ruler measures. The canvas keeps the separate straight-stream reference in fog.
+A label at an offscreen landing follows the visible arc edge.
 A wider fog thickens the arc's halo and shortens it. Text, strokes and drops
 keep their screen size where the nozzle icon shrinks (from zoom 1.2 down).
 The world reserves room past each line for its stream at the nozzle's
@@ -1659,8 +1659,17 @@ Existing examples, restored work and share links retain their own content.
 A persistent reach button below the drawing opens the selected line's nozzle
 inspector. Opening from this button shows reach and its basis first. Selecting
 the nozzle in the drawing or parts list puts the handle, ring and pattern
-first, including in the portrait sheet’s half-height view. Show a numeric current reach only when the existing
-engine marks it supported; otherwise say illustrative or no stream. In fog,
+first, including in the portrait sheet’s half-height view. The sliders beside
+the canvas reach button and in the nozzle’s reach panel let the crew aim it
+from 0° to 90° above horizontal. Show the selected angle and the angle in the
+source table separately, with a shortcut back to a documented test angle.
+Where the source omits its angle, label any tabulated distance as a separate
+reference. Where no table exists, show that the drawing is illustrative.
+For in-range straight streams at an untested aim, show the horizontal projection
+only when the reference angle is known. Label it as unvalidated beside the number.
+The reach panel gives the test-angle reference, the discrepancy against the
+manufacturer’s table where applicable, and the limits of the estimate (unknown
+field error and omitted wind). An unavailable or stopped stream has no projection. In fog,
 a separately labelled straight-stream reference may be shown if supported.
 Nominal rating and actual delivered pressure/flow remain distinct.
 

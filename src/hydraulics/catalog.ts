@@ -87,10 +87,13 @@ const SMOOTH_BORE_TIPS: readonly { id: string; tipIn: number; name: string; inle
   { id: "smooth-bore-1-1-8", tipIn: 9 / 8, name: "1⅛″", inletIn: 2.5 },
 ];
 
-function smoothBore({ id, tipIn, name, inletIn }: (typeof SMOOTH_BORE_TIPS)[number]): NozzleSpec {
+function smoothBore({ id, tipIn, name, inletIn, manufacturerSource }: {
+  id: string; tipIn: number; name: string; inletIn: number; manufacturerSource?: SourceId;
+}): NozzleSpec {
   return {
     id,
-    label: `Chorro sólido, boquilla ${name} @ 50 psi`,
+    manufacturerSource,
+    label: manufacturerSource ? name : `Chorro sólido, boquilla ${name} @ 50 psi`,
     design: "smooth-bore",
     tipIn,
     kind: "fixed-orifice",
@@ -98,7 +101,10 @@ function smoothBore({ id, tipIn, name, inletIn }: (typeof SMOOTH_BORE_TIPS)[numb
     ratedFlowGpm: Math.round(smoothBoreFlowGpm(tipIn, 50)),
     ratedPressurePsi: 50,
     inletIn,
-    provenance: { ratedFlowGpm: FREEMAN, ratedPressurePsi: SMOOTH_BORE_PRESSURE, inletIn: GENERIC_INLET },
+    provenance: {
+      ratedFlowGpm: FREEMAN, ratedPressurePsi: SMOOTH_BORE_PRESSURE,
+      inletIn: manufacturerSource ? { sources: [manufacturerSource], note: "Manufacturer inlet and exposed tip dimensions" } : GENERIC_INLET,
+    },
   };
 }
 
@@ -178,6 +184,7 @@ export const NOZZLE_SPECS: readonly NozzleSpec[] = [
     inletIn: 2.5,
     provenance: { ratedFlowGpm: GENERIC_FLOW, ratedPressurePsi: FOG_PRESSURE, inletIn: GENERIC_INLET },
   },
+  smoothBore({ id: "AKR-439-15-16", name: "Akron 439 · boquilla 15/16″", manufacturerSource: "akron439", tipIn: 15 / 16, inletIn: 1.5 }),
   ...SMOOTH_BORE_TIPS.map(smoothBore),
   {
     id: "open-end",

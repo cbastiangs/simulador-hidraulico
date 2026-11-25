@@ -100,16 +100,28 @@ for (const [id, pressure, settings, inletIn = 1.5] of [
 const reachRows = readFileSync(new URL("../data/catalog/nozzle-reach.csv", import.meta.url), "utf8")
   .trim().split("\n").slice(1).map((line) => line.split(","))
   .filter(([, , , , kind]) => kind === "overall")
-  .map(([id, gpm, psi, , , metres]) => ({ id, gpm: Number(gpm), psi: Number(psi), metres: Number(metres) }));
-// The generic tips' curves come from Akron's tip rows (the 15/16″ filed under the catalog's Akron tip).
-const reachTable = { "smooth-bore-7-8": "AKR-1430-7-8", "smooth-bore-15-16": "AKR-1499-15-16" };
+  .map(([id, gpm, psi, angle, , metres]) => ({ id, angle: angle ? Number(angle) : null, gpm: Number(gpm), psi: Number(psi), metres: Number(metres) }));
+// The generic tips' curves come from Akron's tip rows.
+const reachTable = { "smooth-bore-7-8": "AKR-1430-7-8", "smooth-bore-15-16": "AKR-439-15-16" };
 for (const specId of Object.keys(NOZZLE_REACH)) {
   test(`stream.reach ${specId}: its curve within 6 % of every published overall point`, () => {
     const rows = reachRows.filter((r) => r.id === (reachTable[specId] ?? specId));
-    assert.ok(rows.length >= 2, specId);
+    const fit = NOZZLE_REACH[specId];
+    assert.equal(fit.fitRows, rows.length);
+    const deviations = rows.map(r => Math.abs(nozzleReachM(specId, r.gpm, r.psi) / r.metres - 1) * 100);
+    assert.equal(fit.maxTableDeviationPct, rows.length === 2 ? null : Number(Math.max(...deviations).toFixed(1)));
     for (const r of rows) {
       near(nozzleReachM(specId, r.gpm, r.psi), r.metres, 0.06 * r.metres);
-      assert.equal(streamReach(specId, specId.startsWith("smooth") ? "smooth-bore" : "fog", r.gpm, r.psi, 0).fitted, true, `${specId} ${r.gpm}@${r.psi}`);
+      const design = NOZZLE_SPECS.find(spec => spec.id === specId).design;
+      const reference = streamReach(specId, design, r.gpm, r.psi, 0);
+      assert.equal(NOZZLE_REACH[specId].testAngleDeg, r.angle);
+      near(reference.referenceM, r.metres, 0.06 * r.metres);
+      assert.equal(reference.fitted, r.angle === 32);
+      const tilted = streamReach(specId, design, r.gpm, r.psi, 0, 60);
+      assert.equal(tilted.fitted, false);
+      assert.equal(tilted.referenceM, reference.referenceM);
+      assert.equal(reference.angleProjectionM, null);
+      assert.equal(tilted.angleProjectionM, r.angle === null ? null : tilted.reachM);
     }
   });
 }
@@ -125,6 +137,9 @@ test("stream.reach generic: R = 14.3·Q^0.25 m, illustrative, against published 
   // Hand arithmetic: 14.3 × 125^0.25 = 14.3 × 3.3437 = 47.81 m; a generic nozzle never states it.
   near(streamReach("fog-150", "fog", 125, 100, 0).reachM, 47.81, 0.01);
   assert.equal(streamReach("fog-150", "fog", 125, 100, 0).fitted, false);
+  assert.equal(streamReach("fog-150", "fog", 125, 100, 0, 60).angleProjectionM, null);
+  assert.equal(streamReach("AKR-17204001", "fog", 100, 100, 1, 60).angleProjectionM, null);
+  assert.equal(streamReach("AKR-17204001", "fog", 100, 60, 0, 60).angleProjectionM, null);
   // Akron 1720 outside its table (60 psi): its own curve, not stated.
   assert.equal(streamReach("AKR-17204001", "fog", 100, 60, 0).fitted, false);
 });

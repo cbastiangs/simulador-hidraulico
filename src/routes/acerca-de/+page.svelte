@@ -69,14 +69,15 @@
 
       <section id="alcance">
         <h2>Alcance del chorro</h2>
-        <p>El alcance aproxima la distancia horizontal desde la salida del pitón hasta las gotas más lejanas a la misma altura. Se muestra un valor cuando el chorro es directo y la presión y el caudal están dentro del rango tabulado para ese modelo.</p>
+        <p>El alcance aproxima la distancia horizontal desde la salida del pitón hasta las gotas más lejanas a la misma altura. El valor basado en la tabla se muestra cuando la inclinación coincide con el ángulo de ensayo, el chorro es directo y la presión y el caudal están dentro del rango tabulado para ese modelo.</p>
         <ul class="ranges">
           {#each reachModels as model (model.id)}
             {@const range = NOZZLE_REACH[model.id]}
-            <li><strong>{reachLabel(model.id, model.label)}</strong><span>{range.psi[0]}–{range.psi[1]} psi · {range.gpm[0]}–{range.gpm[1]} US gpm</span></li>
+            <li><strong>{reachLabel(model.id, model.label)}</strong><span>{range.psi[0]}–{range.psi[1]} psi · {range.gpm[0]}–{range.gpm[1]} US gpm · {range.testAngleDeg != null ? `ensayo a ${range.testAngleDeg}°` : "ángulo sin indicar"}</span></li>
           {/each}
         </ul>
-        <p>La curva visual es ilustrativa. La neblina, los pitones sin tabla incorporada y los puntos fuera del rango no tienen un alcance numérico para esa condición. La referencia de chorro directo, cuando aparece en neblina, corresponde al mismo caudal y presión con el patrón directo.</p>
+        <p>La curva visual es ilustrativa. En neblina, con pitones sin tabla o fuera del rango publicado, la medida «Dibujo ilustrativo» indica la distancia horizontal dibujada desde la boca del pitón. Si solo cambia la inclinación respecto del ensayo documentado, la proyección usa la geometría del dibujo. En esa geometría, 30° y 60° dan la misma distancia horizontal. La tabla de un solo ángulo no permite validar ese resultado.</p>
+        <p>El porcentaje del panel indica la mayor diferencia entre la fórmula y los puntos de su tabla. El margen de error en campo es desconocido. El simulador omite el viento de frente, de cola y lateral.</p>
         <ul>
           <li><a href="https://www.fireresponse.com.au/wp-content/uploads/2022/04/flow-reach-turbojet-100-psi.pdf">Akron Brass · tabla de caudal y alcance del Turbojet</a><span class="citation">Chorro a 32° en aire quieto.</span></li>
           <li><a href="https://www.firearmour.com.sg/product/protek-handline-nozzle-368/">Protek 368 · tabla de caudal y alcance</a><span class="citation">Publicada por Fire Armour. La tabla no indica el ángulo.</span></li>

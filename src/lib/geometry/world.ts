@@ -68,9 +68,11 @@ export function growBounds(current: Bounds, sections: readonly Section[], floorM
 }
 
 /** Room past a line's end for its stream (UX.md §10.10), which lands `reachM` beyond the nozzle. */
-export function streamBounds(current: Bounds, sections: readonly Section[], reachM: number): Bounds {
+export function streamBounds(current: Bounds, sections: readonly Section[], stream: { reachM: number; riseScaleM: number }): Bounds {
   const total = runsOf(sections).reduce((a, b) => a + b, 0);
-  return { ...current, maxX: Math.max(current.maxX, Math.ceil((total + reachM + 4) / 5) * 5) };
+  const height = (sections.at(-1)?.endElevationM ?? 0) + 0.4 * stream.riseScaleM;
+  return { ...current, maxX: Math.max(current.maxX, Math.ceil((total + stream.reachM + 4) / 5) * 5),
+    maxY: Math.max(current.maxY, height + 2) };
 }
 
 /**

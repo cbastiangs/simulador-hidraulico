@@ -91,6 +91,8 @@ export type ScenarioNozzle = {
   ratedPressurePsi: number;
   /** 0 straight stream … 1 wide fog. Drawing only: the flow does not depend on it (MODEL.md §3.5). */
   pattern: number;
+  /** Drawing elevation above horizontal, degrees. Absent retains the original 32° aim. */
+  aimDeg?: number;
   open: boolean;
   /**
    * Absent means `fog` (documents from before 2026-10-17). `smooth-bore`: the
@@ -251,6 +253,8 @@ function parseSingleScenario(value: unknown, allowEmpty = false): Scenario {
   if (nozzleKind === "selectable" && (settingsGpm.length < 2 || !settingsGpm.includes(ratedFlowGpm))) {
     throw new ScenarioError("nozzle.settingsGpm", "must list 2 or more settings, including ratedFlowGpm");
   }
+  const aimDeg = nozzle.aimDeg === undefined ? undefined : number(nozzle.aimDeg, "nozzle.aimDeg", "zero or more");
+  if (aimDeg !== undefined && aimDeg > 90) throw new ScenarioError("nozzle.aimDeg", "must be between 0 and 90");
   const pattern = number(nozzle.pattern, "nozzle.pattern", "zero or more");
   if (pattern > 1) throw new ScenarioError("nozzle.pattern", "must be between 0 and 1");
   const design = nozzle.design === undefined ? undefined : oneOf(nozzle.design, "nozzle.design", ["fog", "smooth-bore", "open-end"] as const);
@@ -303,6 +307,7 @@ function parseSingleScenario(value: unknown, allowEmpty = false): Scenario {
       ratedFlowGpm,
       ratedPressurePsi: number(nozzle.ratedPressurePsi, "nozzle.ratedPressurePsi", "greater than zero"),
       pattern,
+      ...(aimDeg === undefined ? {} : { aimDeg }),
       // An open end has nothing to shut (MODEL.md §3.4d).
       open: design === "open-end" ? true : nozzle.open,
       ...(design === undefined ? {} : { design }),

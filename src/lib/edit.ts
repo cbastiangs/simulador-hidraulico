@@ -353,6 +353,10 @@ export function setNozzleSetting(scenario: Scenario, flowGpm: number): Scenario 
   return { ...scenario, nozzle: { ...scenario.nozzle, ratedFlowGpm: flowGpm } };
 }
 
+export function setNozzleAim(scenario: Scenario, aimDeg: number): Scenario {
+  return { ...scenario, nozzle: { ...scenario.nozzle, aimDeg: clamp(aimDeg, 0, 90) } };
+}
+
 /** 0 straight stream … 1 wide fog: drawing only. */
 export function setNozzlePattern(scenario: Scenario, pattern: number): Scenario {
   return { ...scenario, nozzle: { ...scenario.nozzle, pattern: clamp(pattern, 0, 1) } };

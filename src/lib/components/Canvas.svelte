@@ -34,10 +34,10 @@
   import PieceStrip from "./PieceStrip.svelte";
   import { PIECES, isAdding, removalFor, spotsFor, type PieceId, type Spot } from "$lib/pieces.ts";
   import { hoseVelocityMps, nozzleExitVelocityMps } from "$hydraulics/velocity.ts";
-  import { REACH_ANGLE_DEG, streamReach } from "$hydraulics/reach.ts";
+  import { DEFAULT_AIM_DEG, NOZZLE_REACH, streamReach } from "$hydraulics/reach.ts";
   import { smoothBoreFlowGpm } from "$hydraulics/nozzle.ts";
   import { createWaterMotion, type WaterMotion } from "$lib/water-motion.ts";
-  import { jointFlowGpm } from "$lib/readings.ts";
+  import { jointFlowGpm, reachLabel } from "$lib/readings.ts";
 
   // The canvas (UX.md §2, polish §10.8): one uniform scale, the lay auto-fitted
   // to the space available; gauges, labels, handles and the nozzle keep their
@@ -291,24 +291,23 @@
    * The world makes room for each stream at its nozzle's rating, not its
    * solved flow, so working the pump doesn't refit the view (UX.md §10.10).
    */
-  function ratedReachM(line: Scenario) {
+  function ratedStream(line: Scenario) {
     const n = line.nozzle;
     const design = n.design ?? "fog";
-    if (design === "open-end") return streamReach(null, design, 250, 50, 0).reachM;
+    if (design === "open-end") return streamReach(null, design, 250, 50, 0, n.aimDeg);
     const gpm = design === "smooth-bore" ? smoothBoreFlowGpm(n.tipIn!, n.ratedPressurePsi) : n.ratedFlowGpm;
-    return streamReach(n.specId, design, gpm, n.ratedPressurePsi, 0).reachM;
+    return streamReach(n.specId, design, gpm, n.ratedPressurePsi, 0, n.aimDeg);
   }
   const fitted = $derived(
     others.reduce(
-      (b, o) => streamBounds(growBounds(b, o.scenario.sections, floorM), o.scenario.sections, ratedReachM(o.scenario)),
-      streamBounds(fitBounds(scenario.sections, floorM), scenario.sections, ratedReachM(scenario)),
+      (b, o) => streamBounds(growBounds(b, o.scenario.sections, floorM), o.scenario.sections, ratedStream(o.scenario)),
+      streamBounds(fitBounds(scenario.sections, floorM), scenario.sections, ratedStream(scenario)),
     ),
   );
   let toolbarHeight = $state(82);
 
-  // The canvas takes the height the window has (UX.md §2): the lay sits on the
-  // ground at the bottom and the rest is building above it, so a rising hose
-  // can be dragged up. On desktop, reserve the header and measured toolbar
+  // The canvas takes the height the window has (UX.md §2). Open space above
+  // the lay is available for raising a hose. On desktop, reserve the header and measured toolbar
   // and pressure dock so wrapping controls never cover the drawing tools.
   const canvasHeight = $derived(
     phone ? Math.max(200, viewHeight) : Math.max(260, wide ? windowHeight - 68 - toolbarHeight - 8 - Math.max(70, bottomInsetPx) - topInsetPx : windowHeight * 0.5),
@@ -412,7 +411,7 @@
       result.nodes.map((n) => n.pressurePsi),
       filled,
       floorM,
-      filled.maxY,
+      fitted.maxY,
     ),
   );
   const last = $derived(layout.nodes.length - 1);
@@ -432,7 +431,7 @@
   // 2026-10-17). What hides behind is reached by hover (desktop), a second
   // tap on the same spot, the long-press list, or the "×2" badge.
   const otherLines = $derived(
-    others.map((o) => ({ ...o, key: o.path.join("/"), layout: layoutWorld(o.scenario.sections, o.result.nodes.map((n) => n.pressurePsi), filled, floorM, filled.maxY) })),
+    others.map((o) => ({ ...o, key: o.path.join("/"), layout: layoutWorld(o.scenario.sections, o.result.nodes.map((n) => n.pressurePsi), filled, floorM, fitted.maxY) })),
   );
   const editedKey = $derived(editedPath.join("/"));
   const lineOrder = $derived(linePaths.map((p) => p.join("/")));
@@ -951,13 +950,16 @@
   const waterPhase = createWaterMotion();
 
   // The stream out of the nozzle (MODEL.md §3.14, UX.md §10.10): an arc in
-  // world metres at the reach data's 32°, landing at the engine's reach, and
+  // world metres at the selected aim, returning to nozzle height, and
   // drops along it at the jet's exit speed (§3.7). A drop is 1/10 of a hose
   // particle, so a handline shows a dozen or more along its arc.
   const GALLONS_PER_DROP = GALLONS_PER_PARTICLE / 10;
+  const nozzleTestAngle = (n: Scenario["nozzle"]) =>
+    n.design !== "open-end" && n.specId ? NOZZLE_REACH[n.specId]?.testAngleDeg : null;
+  const selectedTestAngle = $derived(nozzleTestAngle(scenario.nozzle));
   function jetOf(line: Scenario, r: Pick<SeriesResult, "flowGpm" | "nozzlePressurePsi">) {
     const psi = r.nozzlePressurePsi ?? 0;
-    const reach = streamReach(line.nozzle.specId, line.nozzle.design ?? "fog", r.flowGpm, psi, line.nozzle.pattern);
+    const reach = streamReach(line.nozzle.specId, line.nozzle.design ?? "fog", r.flowGpm, psi, line.nozzle.pattern, line.nozzle.aimDeg);
     const unitsPerM = PX_PER_M / nozzleK;
     const seconds = r.flowGpm > 0 ? (60 * GALLONS_PER_DROP) / r.flowGpm : 0;
     const drops: WaterMotion = {
@@ -969,12 +971,13 @@
       reduced: reducedMotion,
     };
     // A fog pattern on a nozzle with its own table: say where its number is (owner, 2026-11-06).
-    const straight = reach.fitted ? reach : streamReach(line.nozzle.specId, line.nozzle.design ?? "fog", r.flowGpm, psi, 0);
-    const label = straight.fitted
-      ? `${reach.fitted ? "" : "en Directo: "}alcance ≈ ${u.l(straight.reachM, 0)} ${u.length}`
-      : "alcance ilustrativo";
-    // Icon units per screen px: text and strokes keep their size where the nozzle shrinks.
-    return { ...reach, unitsPerM, screen: k / nozzleK, label, numbered: straight.fitted, drops };
+    const aim = line.nozzle.aimDeg ?? DEFAULT_AIM_DEG;
+    const showReference = reach.referenceM !== null && nozzleTestAngle(line.nozzle) === aim;
+    const measurement = reachLabel(reach);
+    const label = showReference && !reach.fitted
+      ? `en Directo: alcance ≈ ${u.l(reach.referenceM, 0)} ${u.length}`
+      : measurement;
+    return { ...reach, unitsPerM, screen: k / nozzleK, label, measurement, drops };
   }
   /** The visible canvas's edges from a nozzle at world (x, y), in its icon units (NozzleDrawing `view`). */
   const jetView = (x: number, y: number) => ({
@@ -1689,8 +1692,8 @@
       >
         <!-- Floors: bands, lines, labels -->
         {#each layout.floors as f (f.elevationM)}
-          {#if f.above > 0 && f.above % 2 === 1}
-            <rect class="band" x="0" y={f.y - floorM * PX_PER_M} width={layout.widthPx} height={floorM * PX_PER_M} />
+          {#if f.above > 0 && f.above % 2 === 0}
+            <rect class="band" x="0" y={f.y} width={layout.widthPx} height={floorM * PX_PER_M} />
           {/if}
         {/each}
         <rect class="ground" x="0" y={layout.groundY} width={layout.widthPx} height={layout.heightPx - layout.groundY} />
@@ -1786,7 +1789,7 @@
                 />
               {/if}
             {/each}
-            <g transform={`translate(${end.x} ${end.y}) rotate(${-REACH_ANGLE_DEG}) scale(${nozzleK})`}>
+            <g transform={`translate(${end.x} ${end.y}) rotate(${-(o.scenario.nozzle.aimDeg ?? DEFAULT_AIM_DEG)}) scale(${nozzleK})`}>
               <NozzleDrawing
                 jet={jetOf(o.scenario, o.result)}
                 view={jetView(end.x, end.y)}
@@ -1992,8 +1995,9 @@
           </g>
         {/each}
         <!-- The nozzle above its handle and the gauges: the highest event layer -->
-        <g data-tour="nozzle" transform={`translate(${layout.nodes[last].x} ${layout.nodes[last].y}) rotate(${-REACH_ANGLE_DEG}) scale(${nozzleK})`}>
+        <g data-tour="nozzle" transform={`translate(${layout.nodes[last].x} ${layout.nodes[last].y}) rotate(${-(scenario.nozzle.aimDeg ?? DEFAULT_AIM_DEG)}) scale(${nozzleK})`}>
           <NozzleDrawing
+            measureSpan
             jet={jetOf(scenario, result)}
             view={jetView(layout.nodes[last].x, layout.nodes[last].y)}
             {waterPhase}
@@ -2226,7 +2230,13 @@
     </button>
   {/if}
   {#if phone}<button type="button" class="pieces-toggle" class:on={tray || !!armed} aria-expanded={tray} onclick={() => (tray ? (tray = false) : armed ? (armed = null) : (tray = true))}>{tray ? "× Piezas" : armed ? "× Pieza" : "+ Piezas"}</button>{/if}
-  <button type="button" class="reach-control" aria-label="Ver alcance y detalles del pitón" onclick={() => onShowReach ? onShowReach() : onSelect({ kind: "nozzle" })}>{result.state === "flowing" ? jetOf(scenario, result).label : "Alcance · sin chorro"} ›</button>
+  <button type="button" class="reach-control" title="Ver alcance y detalles del pitón" onclick={() => onShowReach ? onShowReach() : onSelect({ kind: "nozzle" })}>{result.state === "flowing" ? jetOf(scenario, result).measurement : "Alcance · sin chorro"} ›</button>
+  <label class="canvas-aim">Inclinación {scenario.nozzle.aimDeg ?? DEFAULT_AIM_DEG}°
+    <input type="range" min="0" max="90" step="1" value={scenario.nozzle.aimDeg ?? DEFAULT_AIM_DEG}
+      aria-label="Inclinación del chorro" aria-valuetext={`${scenario.nozzle.aimDeg ?? DEFAULT_AIM_DEG} grados sobre la horizontal`}
+      oninput={e => onEdit(edit.setNozzleAim(scenario, e.currentTarget.valueAsNumber), "nozzle:aim")} />
+    <small>{selectedTestAngle != null ? `Ensayo a ${selectedTestAngle}°` : "Sin ángulo de ensayo registrado"}</small>
+  </label>
   {#if !phone}<span class="badge">{Math.round(zoom * 100)} %{manualZoom === null ? (showAll ? " · todo" : " · auto") : ""}{trueScale ? "" : ` · grosor ×${EXAGGERATION}`}</span>{/if}
   <div class="zoom">
     <button type="button" aria-label="Alejar" onclick={() => setManualZoom(zoom / 1.25)}>−</button>
@@ -2283,6 +2293,9 @@
   .armed.erase { background: var(--warn); }
   .armed button { min-height: 44px; padding: 0 12px; border: 0; border-radius: 8px; background: rgba(255, 255, 255, 0.2); color: #fff; font-weight: 700; cursor: pointer; white-space: nowrap; }
   .reach-control { min-height: 44px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--accent); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .canvas-aim { display: grid; align-content: center; min-height: 44px; width: 96px; flex: none; font-size: 12px; color: var(--ink); font-variant-numeric: tabular-nums; }
+  .canvas-aim small { font-size: 10px; line-height: 1.1; color: var(--muted); }
+  .canvas-aim input { width: 100%; margin: 0; accent-color: var(--accent); cursor: pointer; }
   .pieces-toggle { min-height: 44px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--accent); background: var(--surface); color: var(--accent); font-weight: 700; font-size: 14px; cursor: pointer; }
   .pieces-toggle.on { background: var(--accent-soft); }
   .canvas.phone .scroller { flex: 1; min-height: 0; transition: none; }

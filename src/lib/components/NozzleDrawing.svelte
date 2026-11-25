@@ -4,7 +4,7 @@
   import { smoothBoreFlowGpm } from "$hydraulics/nozzle.ts";
   import { anatomyOf } from "$lib/nozzle-anatomy.ts";
   import { sideArtOf } from "$lib/nozzle-art/index.ts";
-  import { REACH_ANGLE_DEG } from "$hydraulics/reach.ts";
+  import { DEFAULT_AIM_DEG } from "$hydraulics/reach.ts";
   import type { WaterMotion } from "$lib/water-motion.ts";
 
   // The nozzle on the canvas (UX.md §3): the model's own side view
@@ -14,7 +14,7 @@
   // or ball), its pistol grip, gallonage ring, pressure ring, pattern collar
   // and teeth. The cone is the spray at the tip (illustrative: it grows with
   // flow); the arc beyond it is the stream in world metres (MODEL.md §3.14),
-  // drawn in the canvas's frame, which tilts the nozzle to the data's 32°.
+  // drawn in the canvas's frame, which tilts the nozzle to the selected aim.
   let {
     nozzle,
     flowGpm,
@@ -25,6 +25,7 @@
     onGrab,
     color = null,
     small = false,
+    measureSpan = false,
     jet = null,
     view = null,
     waterPhase,
@@ -42,7 +43,8 @@
     /** Drawn too small to aim a finger at: on touch screens the bale is drawing only (UX.md §8.1). */
     small?: boolean;
     /** The stream (Canvas.svelte jetOf): engine reach, icon units per metre, its label and its drops. */
-    jet?: { reachM: number; fitted: boolean; unitsPerM: number; screen: number; label: string; numbered: boolean; drops: WaterMotion } | null;
+    measureSpan?: boolean;
+    jet?: { reachM: number; riseScaleM: number; fitted: boolean; unitsPerM: number; screen: number; label: string; drops: WaterMotion } | null;
     /** The visible canvas's right and top edges, icon units from the nozzle, so the stream's label stays on screen. */
     view?: { right: number; top: number } | null;
     /** The canvas's shared water clock (water-motion.ts). */
@@ -58,7 +60,10 @@
   // An open end has no rating; its stream grows with flow against a typical handline flow.
   const ratedFlow = $derived(design === "smooth-bore" ? smoothBoreFlowGpm(nozzle.tipIn!, nozzle.ratedPressurePsi) : nozzle.ratedFlowGpm);
   const flow = Tween.of(() => Math.min(flowGpm / (design === "open-end" ? 250 : ratedFlow), 1.3), { duration: 300 });
-  const reach = Tween.of(() => jet?.reachM ?? 0, { duration: 300 });
+  const aim = $derived(nozzle.aimDeg ?? DEFAULT_AIM_DEG);
+  // Ease the size as flow changes. Read aim directly so the water always
+  // leaves along the barrel while the operator moves the angle control.
+  const arcScale = Tween.of(() => jet ? Math.hypot(jet.reachM, jet.riseScaleM) : 0, { duration: 300 });
   const pattern = Tween.of(() => (fog && anatomy.pattern ? nozzle.pattern : 0), { duration: 200 });
 
   // Stations along the axis, hose at 0: valve body to 22, the gallonage ring
@@ -88,36 +93,37 @@
   });
 
   /**
-   * The arc, in a level frame at the tip: it leaves along the nozzle at 32°,
+   * The arc, in a level frame at the tip: it leaves along the nozzle at the selected angle,
    * peaks past the middle and falls more steeply than it rose, as drag makes a
    * real stream do, landing at the nozzle's height. Its shape is illustrative;
    * the landing distance is the engine's.
    */
   const arc = $derived.by(() => {
     if (!jet) return null;
-    const r = reach.current * jet.unitsPerM;
-    if (r < 1) return null;
-    const t = Math.tan((REACH_ANGLE_DEG * Math.PI) / 180);
-    const d = `M 0 0 C ${0.4 * r} ${-0.4 * r * t} ${0.8 * r} ${-0.25 * r * t} ${r} 0`;
+    const scale = arcScale.current * jet.unitsPerM;
+    const angle = aim * Math.PI / 180;
+    const r = aim === 90 ? 0 : scale * Math.cos(angle);
+    const h = scale * Math.sin(angle);
+    if (Math.max(r, h) < 1) return null;
+    const d = `M 0 0 C ${0.4 * r} ${-0.4 * h} ${0.8 * r} ${-0.25 * h} ${r} 0`;
     // Drops: a streak a third of their spacing, centred on their place.
     const gap = jet.drops.gapPx;
     const w = Math.min(3 * jet.screen, 0.4 * gap);
     const dash = Math.max(0, 0.33 * gap - w);
-    return { r, d, w, px: jet.screen, dasharray: `${dash} ${gap - dash}`, drops: { ...jet.drops, offsetPx: dash / 2 } };
+    return { r, h, d, w, px: jet.screen, dasharray: `${dash} ${gap - dash}`, drops: { ...jet.drops, offsetPx: dash / 2 } };
   });
 
   /**
    * The stream's label sits at the landing or, when that is off screen, where
    * the arc leaves the canvas (owner, 2026-11-06: a phone never showed it).
-   * Only a label with a number moves: "ilustrativo" says nothing worth covering a gauge's reading.
    * Icon units in the jet's own frame.
    */
   const labelAt = $derived.by(() => {
     if (!jet || !arc) return null;
     const { r, px } = arc;
-    const angle = (REACH_ANGLE_DEG * Math.PI) / 180;
-    const right = view && jet.numbered ? view.right - exit.x * Math.cos(angle) - 8 * px : r;
-    const top = view && jet.numbered ? view.top + exit.x * Math.sin(angle) + 14 * px : -Infinity;
+    const angle = (aim * Math.PI) / 180;
+    const right = view ? view.right - exit.x * Math.cos(angle) - 8 * px : r;
+    const top = view ? view.top + exit.x * Math.sin(angle) + 14 * px : -Infinity;
     const x = Math.min(r, Math.max(right, 0));
     // The arc's height at that x: its Bézier (above) solved for s, since x grows with s.
     const xAt = (s: number) => r * s * (1.2 * (1 - s) ** 2 + 2.4 * s * (1 - s) + s * s);
@@ -129,7 +135,7 @@
       else hi = s;
     }
     const s = (lo + hi) / 2;
-    const y = -r * Math.tan(angle) * s * (1 - s) * (1.2 * (1 - s) + 0.75 * s);
+    const y = -arc.h * s * (1 - s) * (1.2 * (1 - s) + 0.75 * s);
     // Close to the edge the full wording would run over the nozzle: the number alone.
     const text = x < r && x < 200 * px ? jet.label.replace("alcance ", "") : jet.label;
     return { x, y: Math.max(y - 12 * px, top), text };
@@ -145,11 +151,14 @@
 <g transform={`translate(${x} ${y})`}>
   {#if selected}<rect class="selection" x="-10" y="-34" width={length + 14} height="54" rx="8" />{/if}
   {#if jet && arc}
-    <g class="jet" transform={`translate(${exit.x} 0) rotate(${REACH_ANGLE_DEG})`}>
+    <g class="jet" transform={`translate(${exit.x} 0) rotate(${aim})`}>
       <path class="arc-soft" d={arc.d} stroke-width={(8 + 16 * pattern.current) * arc.px} />
       <path class="arc" d={arc.d} stroke-width={3 * arc.px} />
       {#if waterPhase && arc.drops.gapPx > 0}
         <path class="drops" d={arc.d} stroke-width={arc.w} stroke-dasharray={arc.dasharray} use:waterPhase={arc.drops} />
+      {/if}
+      {#if measureSpan && arc.r > 0}
+        <path class="span-measure" d={`M 0 ${4 * arc.px} v ${8 * arc.px} M 0 ${8 * arc.px} H ${arc.r} M ${arc.r} ${4 * arc.px} v ${8 * arc.px}`} />
       {/if}
       <text class="reach" class:fitted={jet.fitted} transform={`translate(${labelAt?.x ?? arc.r} ${labelAt?.y ?? 0}) scale(${arc.px})`}>{labelAt?.text ?? jet.label}</text>
     </g>
@@ -275,6 +284,7 @@
   .spray.solid { fill: var(--water); opacity: 0.45; }
   .selection { fill: none; stroke: var(--accent); stroke-width: 2; stroke-dasharray: 5 4; }
   .spray { fill: var(--water-soft); opacity: 0.8; }
+  .span-measure { fill: none; stroke: var(--muted); stroke-width: 1; vector-effect: non-scaling-stroke; }
   .arc-soft { fill: none; stroke: var(--water-soft); stroke-linecap: round; opacity: 0.55; }
   .arc { fill: none; stroke: var(--water); stroke-linecap: round; opacity: 0.7; }
   .drops { fill: none; stroke: #fff; stroke-linecap: round; stroke-opacity: 0.95; }
