@@ -118,6 +118,23 @@
   {/if}
 {/snippet}
 
+{#snippet reachReading()}
+  <section class="reach-reading" aria-label="Alcance del chorro">
+    <b>{result.state !== "flowing" ? "Sin chorro" : reach.fitted ? `Alcance ≈ ${u.l(reach.reachM, 0)} ${u.length}` : "Alcance ilustrativo"}</b>
+    {#if result.state === "flowing"}
+      {#if reach.fitted}
+        <p>Estimación ajustada a datos publicados: gotas más lejanas, a la altura del pitón. Chorro directo, aire quieto; no es alcance efectivo de extinción.</p>
+      {:else if straightReach.fitted}
+        <p>En chorro directo: ≈ {u.l(straightReach.reachM, 0)} {u.length}. El alcance con neblina es ilustrativo.</p>
+      {:else}
+        <p>{reachTable ? "La presión o el caudal están fuera del rango publicado de este pitón." : "Este pitón no tiene una curva de alcance publicada incorporada."} El dibujo no expresa una distancia validada.</p>
+      {/if}
+      {#if reachTable}<p>Rango de referencia: {u.p(reachTable.psi[0], 0)}–{u.p(reachTable.psi[1], 0)} {u.pressure} · {u.q(reachTable.gpm[0], 0)}–{u.q(reachTable.gpm[1], 0)} {u.flow}.</p>{/if}
+    {:else}<p>El alcance se muestra cuando esta línea entrega agua.</p>{/if}
+    <p><a href={resolve("/acerca-de") + "#alcance"}>Cómo se estima el alcance</a></p>
+  </section>
+{/snippet}
+
 <aside class="inspector">
   {#if selection === null}
     <header class:sticky={selection !== null}>
@@ -162,20 +179,7 @@
         <p>{nozzleKind} · {u.p(n.ratedPressurePsi)} {u.pressure} nominal{manufacturer ? " · ficha del fabricante" : n.specId === null || !nozzleSpec ? " · personalizado" : " · genérico"}</p>
       {/if}
     </header>
-    <section class="reach-reading" aria-label="Alcance del chorro">
-      <b>{result.state !== "flowing" ? "Sin chorro" : reach.fitted ? `Alcance ≈ ${u.l(reach.reachM, 0)} ${u.length}` : "Alcance ilustrativo"}</b>
-      {#if result.state === "flowing"}
-        {#if reach.fitted}
-          <p>Estimación ajustada a datos publicados: gotas más lejanas, a la altura del pitón. Chorro directo, aire quieto; no es alcance efectivo de extinción.</p>
-        {:else if straightReach.fitted}
-          <p>En chorro directo: ≈ {u.l(straightReach.reachM, 0)} {u.length}. El alcance con neblina es ilustrativo.</p>
-        {:else}
-          <p>{reachTable ? "La presión o el caudal están fuera del rango publicado de este pitón." : "Este pitón no tiene una curva de alcance publicada incorporada."} El dibujo no expresa una distancia validada.</p>
-        {/if}
-        {#if reachTable}<p>Rango de referencia: {u.p(reachTable.psi[0], 0)}–{u.p(reachTable.psi[1], 0)} {u.pressure} · {u.q(reachTable.gpm[0], 0)}–{u.q(reachTable.gpm[1], 0)} {u.flow}.</p>{/if}
-      {:else}<p>El alcance se muestra cuando esta línea entrega agua.</p>{/if}
-      <p><a href={resolve("/acerca-de") + "#alcance"}>Cómo se estima el alcance</a></p>
-    </section>
+    {#if selection.reachFirst}{@render reachReading()}{/if}
     {#if design === "open-end"}
       <p class="note">
         No hay manija: la línea fluye mientras esté cargada, y se corta en la bomba. Sin boquilla, la manguera
@@ -246,6 +250,8 @@
       <button type="button" onclick={() => setControls(prefs.controls === "drawn" ? "plain" : "drawn")}>{prefs.controls === "drawn" ? "Ver controles simples" : "Ver pitón dibujado"}</button>
     </div>
     {/if}
+
+    {#if !selection.reachFirst}{@render reachReading()}{/if}
 
     {#if manufacturer && nozzleSpec && design !== "open-end"}
       <section class="equipment-rating" aria-label="Ficha del pitón">

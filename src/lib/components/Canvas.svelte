@@ -1081,7 +1081,7 @@
       const x = i === 0 ? truckX + 34 * k : n.x;
       let y = i === 0 ? Math.min(layout.groundY - 4.6 * PX_PER_M, truckTop - 42 * gaugeK) : n.y - GAUGE_RISE * gaugeK;
       // The nozzle gauge clears the bale above it (§10.8).
-      if (i === last) y = n.y - NOZZLE_GAUGE_RISE * gaugeK;
+      if (i === last) y = n.y - nozzleGaugeRise * gaugeK;
       return { x, y };
     });
     // Greedy clearance: while its dial-and-reading box covers a sampled hose
@@ -1108,11 +1108,11 @@
   /** The right edge of the fitted view ("Ver todo"): past it a gauge would be cut off. */
   const viewEndX = $derived(layout.xAt(fitted.maxX));
   /** Gauge footprint in gauge units (scaled by `gaugeK`), the line's name above the dial included. */
-  const GAUGE_W = 76;
-  const GAUGE_H = 84;
+  const gaugeWidth = $derived(otherLines.length ? (u.flow === "L/min" ? 112 : 92) : 76);
+  const gaugeHeight = $derived(otherLines.length ? 104 : 84);
   /** How high a gauge's centre starts above its coupling; a nozzle's goes higher to clear the bale (§10.8). */
   const GAUGE_RISE = 72;
-  const NOZZLE_GAUGE_RISE = GAUGE_RISE + 34;
+  const nozzleGaugeRise = $derived(GAUGE_RISE + 34 + (otherLines.length ? 25 : 0));
   /** A hose inside this box around the dial's centre (gauge units) lifts the gauge by `LIFT_STEP`; the reading ends about 36 below. */
   const CLEAR_HALF_W = 36;
   const CLEAR_ABOVE = 24;
@@ -1129,8 +1129,8 @@
    * free slots the nearest wins; lifted rows are the last resort.
    */
   function besideClear(g: { x: number; y: number }, placed: { x: number; y: number }[]) {
-    const w = GAUGE_W * gaugeK;
-    const h = GAUGE_H * gaugeK;
+    const w = gaugeWidth * gaugeK;
+    const h = gaugeHeight * gaugeK;
     // The dial and its name (about 32 either side of its centre) stay inside the frame; the spacing may not.
     const inside = (x: number) => x - 32 * gaugeK >= 0 && x + 32 * gaugeK <= viewEndX;
     // 1 % slack: a slot exactly one width away is free, whatever the rounding.
@@ -1144,11 +1144,11 @@
     // the coupling, and beside each gauge on that row. Farther out a dial loses its coupling.
     // A nozzle's gauge counts even before it is placed: whichever line is drawn first, both find the same row.
     const near = (p: { x: number; y: number }) => p.y < g.y - 1 && g.y - p.y <= h && Math.abs(p.x - g.x) <= 2 * w;
-    const neighbours = [...placed, ...nozzleSpots.map((n) => ({ x: n.x, y: n.y - NOZZLE_GAUGE_RISE * gaugeK }))];
+    const neighbours = [...placed, ...nozzleSpots.map((n) => ({ x: n.x, y: n.y - nozzleGaugeRise * gaugeK }))];
     const rows = [g.y, ...neighbours.filter(near).map((p) => p.y)];
     const slots = rows.flatMap((y) => [
       ...[g.x, g.x - w, g.x + w].map((x) => ({ x, y })),
-      ...neighbours.filter((p) => Math.abs(p.y - y) < 1 && Math.abs(p.x - g.x) <= 2 * w).flatMap((p) => [{ x: p.x - w, y }, { x: p.x + w, y }]),
+      ...neighbours.filter((p) => Math.abs(p.y - y) < h && Math.abs(p.x - g.x) <= 2 * w).flatMap((p) => [{ x: p.x - w, y }, { x: p.x + w, y }]),
     ]);
     // A row in reach is joined exactly: two gauges a few pixels apart in height read as a mistake.
     const joins = (s: { y: number }) => (s.y !== g.y ? 0 : 1);
@@ -1167,7 +1167,7 @@
     return otherLines.map((o) =>
       o.layout.nodes.map((n, i) => {
         if (i <= o.from || !Number.isFinite(o.result.nodes[i]?.pressurePsi)) return null;
-        const g = { x: n.x, y: n.y - (i === o.layout.nodes.length - 1 ? NOZZLE_GAUGE_RISE : GAUGE_RISE) * gaugeK };
+        const g = { x: n.x, y: n.y - (i === o.layout.nodes.length - 1 ? nozzleGaugeRise : GAUGE_RISE) * gaugeK };
         Object.assign(g, besideClear(g, placed));
         placed.push(g);
         return g;
@@ -1620,6 +1620,7 @@
 <svelte:window
   onkeydown={(e) => {
     const t = e.target as Element;
+    if (document.querySelector("dialog[open]")) return;
     if (e.key === "Escape" && armed) armed = null;
     if ((e.key === "Delete" || e.key === "Backspace") && removable && !t.closest("input, textarea, select, [contenteditable], dialog")) {
       e.preventDefault();
@@ -1801,7 +1802,7 @@
                 onGrab={(e) => downOther(e, o, o.layout.nodes.length - 1)}
               />
             </g>
-            {@render flowTag(end, o.result, o.scenario.nozzle)}
+            {#if o.result.flowGpm <= 0 || !Number.isFinite(o.result.nodes.at(-1)?.pressurePsi)}{@render flowTag(end, o.result, o.scenario.nozzle)}{/if}
           </g>
         {/snippet}
         {#each otherLines.filter((o) => o.key !== peek?.key) as o (o.key)}{@render otherLine(o, false)}{/each}
@@ -2007,31 +2008,35 @@
             onGrab={(e) => down(e, last, true)}
           />
         </g>
-        {@render flowTag(layout.nodes[last], result, scenario.nozzle)}
-        <!-- The dials over everything, the spray included (owner, 2026-10-17); they take no pointer, so the bale still works under them. -->
-        {#if showGauges}
-          {#each layout.nodes as n, i (i)}
-            {@const g = gaugeAt(i)}
-            <!-- Behind a shut gate the pressure is unknown (MODEL.md §2): no gauge rather than a made-up reading. -->
-            {#if n.pressurePsi !== null && Number.isFinite(n.pressurePsi)}
-              <g class="gauge" transform={`translate(${g.x} ${g.y}) scale(${gaugeK})`}>
-                <Gauge psi={n.pressurePsi} mark={i === last && scenario.nozzle.design !== "open-end" ? scenario.nozzle.ratedPressurePsi : undefined} />
-                {#if i > firstWye && editedName}<text class="gauge-tag" y="-32"><tspan class="gauge-dot" fill={colorOf(editedKey)}>●</tspan> {editedName}</text>{/if}
-              </g>
+        {#if !otherLines.length || result.flowGpm <= 0 || !Number.isFinite(result.nodes[last]?.pressurePsi)}{@render flowTag(layout.nodes[last], result, scenario.nozzle)}{/if}
+        {#snippet gaugeReading(g: {x: number; y: number}, psi: number | null, mark: number | undefined, name: string, key: string, flow: string)}
+          {#if showGauges || flow}
+            <g class="gauge" transform={`translate(${g.x} ${g.y}) scale(${gaugeK})`}>
+              {#if showGauges}<Gauge {psi} {mark} />{/if}
+              {#if name}<text class="gauge-tag" y={showGauges ? -32 : 12}><tspan class="gauge-dot" fill={colorOf(key)}>●</tspan> {name}</text>{/if}
+              {#if flow}<text class="gauge-tag gauge-flow" y={showGauges ? 53 : 30}>{flow}</text>{/if}
+            </g>
+          {/if}
+        {/snippet}
+        <!-- Keep the branch name, pressure and flow together above the streams. -->
+        {#each layout.nodes as n, i (i)}
+          {#if n.pressurePsi !== null && Number.isFinite(n.pressurePsi)}
+            {@render gaugeReading(gaugeAt(i), n.pressurePsi,
+              i === last && scenario.nozzle.design !== "open-end" ? scenario.nozzle.ratedPressurePsi : undefined,
+              i > firstWye ? editedName : "", editedKey,
+              i === last && otherLines.length && result.flowGpm > 0 ? flowLabel(result, scenario.nozzle) : "")}
+          {/if}
+        {/each}
+        {#each otherLines as o, li (o.key)}
+          {#each otherGauges[li] as g, i (i)}
+            {#if g}
+              {@const end = i === o.layout.nodes.length - 1}
+              {@render gaugeReading(g, o.result.nodes[i].pressurePsi,
+                end && o.scenario.nozzle.design !== "open-end" ? o.scenario.nozzle.ratedPressurePsi : undefined,
+                o.name, o.key, end && o.result.flowGpm > 0 ? flowLabel(o.result, o.scenario.nozzle) : "")}
             {/if}
           {/each}
-          {#each otherLines as o, li (o.key)}
-            {#each o.layout.nodes as n, i (i)}
-              {@const g = otherGauges[li]?.[i]}
-              {#if g}
-                <g class="gauge other-gauge" transform={`translate(${g.x} ${g.y}) scale(${gaugeK})`}>
-                  <Gauge psi={o.result.nodes[i].pressurePsi} mark={i === o.layout.nodes.length - 1 && o.scenario.nozzle.design !== "open-end" ? o.scenario.nozzle.ratedPressurePsi : undefined} />
-                  <text class="gauge-tag" y="-32"><tspan class="gauge-dot" fill={colorOf(o.key)}>●</tspan> {o.name}</text>
-                </g>
-              {/if}
-            {/each}
-          {/each}
-        {/if}
+        {/each}
 
         <!-- Remove the selection, where it is (Quitar's rules): the phone's ×, as it has no floating toolbar; not a placement prompt, so it doesn't pulse. -->
         {#if removable && phone}
@@ -2319,6 +2324,7 @@
   .flow-tag { font-size: calc(12px * var(--k)); font-weight: 700; text-anchor: middle; fill: var(--water); paint-order: stroke; stroke: var(--bg); stroke-width: calc(3px * var(--k)); pointer-events: none; }
   .flow-tag.idle { fill: var(--muted); font-weight: 600; }
   .gauge-tag { font-size: 11px; font-weight: 700; text-anchor: middle; fill: var(--ink); paint-order: stroke; stroke: var(--bg); stroke-width: 3px; pointer-events: none; }
+  .gauge-flow { fill: var(--water); font-size: 14px; }
   .stack-badge { cursor: pointer; outline: none; }
   .stack-badge rect { fill: var(--ink); }
   .stack-badge text { fill: var(--bg); font-size: 12px; font-weight: 700; text-anchor: middle; }

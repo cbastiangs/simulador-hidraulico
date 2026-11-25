@@ -53,6 +53,7 @@
     <button type="button" aria-pressed={group === "practices"} onclick={() => switchGroup("practices")}>Prácticas guiadas</button>
   </div>
   <div class="choices" bind:this={content}>
+    {#if group === "practices"}<h3>Practicar en el editor</h3>{/if}
     {#each (group === "examples" ? examples : practices) as item (item.id)}
       <button type="button" class="option" aria-current={item.id === current} onclick={() => pick(item.id)}>
         <strong>{item.id === "practica-descargas-reserva" ? "Variante · capacidad disponible" : item.scenario.scenario.name.replace(/^Práctica · /, "")}</strong>
@@ -61,6 +62,7 @@
       </button>
     {/each}
     {#if group === "practices"}
+      <h3>Prácticas independientes</h3>
       <a class="option practice-link" href={resolve("/hidrante")}>
         <strong>Abastecimiento desde hidrante</strong>
         <span>Compara una línea, dos entradas y una siamesa de 2½″.</span>
@@ -85,6 +87,7 @@
   .groups button { flex: 1; padding: 5px; font-weight: 600; }
   .groups button[aria-pressed=true], .option[aria-current=true] { border-color: var(--accent); background: var(--accent-soft); }
   .choices { min-height: 0; overflow: auto; display: grid; gap: 6px; padding: 2px 14px 14px; overscroll-behavior: contain; }
+  h3 { margin: 8px 0 2px; font-size: 15px; }
   .option { display: grid; gap: 2px; min-width: 0; padding: 8px 12px; text-align: left; overflow-wrap: anywhere; }
   .practice-link { min-height: 44px; color: inherit; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; text-decoration: none; }
   .option:hover { background: var(--accent-soft); }

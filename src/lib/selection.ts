@@ -6,5 +6,5 @@
 export type Selection =
   | { kind: "section"; index: number }
   | { kind: "joint"; index: number }
-  | { kind: "nozzle" }
+  | { kind: "nozzle"; reachFirst?: boolean }
   | { kind: "pump" };

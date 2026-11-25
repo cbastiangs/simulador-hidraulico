@@ -228,7 +228,8 @@ steady-flow visualization, not water-front travel or hose-filling simulation.
     nozzle keeps its fittings through all of them.
   - **Undo / redo** in the header ("↶ Deshacer", "↷ Rehacer"; Ctrl+Z,
     Ctrl+Shift+Z or Ctrl+Y). A drag or a burst of typing in one field is one
-    step. Loading a preset clears the history.
+    step. Loading a preset is one undo step. Undoing a switch restores the
+    previous lay, its reset point and earlier edits. Redo reopens the new lay.
   - **The engine solves one line or a gated tree.** A line is hoses,
     fittings and a nozzle; a wye splits it into branches, each with its own
     gate, hoses and nozzle, and a branch may hold another wye (nested wyes).
@@ -520,16 +521,20 @@ and dropped: the pump was edited in two places and line settings in three.
   practices, a blank lay, saved lays, and link copying. Examples and
   practices open the same chooser with the relevant group selected.
   Practices are ordered 1–2–3, with the reserve case immediately after
-  exercise 3. File import and export, text exchange, and reset sit under
-  "Archivos, texto y reinicio". Loading an example starts a fresh history.
-  A blank lay, reset and paste are undo steps.
+  exercise 3. Group practices that load into the editor under “Practicar en el
+  editor”. Group the hydrant and pool pages under “Prácticas independientes”.
+  Their return link restores the working session. File import and export,
+  text exchange, and reset sit under "Archivos, texto y reinicio". Loading an
+  example or editor practice, creating a blank lay, resetting and pasting
+  are undo steps.
 - **Ayuda (?)** is available at every width. It opens methods and sources,
   the tour, release notes, and installation and offline information.
-- **The first lay is "Bifurcada" (owner, 2026-10-18)**, replacing "Ataque al
-  2.º piso", whose nozzle opened off the edge of a phone. Its hoses keep
+- **The "Bifurcada" example** (the starting lay from 2026-10-18 until the
+  Turbojet reach example replaced it on 2026-11-21). Its hoses keep
   their 30 m but are laid short and snaked on the ground (`runM`, drawing
-  only), so the truck, the wye and both nozzles fit the start view at 390
-  and 1024 px. Línea 2 goes up to the 2nd floor: the two nozzles never
+  only). Branched lays open in overview so both streams fit. Group each flowing
+  nozzle’s flow with its named gauge above the stream. The truck, wye and both
+  nozzles fit the start view at 390 and 1024 px. Línea 2 goes up to the 2nd floor: the two nozzles never
   share a spot, and the two lines differ, which the welcome tour uses
   (§8.4). Coiled hoses caption in lanes below the ground, shortening the
   caption before two overlap.
@@ -711,11 +716,11 @@ actions; "inspector" = the side column (desktop) or the sheet at full.
 ### 8.4 Welcome tour (owner, 2026-10-18; replaces the 2026-10-15 steps)
 
 **When.** First visit only, remembered per browser (a failed storage read
-shows it again, never breaks the page). It starts on the default lay
-(§4, "Bifurcada"). A shared link or a pasted scenario never starts it: the
+shows it again, never breaks the page). It starts on the default Turbojet reach example. A shared link or a pasted scenario never starts it: the
 notice that names the lay offers "¿Primera vez? Ver recorrido" instead, and
 the tour then runs on that lay. Reopen it from **Ayuda (?) → Ver recorrido**
-at any width.
+at any width. The invitation is a modal dialog. Empezar closes it and starts
+the hands-on steps. Ahora no or Escape returns to the editor.
 
 **Generic steps.** Every step points at a kind of thing (the pump, a
 nozzle, a coupling, a hose, the pressure bar), never at a preset's piece,
@@ -1652,12 +1657,14 @@ The starting example is a single 30 m line with a named Akron Turbojet 1720,
 to the lay and stream; manual pan/zoom and gesture-time camera freezing remain.
 Existing examples, restored work and share links retain their own content.
 A persistent reach button below the drawing opens the selected line's nozzle
-inspector. Its first reading includes the reach and the basis/limits before
-the operating controls. Show a numeric current reach only when the existing
+inspector. Opening from this button shows reach and its basis first. Selecting
+the nozzle in the drawing or parts list puts the handle, ring and pattern
+first, including in the portrait sheet’s half-height view. Show a numeric current reach only when the existing
 engine marks it supported; otherwise say illustrative or no stream. In fog,
 a separately labelled straight-stream reference may be shown if supported.
 Nominal rating and actual delivered pressure/flow remain distinct.
 
+The portrait pump strip labels its action “Ver bomba” below the readings.
 Reach opens the full inspector on portrait phones in one tap. The desktop
 canvas reserves the measured toolbar height; the compact landscape inspector
 has room for the single-line ideal-pressure shortcut and live flow. Verified

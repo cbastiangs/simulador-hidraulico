@@ -1,16 +1,20 @@
 <script module lang="ts">
   import type { AppDocument } from "$lib/document.ts";
 
-  // Keep the editing session in memory while the user consults the reference page.
-  let workspaceReturn: {
-    document: AppDocument;
+  type ScenarioContext = {
     base: AppDocument;
     presetId: string | null;
-    past: AppDocument[];
-    future: AppDocument[];
     practiceEpoch: number;
     revealedPracticeKey: string | null;
     dischargeBaseline: { key: string; values: number[] } | null;
+  };
+  type HistoryEntry = { document: AppDocument; context?: ScenarioContext };
+
+  // Keep the editing session in memory while the user consults the reference page.
+  let workspaceReturn: ScenarioContext & {
+    document: AppDocument;
+    past: HistoryEntry[];
+    future: HistoryEntry[];
     autoSaveEnabled: boolean;
   } | undefined;
 </script>
@@ -156,10 +160,13 @@
   /** Viewport edge available to the drawing above the peek or closed sheet. */
   const shortPortrait = $derived(phone && !landscape && viewportHeight < 650);
   const canvasBottom = $derived(landscape ? Infinity : windowHeight - keyboardBottom - (sheet === "peek" ? sheetHeights(viewportHeight).peek : closedSheetHeight));
+  let desktopPanel: HTMLDivElement | undefined = $state();
   let landscapePanel: HTMLDivElement | undefined = $state();
 
   function select(s: Selection, open = true) {
-    if (landscapePanel && JSON.stringify(s) !== JSON.stringify(selection)) landscapePanel.scrollTop = 0;
+    if (JSON.stringify(s) !== JSON.stringify(selection)) {
+      (landscapePanel ?? desktopPanel)?.scrollTo({ top: 0 });
+    }
     selection = s;
     if (open && sheet === "closed") sheet = "peek";
   }
@@ -208,8 +215,8 @@
   // with the same key (one drag, one typed field) is one step.
   const HISTORY_MAX = 100;
   const BURST_MS = 600;
-  let past: AppDocument[] = $state.raw([]);
-  let future: AppDocument[] = $state.raw([]);
+  let past: HistoryEntry[] = $state.raw([]);
+  let future: HistoryEntry[] = $state.raw([]);
   let burst = { key: "", at: 0 };
 
   function apply(next: Scenario, key = "") {
@@ -226,7 +233,7 @@
     if (oldTank && next.scenario.source.tank === oldTank) next = { ...next, scenario: { ...next.scenario, source: { ...next.scenario.source, tank: scenario.source.tank } } };
     const now = performance.now();
     const sameBurst = key !== "" && key === burst.key && now - burst.at < BURST_MS;
-    if (!sameBurst) past = [...past.slice(-(HISTORY_MAX - 1)), activeDocument];
+    if (!sameBurst) rememberEdit();
     burst = { key, at: now };
     future = [];
     activeDocument = next;
@@ -266,24 +273,43 @@
     keepSelection();
   }
 
+  function currentEntry(withContext = false): HistoryEntry {
+    const context = withContext ? { base, presetId, practiceEpoch, revealedPracticeKey, dischargeBaseline: $state.snapshot(dischargeBaseline) } : undefined;
+    return { document: activeDocument, context };
+  }
+
+  function rememberEdit(withContext = false) {
+    past = [...past.slice(-(HISTORY_MAX - 1)), currentEntry(withContext)];
+  }
+
+  function restoreEntry(entry: HistoryEntry) {
+    activeDocument = entry.document;
+    burst = { key: "", at: 0 };
+    if (entry.context) {
+      ({ base, presetId, practiceEpoch, revealedPracticeKey, dischargeBaseline } = entry.context);
+      loads += 1;
+      selectedPath = [];
+      practiceOpen = false;
+      deselect();
+    } else keepSelection();
+  }
+
   function undo() {
     pauseClock();
-    if (past.length === 0) return;
-    future = [activeDocument, ...future];
-    activeDocument = past[past.length - 1];
+    const entry = past.at(-1);
+    if (!entry) return;
+    future = [currentEntry(!!entry.context), ...future];
     past = past.slice(0, -1);
-    burst = { key: "", at: 0 };
-    keepSelection();
+    restoreEntry(entry);
   }
 
   function redo() {
     pauseClock();
-    if (future.length === 0) return;
-    past = [...past, activeDocument];
-    activeDocument = future[0];
+    const entry = future[0];
+    if (!entry) return;
+    rememberEdit(!!entry.context);
     future = future.slice(1);
-    burst = { key: "", at: 0 };
-    keepSelection();
+    restoreEntry(entry);
   }
 
   function onKey(event: KeyboardEvent) {
@@ -442,23 +468,11 @@
   });
 
   function choosePreset(id: string) {
-    practiceEpoch += 1;
-    if (scenarioMenu) scenarioMenu.open = false;
-    pauseClock();
+    const preset = presets.find(p => p.id === id)!;
+    loadShared(preset.scenario, true);
     presetId = id;
-    burst = { key: "", at: 0 };
-    loads += 1;
-    practiceOpen = !!presets.find(p => p.id === id)?.scenario.exercise;
-    activeDocument = base = presets.find((p) => p.id === id)!.scenario;
-    selection = null;
-    selectedPath = [];
-    past = [];
-    future = [];
   }
 
-  // The header's "Escenario" menu (UX.md §4): the presets, a blank line,
-  // reset; later copy and paste. A blank line and reset are undoable and
-  // refit the canvas; a preset starts a fresh history.
   let scenarioMenu: HTMLDetailsElement | undefined = $state();
   let helpMenu: HTMLDetailsElement | undefined = $state();
   function closeMenu(menu: HTMLDetailsElement | undefined) {
@@ -509,14 +523,14 @@
   }
   /** A scenario from outside becomes what Reiniciar returns to; a paste is an undo step, a link opens fresh. */
   function loadShared(next: AppDocument, undoable: boolean) {
-    practiceEpoch += 1;
     pauseClock();
-    if (undoable) applyDocument(next);
-    else {
-      activeDocument = next;
-      past = [];
-      future = [];
-    }
+    if (undoable) rememberEdit(true);
+    else past = [];
+    future = [];
+    activeDocument = next;
+    practiceEpoch += 1;
+    revealedPracticeKey = null;
+    dischargeBaseline = null;
     base = next;
     burst = { key: "", at: 0 };
     practiceOpen = !!next.exercise;
@@ -672,7 +686,7 @@
   function toggleClock() {
     if (clockRunning) return pauseClock();
     if (scenario.source.hydrant || scenario.source.pool || !scenario.source.tank?.remainingGal || totalFlow === null || totalFlow <= 0) return;
-    past = [...past.slice(-(HISTORY_MAX - 1)), activeDocument]; future = [];
+    rememberEdit(); future = [];
     lastTick = performance.now(); clockRunning = true;
   }
   function changeTank(next: Scenario) { pauseClock(); apply(next); }
@@ -877,8 +891,8 @@
       bottomInsetPx={pressureDockHeight}
       topInsetPx={activeDocument.exercise ? practiceHeaderHeight + 12 : 0}
       floorM={edit.floorOf(scenario)}
-      onShowReach={() => { select({ kind: "nozzle" }); if (phone && !landscape) sheet = "full"; }}
-      initialOverview={presetId === DEFAULT_PRESET}
+      onShowReach={() => { select({ kind: "nozzle", reachFirst: true }); if (phone && !landscape) sheet = "full"; }}
+      initialOverview={presetId === DEFAULT_PRESET || others.length > 0}
       resetKey={`${presetId}#${loads}`}
       onSelect={select}
       onTapEmpty={deselect}
@@ -911,7 +925,7 @@
   </div>
 
   {#if !phone}
-    <div class="side">
+    <div class="side" bind:this={desktopPanel}>
       {#if wide}<div class="head" data-tour="pump">{@render pumpPanel("head")}</div>{/if}
       {@render side()}
     </div>
@@ -945,7 +959,9 @@
 <Tour running={touring} {phone} {scenario} {selection} onFit={() => (fitSignal += 1)} onDeselect={deselect} onEnd={() => (touring = false)} />
 
 {#if storageReady}
+  {#key practiceEpoch}
   <FireFlowPractice open={practiceOpen} doc={activeDocument} readings={practiceReadings} revealed={practiceRevealed} onReveal={revealPractice} resetKey={practiceEpoch} onClose={() => practiceOpen = false} onAdd={addExercise} onCompareHoses={diameterPractice ? inspectPracticeHose : undefined} onchange={changeExercise} />
+{/key}
 {/if}
 
 <Novedades open={novedadesOpen} {unread} onClose={closeNovedades} />

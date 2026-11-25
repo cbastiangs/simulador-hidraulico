@@ -126,9 +126,10 @@
       <span class="req-label">{atIdeal ? "✓ Ideal" : "Ideal"}</span>
       <span class="req-value">{u.p(required, 0)}</span>
     </button>{/if}
-    <button type="button" class="flow-open" aria-label="Bomba: salida y accesorios" onclick={onOpen}>
+    <button type="button" class="flow-open" onclick={onOpen}>
       <span class="big">{operation && operation.flowGpm === null ? "—" : u.q(result.flowGpm, 0)} <small>{u.flow}</small></span>
-      <span class="mini" class:warn-text={warn}>{operation ? `${u.p(actualPsi, 0)} ${u.pressure} reales` : branched ? balanced ? "Total de líneas" : "Sin equilibrio" : missing.length > 0 ? "Sin conectar" : gap ? `escalón ${u.q(gap.stepGpm, 0)}` : issue ? issue.code === "high-point" ? "Sin entrega" : "Sin equilibrio" : result.state === "flowing" ? `${rated ? "pitón" : "punta"} ${u.p(result.nozzlePressurePsi, 0)} ${u.pressure}` : result.state === "nozzle-closed" ? "Cerrado" : "No llega"}{" "}<span class="chev" aria-hidden="true">›</span></span>
+      <span class="mini" class:warn-text={warn}>{operation ? `${u.p(actualPsi, 0)} ${u.pressure} reales` : branched ? balanced ? "Total de líneas" : "Sin equilibrio" : missing.length > 0 ? "Sin conectar" : gap ? `escalón ${u.q(gap.stepGpm, 0)}` : issue ? issue.code === "high-point" ? "Sin entrega" : "Sin equilibrio" : result.state === "flowing" ? `${rated ? "pitón" : "punta"} ${u.p(result.nozzlePressurePsi, 0)} ${u.pressure}` : result.state === "nozzle-closed" ? "Cerrado" : "No llega"}</span>
+      <span class="open-label">Ver bomba ›</span>
     </button>
   </section>
 {:else if head}
@@ -252,7 +253,7 @@
   .flow-open .big { font-size: 21px; white-space: nowrap; }
   .flow-open .big small { font-size: 11px; }
   .mini { font-size: 11px; color: var(--ok-ink); white-space: nowrap; }
-  .chev { color: var(--panel-muted); }
+  .open-label { font-size: 12px; color: var(--panel-ink); }
   .chip.small { width: 48px; min-width: 48px; min-height: 44px; padding: 4px 2px; font-size: 13px; display: grid; justify-items: center; align-content: center; gap: 1px; line-height: 1; }
   .req-label { font-size: 10px; font-weight: 600; color: var(--panel-muted); }
   .req-value { font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; background: var(--panel-line); border-radius: 999px; padding: 1px 6px; min-width: 24px; text-align: center; }

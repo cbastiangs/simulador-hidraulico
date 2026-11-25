@@ -13,7 +13,7 @@
 
 <script lang="ts">
   import { driver, type Driver, type PopoverDOM } from "driver.js";
-  import { onDestroy } from "svelte";
+  import { onDestroy, untrack } from "svelte";
   import type { Scenario, ScenarioBranch } from "$hydraulics/scenario.ts";
   import type { Selection } from "$lib/selection.ts";
 
@@ -90,12 +90,6 @@
   const branched = $derived(!!scenario.wye || !!scenario.discharges);
 
   const steps: Step[] = [
-    {
-      title: "Simulador hidráulico",
-      text: () => "Cambias el tendido y la bomba; el caudal lo calcula la física. Un minuto.",
-      target: () => null,
-      button: "Empezar",
-    },
     {
       title: "El tendido",
       text: () => "De lado: bomba → mangueras → pitones. Las líneas grises son los pisos.",
@@ -174,6 +168,7 @@
     },
   ];
 
+  let welcome: HTMLDialogElement;
   let tour: Driver | null = null;
   let order: number[] = [];
   let at = $state(-1);
@@ -181,6 +176,7 @@
   let timer: ReturnType<typeof setInterval> | undefined;
 
   function begin() {
+    welcome.close();
     order = steps.flatMap((s, i) => (s.applies?.() ?? true ? [i] : []));
     tour = driver({
       animate: !matchMedia("(prefers-reduced-motion: reduce)").matches,
@@ -217,7 +213,6 @@
     const step = steps[order[at]];
     const target = step.target();
     pointed = target;
-    const counted = order[0] === 0 ? order.length - 1 : order.length;
     tour.highlight({
       element: target ?? undefined,
       popover: {
@@ -226,14 +221,14 @@
         showButtons: step.done ? [] : ["next"],
         nextBtnText: step.button ?? "Siguiente",
         showProgress: true,
-        progressText: order[at] === 0 ? "" : `${order[0] === 0 ? at : at + 1} de ${counted}`,
+        progressText: `${at + 1} de ${order.length}`,
         onNextClick: () => go(at + 1),
         onPopoverRender: (popover: PopoverDOM) => {
           if (order[at] === steps.length - 1) return;
           const skip = document.createElement("button");
           skip.type = "button";
           skip.className = "driver-popover-footer-btn tour-skip";
-          skip.textContent = order[at] === 0 ? "Ahora no" : "Saltar";
+          skip.textContent = "Saltar";
           skip.onclick = () => tour?.destroy();
           // Last in the DOM, first on screen: focus lands on the step's own button.
           popover.footerButtons.append(skip);
@@ -264,8 +259,11 @@
   });
 
   $effect(() => {
-    if (running && !tour) begin();
-    if (!running && tour) tour.destroy();
+    if (running) welcome.showModal();
+    else {
+      welcome.close();
+      untrack(() => tour?.destroy());
+    }
   });
 
   onDestroy(() => {
@@ -274,7 +272,24 @@
   });
 </script>
 
+<dialog bind:this={welcome} aria-labelledby="welcome-title" aria-describedby="welcome-description"
+  oncancel={event => { event.preventDefault(); finish(); }}>
+  <h2 id="welcome-title">Simulador hidráulico</h2>
+  <p id="welcome-description">Cambias el tendido y la bomba; el caudal lo calcula la física. Un minuto.</p>
+  <div class="welcome-actions">
+    <button type="button" onclick={finish}>Ahora no</button>
+    <button type="button" class="start" onclick={begin}>Empezar</button>
+  </div>
+</dialog>
+
 <style>
+  dialog { width: min(320px, calc(100vw - 32px)); padding: 16px; border: 0; border-radius: 12px; background: var(--surface); color: var(--ink); box-shadow: 0 10px 30px #0004; }
+  dialog::backdrop { background: #0007; }
+  dialog h2 { margin: 0 0 4px; font-size: 17px; }
+  dialog p { margin: 0; }
+  .welcome-actions { display: flex; justify-content: end; gap: 8px; margin-top: 14px; }
+  .welcome-actions button { min-height: 44px; padding: 0 16px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); font-weight: 600; cursor: pointer; }
+  .welcome-actions .start { background: var(--accent); color: white; border-color: var(--accent); }
   /* Driver.js's own sheet disables the page's pointer events; this keeps only its look, in the app's tokens. */
   :global(.driver-overlay),
   :global(.driver-overlay path) { pointer-events: none !important; }
