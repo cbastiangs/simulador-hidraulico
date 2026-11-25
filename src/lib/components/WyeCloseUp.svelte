@@ -71,25 +71,25 @@
 </svg>
 
 <style>
-  svg { width: 100%; height: auto; background: var(--band); border-radius: 12px; user-select: none; }
+  svg { width: 100%; height: auto; background: var(--equipment-paper); border-radius: 12px; user-select: none; }
   .hose { stroke: var(--hose); stroke-width: 14; }
-  .swivel { fill: #6b747d; stroke: #2b3036; stroke-width: 2; }
-  .lug { fill: #2b3036; }
-  .arm-edge { stroke: #2b3036; stroke-width: 22; stroke-linecap: round; }
-  .arm { stroke: #9aa3ab; stroke-width: 18; stroke-linecap: round; }
-  .hub-edge { fill: #2b3036; }
-  .hub { fill: #9aa3ab; }
-  .coupling { fill: #6b747d; stroke: #2b3036; stroke-width: 1.5; }
+  .swivel { fill: var(--equipment-seam); stroke: var(--equipment-edge); stroke-width: 2; }
+  .lug { fill: var(--equipment-edge); }
+  .arm-edge { stroke: var(--equipment-edge); stroke-width: 22; stroke-linecap: round; }
+  .arm { stroke: var(--equipment-metal); stroke-width: 18; stroke-linecap: round; }
+  .hub-edge { fill: var(--equipment-edge); }
+  .hub { fill: var(--equipment-metal); }
+  .coupling { fill: var(--equipment-seam); stroke: var(--equipment-edge); stroke-width: 1.5; }
   .hose, .swivel, .lug, .arm, .arm-edge, .hub, .hub-edge, .coupling, text { pointer-events: none; }
   .name { font-size: 13px; font-weight: 700; fill: var(--ink); }
   .reading { font-size: 12px; fill: var(--muted); font-variant-numeric: tabular-nums; }
   .reading.off { fill: var(--warn); }
   .valve { cursor: pointer; outline: none; }
   .hit { fill: transparent; }
-  .ball { fill: #c9ced3; stroke: #2b3036; stroke-width: 2; pointer-events: none; }
+  .ball { fill: #c9ced3; stroke: var(--equipment-edge); stroke-width: 2; pointer-events: none; }
   .lever { transition: transform 0.2s ease; pointer-events: none; }
   .lever rect { fill: #1b2128; }
-  .lever .grip { fill: #c0392b; }
+  .lever .grip { fill: var(--equipment-paint); }
   .valve:focus-visible .ball { stroke: var(--accent); stroke-width: 4; }
   @media (prefers-reduced-motion: reduce) { .lever { transition: none; } }
 </style>

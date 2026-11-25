@@ -470,7 +470,7 @@
 <style>
   .scale-note { margin: 4px 0; font-size: 11px; color: var(--muted); }
   .closeup { display: grid; gap: 8px; }
-  svg { width: 100%; max-width: 400px; justify-self: center; height: auto; background: var(--band); border-radius: 12px; touch-action: none; user-select: none; }
+  svg { width: 100%; max-width: 400px; justify-self: center; height: auto; background: var(--equipment-paper); border-radius: 12px; touch-action: none; user-select: none; }
   .spray, .core, .flow, .tag, .hose, .lug, .swivel, .knurl, .body, .barrel, .grip2, .trim, .ring-body, .ring-num, .mark, .collar, .rib, .tooth, .tooth-rubber, .shadow, .pin, .slide-rail, .index, .pressure-half,
   .dark, .steel, .brass, .label, .red, .yellow, .orange, .blue { pointer-events: none; }
   /* The product's own colours, fixed in both themes (the art palette, nozzle-art/types.ts). */
@@ -487,10 +487,10 @@
   .flow { font-size: 12px; font-weight: 700; text-anchor: end; fill: var(--water); font-variant-numeric: tabular-nums; }
   .tag { font-size: 10px; fill: var(--muted); }
   .hose { fill: var(--hose); }
-  .swivel, .lug { fill: var(--steel); }
+  .swivel, .lug { fill: var(--equipment-metal); stroke: var(--equipment-edge); }
   .knurl { stroke: rgba(0, 0, 0, 0.25); stroke-width: 2; }
-  .body { fill: #c0392b; }
-  .barrel { fill: #8f989f; }
+  .body { fill: var(--equipment-paint); stroke: var(--equipment-edge); }
+  .barrel { fill: var(--equipment-metal); stroke: var(--equipment-edge); }
   .grip2 { fill: #2b2f33; }
   .trim { fill: #2b2f33; }
   .ring-body { fill: #c9ced3; stroke: var(--steel); stroke-width: 1.5; }

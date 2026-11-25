@@ -568,6 +568,19 @@ and dropped: the pump was edited in two places and line settings in three.
 - Diagrams are flat and technical, not skeuomorphic: clean shapes, a few
   well-chosen details (coupling rings, bale lever), no gradients or textures.
 
+**Equipment illustrations (owner approved, 2026-11-24).** Use a fire-service field
+guide as the common visual reference. On the canvas, draw a clear silhouette
+with one dark outer line and a lighter internal seam. Show the detail that
+identifies each piece at phone size, such as a nozzle's bale, a wye's fork or
+a truck's hose bed. In equipment close-ups, use the extra space for working
+parts such as the selector ring and its markings. Use warm reds for painted
+apparatus, canvas tan for folded hose and cool grey for bare metal. Keep
+the water path blue and draw readings on plain, high-contrast instrument
+faces. Carry the same silhouettes and materials into the piece picker and
+guided practices. Product-specific nozzle plates keep their documented shapes
+and finishes. On dark backgrounds, lighten the plate or metal rim enough to
+keep black rubber parts and instrument pointers visible.
+
 ## 6. Approved design
 
 **Main screen, approved by the owner 2026-10-15:**
@@ -1706,6 +1719,22 @@ The scenario chooser and Help menu were checked at 360×740, 390×844,
 practice, switching the chooser to examples, saving a lay, copying its link,
 file-action discovery, Escape dismissal, and About with a return to the same
 lay. Screenshots: `reports/scenario-navigation/`.
+
+### Truck and hard-suction artwork (2026-11-22)
+
+Keep the rear body at a fixed screen size across truck profiles. A recessed
+hose bed, stacked tail lights, reflective chevrons and a step bumper identify
+the vehicle. Only the adjacent numbered discharge strip grows with port count.
+Draw the truck like a plate in a printed fire-service manual. Use a dark
+outer contour, flat vermilion and oxblood body panels, a cream cab roof and
+folds of tan canvas. Let the roof, ladder and step break the silhouette.
+Show the rear from slightly to the left. A visible cab window, side locker
+and wheel give the body depth at the editor's roughly 60 px width. Keep
+the rear face square to the numbered outlet strip, with the “ESQUEMA”
+plate on the tailboard beneath the chevrons.
+For hard suction, use a gentle bend, conspicuous transverse ribs and metal
+couplings at both ends. Review the artwork at `/boquillas?only=succion` in
+development before integrating it with a supply scenario.
 
 **Pool practice (2026-11-23).** Open the fixed drafting rig from Escenario ›
 Prácticas guiadas. Returning to the editor restores the working lay and its

@@ -83,24 +83,24 @@
 </g>
 
 <style>
-  .swivel, .lug, .casting, .spout, .ring, .nut { pointer-events: none; stroke: #2b3036; stroke-linejoin: round; }
-  .swivel { fill: #7b848c; stroke-width: 1.5; }
-  .lug { fill: #2b3036; stroke: none; }
-  .casting { fill: #a7afb6; stroke-width: 1.5; }
-  .spout { fill: #a7afb6; stroke-width: 1.2; }
-  .spout.far { fill: #7b848c; }
-  .ring { fill: #6b747d; stroke-width: 1; }
+  .swivel, .lug, .casting, .spout, .ring, .nut { pointer-events: none; stroke: var(--equipment-edge); stroke-linejoin: round; }
+  .swivel { fill: var(--equipment-seam); stroke-width: 1.5; }
+  .lug { fill: var(--equipment-edge); stroke: none; }
+  .casting { fill: var(--equipment-metal); stroke-width: 1.5; }
+  .spout { fill: var(--equipment-metal); stroke-width: 1.2; }
+  .spout.far { fill: var(--equipment-seam); }
+  .ring { fill: var(--equipment-seam); stroke-width: 1; }
   .ring.far { fill: #565e66; }
-  .nut { fill: #6b747d; stroke-width: 0.8; }
-  .cap { fill: #2b3036; pointer-events: none; }
+  .nut { fill: var(--equipment-seam); stroke-width: 0.8; }
+  .cap { fill: var(--equipment-edge); pointer-events: none; }
   .spill { fill: var(--water); opacity: 0.55; pointer-events: none; }
   .spill-tag { font-size: 8px; font-weight: 700; fill: var(--warn); text-anchor: middle; pointer-events: none; paint-order: stroke; stroke: var(--bg, #fff); stroke-width: 2px; }
   .valve { cursor: pointer; outline: none; }
   .hit { fill: transparent; }
   .handle { transform-box: view-box; transform-origin: 0 0; transition: transform 0.22s ease; pointer-events: none; }
   .bar { fill: #1b2128; }
-  .grip { fill: #c0392b; }
-  .end { opacity: 0; transition: opacity 0.22s ease; pointer-events: none; stroke: #2b3036; stroke-width: 0.8; }
+  .grip { fill: var(--equipment-paint); }
+  .end { opacity: 0; transition: opacity 0.22s ease; pointer-events: none; stroke: var(--equipment-edge); stroke-width: 0.8; }
   .end.on { opacity: 1; }
   @media (prefers-reduced-motion: reduce) { .handle, .end { transition: none; } }
   .valve:focus-visible .hit { stroke: var(--accent); stroke-width: 2; }

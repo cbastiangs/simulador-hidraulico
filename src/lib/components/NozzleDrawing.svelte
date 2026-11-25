@@ -270,8 +270,8 @@
   .yellow { fill: #e8c02a; }
   .orange { fill: #e07f2a; }
   .blue { fill: #2aa7c4; }
-  .tip { fill: var(--steel); }
-  .barrel { fill: var(--ink); }
+  .tip, .ring, .barrel { fill: var(--equipment-metal); stroke: var(--equipment-edge); }
+
   .spray.solid { fill: var(--water); opacity: 0.45; }
   .selection { fill: none; stroke: var(--accent); stroke-width: 2; stroke-dasharray: 5 4; }
   .spray { fill: var(--water-soft); opacity: 0.8; }
@@ -282,15 +282,15 @@
   .reach.fitted { fill: var(--ink); }
   @media (prefers-reduced-motion: reduce) { .drops { display: none; } }
   .core { fill: var(--water); opacity: 0.6; }
-  .body { fill: var(--ink); }
-  .ring { fill: var(--steel); }
+  .body { fill: var(--equipment-paint); stroke: var(--equipment-edge); }
+
   .ring-label { font-size: 10px; font-weight: 700; text-anchor: middle; fill: var(--ink); }
-  .collar { fill: var(--water); }
+  .collar { fill: var(--equipment-rubber); stroke: var(--equipment-metal); }
   .pressure { fill: var(--steel); }
   .tooth { fill: var(--steel); }
-  .tooth-rubber { fill: var(--water); }
-  .grip { fill: var(--ink); }
-  .index { stroke: var(--water); stroke-width: 1.5; }
+  .tooth-rubber { fill: var(--equipment-seam); }
+  .grip { fill: var(--equipment-rubber); }
+  .index { stroke: var(--steel); stroke-width: 1.5; }
   .lever { stroke: var(--ink); stroke-width: 4; stroke-linecap: round; }
   .knob { fill: var(--ink); }
   .slider { fill: var(--ink); }

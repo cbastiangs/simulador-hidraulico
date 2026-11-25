@@ -24,6 +24,7 @@
   import Actions from "./Actions.svelte";
   import type { Action, Target } from "$lib/actions.ts";
   import Gauge from "./Gauge.svelte";
+  import { rearOutletY, rearTruckHeight } from "$lib/geometry/rear-truck";
   import RearTruck from "./RearTruck.svelte";
   import JointControls from "./JointControls.svelte";
   import NozzleDrawing from "./NozzleDrawing.svelte";
@@ -420,7 +421,7 @@
   // A wye on a branched lay's drawn path (UX.md §2) is drawn by itself, not as an adapter.
   const pumpJunction = $derived(junctionsOf(scenario).find(j => j.pump));
   const truckPorts = $derived(pumpJunction?.outlets ?? [{ name: 'Salida', open: true, active: true, empty: false }]);
-  const truckHeight = $derived(Math.max(88, 54 + truckPorts.length * 14));
+  const truckHeight = $derived(rearTruckHeight(truckPorts.length));
   const truckX = $derived(layout.nodes[0].x - 104 * k);
   const truckY = $derived(layout.groundY - (truckHeight + 3) * k);
   const junctions = $derived(junctionsOf(scenario).filter(j => !j.pump));
@@ -1442,7 +1443,7 @@
       ...[layout, ...otherLines.map((o) => o.layout)].flatMap((lay) => [
         ...lay.nodes.map((n, i) => box(n.x, n.y, 30, 30, i === lay.nodes.length - 1 ? 130 : 30, 45)),
       ]),
-      box(truckX + 34 * k, layout.groundY, 42, truckHeight + 12, 42, 24),
+      box(truckX + 34 * k, layout.groundY, 49, truckHeight + 12, 42, 24),
       ...hoseLabels.map((l) => box(l.x, l.y, measureLabel(l.text) / 2, 12, measureLabel(l.text) / 2, 12)),
       ...(showGauges ? [...gauges, ...otherGauges.flat().filter((g) => g !== null)].map((g) =>
         box(g.x, g.y, 38 * gaugeK * zoom, 44 * gaugeK * zoom, 38 * gaugeK * zoom, 40 * gaugeK * zoom)) : []),
@@ -1504,7 +1505,7 @@
     if (spot.kind === "outlet") {
       if (spot.joint === 0 && pumpJunction) {
         const index = pumpJunction.outlets.findIndex(o => o.path.join('/') === spot.path.join('/'));
-        const y = truckY + (44 + Math.max(0, index) * 14) * k;
+        const y = truckY + rearOutletY(Math.max(0, index)) * k;
         return { x: layout.nodes[0].x + 28 * k, y: layout.groundY - (24 + Math.max(0, index) * 44) * k,
           from: { x: truckX + 68 * k, y } };
       }
@@ -1718,15 +1719,15 @@
           onpointerdown={(e) => holdStart(e, { kind: "pump" })}
         >
           <g transform={`translate(${truckX} ${truckY}) scale(${k})`}>
-            <rect class="truck-hit" x="-4" y="-4" width="76" height={truckHeight + 12} rx="8" />
+            <rect class="truck-hit" x="-13" y="-4" width="85" height={truckHeight + 12} rx="8" />
             <RearTruck ports={truckPorts} selected={selection?.kind === "pump"} />
           </g>
         </g>
         <!-- Connections are diagram leaders, not hose length or port elevation. -->
         {#each truckPorts as port, i}
-          {@const y = truckY + (44 + i * 14) * k}
+          {@const y = truckY + rearOutletY(i) * k}
           <path class="source-link" class:active={port.active} class:closed={!port.open}
-            d={port.empty ? `M ${truckX + 62 * k} ${y} h ${12 * k}` : `M ${truckX + 62 * k} ${y} H ${layout.nodes[0].x - (26 - i * 2) * k} V ${layout.nodes[0].y} H ${layout.nodes[0].x}`}
+            d={port.empty ? `M ${truckX + 69 * k} ${y} h ${12 * k}` : `M ${truckX + 69 * k} ${y} H ${layout.nodes[0].x - (26 - i * 2) * k} V ${layout.nodes[0].y} H ${layout.nodes[0].x}`}
             stroke-width={(port.active ? 2.5 : 1) * k} />
         {/each}
         <text class="tag" x={truckX + 34 * k} y={layout.groundY + 16 * k}>Bomba</text>
@@ -2297,7 +2298,7 @@
   .source-link { fill: none; stroke: var(--steel); pointer-events: none; }
   .source-link.active { stroke: var(--water); }
   .source-link.closed { stroke-dasharray: 3 3; }
-  .coupling { fill: var(--steel); }
+  .coupling, .lane-coupling { fill: var(--equipment-metal); stroke: var(--equipment-edge); stroke-width: 1; }
   .gauge { pointer-events: none; }
   /* Painted fittings are real targets (the ≥44 px handle circle stays as padding & keyboard focus). */
   .fittings { pointer-events: visiblePainted; }
@@ -2312,7 +2313,7 @@
   .valve line { stroke: var(--fitting); stroke-width: 2; }
   .missing circle { fill: var(--warn); }
   .hose.idle { opacity: 0.55; }
-  .lane-coupling { fill: var(--steel); pointer-events: none; }
+  .lane-coupling { pointer-events: none; }
   .peek-outline { fill: none; stroke: var(--accent); opacity: 0.55; pointer-events: none; }
   .gauge-dot { font-size: 13px; }
   .flow-tag { font-size: calc(12px * var(--k)); font-weight: 700; text-anchor: middle; fill: var(--water); paint-order: stroke; stroke: var(--bg); stroke-width: calc(3px * var(--k)); pointer-events: none; }
@@ -2327,7 +2328,7 @@
   .toast { padding: 6px 12px; border-radius: 8px; background: var(--ink); color: var(--bg); font-size: 13px; pointer-events: none; }
   .missing text { fill: #fff; font-size: 14px; font-weight: 800; text-anchor: middle; }
   .hose { stroke: var(--hose); stroke-linecap: butt; fill: none; }
-  .hose-outline { stroke: #000; stroke-linecap: butt; fill: none; pointer-events: none; }
+  .hose-outline { stroke: var(--equipment-edge); stroke-linecap: butt; fill: none; pointer-events: none; }
   .particles { fill: none; stroke: #fff; stroke-opacity: 0.95; stroke-linecap: round; pointer-events: none; }
   @media (prefers-reduced-motion: reduce) { .particles { display: none; } .stage.glide { transition: none; } }
   .hose-selected { fill: none; stroke: var(--accent); stroke-opacity: 0.35; stroke-linecap: round; pointer-events: none; }

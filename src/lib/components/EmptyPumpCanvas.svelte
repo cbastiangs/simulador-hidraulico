@@ -2,6 +2,7 @@
   import { u } from "$lib/display-units.svelte.ts";
   import type { Scenario, ScenarioTreeResult } from "$hydraulics/scenario.ts";
   import { PIECES, type PieceId } from "$lib/pieces.ts";
+  import { rearTruckHeight } from "$lib/geometry/rear-truck";
   import RearTruck from "./RearTruck.svelte";
   import PieceStrip from "./PieceStrip.svelte";
   let { scenario, network, onConnect, onGate, onPump }: {
@@ -14,7 +15,7 @@
   <h2>Bomba sin mangueras</h2>
   <p>Elige una manguera en Piezas y toca la descarga donde quieres conectarla.</p>
   <button type="button" class="truck" aria-label="Bomba: elegir salida" onclick={onPump}>
-    <svg viewBox={`0 0 100 ${Math.max(88, 54 + (scenario.discharges?.length ?? 1) * 14) + 12}`} aria-hidden="true">
+    <svg viewBox={`0 0 100 ${rearTruckHeight(scenario.discharges?.length ?? 1) + 12}`} aria-hidden="true">
       <g transform="translate(16 4)"><RearTruck ports={scenario.discharges?.map(d => ({ name: d.name, open: d.open }))} /></g>
     </svg>
     <span class="schematic">Vista trasera · salidas esquemáticas</span>

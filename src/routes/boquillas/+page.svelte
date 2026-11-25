@@ -1,6 +1,7 @@
 <script lang="ts">
   import { dev } from "$app/environment";
   import { page } from "$app/state";
+  import HardSuctionHose from "$lib/components/HardSuctionHose.svelte";
   import NozzleCloseUp from "$lib/components/NozzleCloseUp.svelte";
   import NozzleDrawing from "$lib/components/NozzleDrawing.svelte";
 
@@ -64,15 +65,23 @@
 {#if dev}
   <main class="app">
     <header>
-      <h1>Boquillas investigadas</h1>
+      <h1>{only === "succion" ? "Equipo de abastecimiento" : "Boquillas y equipo"}</h1>
+      {#if only !== "succion"}
       <p>
         Hoja de contacto para revisar el dibujo: una tarjeta por modelo con su anatomía
         (<code>nozzle-anatomy.ts</code>).         Arriba, el pitón en el lienzo; abajo, el primer plano operable.
         Solo existe en <code>pnpm dev</code>; <code>?only=ID</code> aísla tarjetas para revisar un modelo
         (<code>/boquillas?only=AKR-17204001</code>).
       </p>
+      {/if}
     </header>
     <div class="grid">
+      {#if !only || only.split(",").includes("succion")}
+        <article>
+          <h2>Manguerote de succión <small>Esquema de equipo</small></h2>
+          <HardSuctionHose />
+        </article>
+      {/if}
       {#each nozzles as n (n.id)}
         <article>
           <h2>{n.label} <small>{n.id}</small></h2>
