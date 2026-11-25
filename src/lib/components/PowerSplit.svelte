@@ -64,7 +64,7 @@
     </p>
     <p class="efficiency">
       <b>Eficiencia de la tendida: {approx}{pct(split.streamsHp)}</b>
-      <span>· la parte del trabajo de la bomba que termina en {streamWord}{#if reference}; {referenceLabel}: {reference.wholeHp > 0 ? `${(reference.efficiency * 100).toFixed(0)} %` : "sin caudal"}{/if}</span>
+      <span>· la parte de la potencia de descarga que termina en {streamWord}{#if reference}; {referenceLabel}: {reference.wholeHp > 0 ? `${(reference.efficiency * 100).toFixed(0)} %` : "sin caudal"}{/if}</span>
     </p>
     {#if split.streams.length > 1}
       <ul class="streams" aria-label="Chorros por línea">
@@ -78,7 +78,7 @@
     <details>
       <summary>Ver en potencia (hp y kW)</summary>
       <p>
-        <b>Potencia = caudal × presión.</b> Es el trabajo que la bomba hace sobre el agua por minuto: la presión dice con
+        <b>Potencia = caudal × presión.</b> Aquí se usa la presión de descarga, que incluye el aporte del hidrante cuando está conectado: la presión dice con
         cuánta fuerza empuja, el caudal cuánta agua mueve, la potencia es las dos cosas juntas. Cada psi que la barra de presión
         muestra gastado es trabajo que pierde cada galón; la potencia es eso por los galones de cada minuto.
       </p>
@@ -94,7 +94,7 @@
           {#if split.fittingsHp > 0}<tr><td><span class="swatch fittings"></span>Accesorios</td><td>{hp(split.fittingsHp)} hp</td><td>{kw(split.fittingsHp)} kW</td></tr>{/if}
           {#if split.heightHp > 0}<tr><td><span class="swatch elevation"></span>Desnivel</td><td>{hp(split.heightHp)} hp</td><td>{kw(split.heightHp)} kW</td></tr>{/if}
           {#if split.creditHp > 0}<tr><td>La bajada devuelve</td><td>−{hp(split.creditHp)} hp</td><td>−{kw(split.creditHp)} kW</td></tr>{/if}
-          <tr class="total"><td>Bomba</td><td>{hp(split.pumpHp)} hp</td><td>{kw(split.pumpHp)} kW</td></tr>
+          <tr class="total"><td>Descarga</td><td>{hp(split.pumpHp)} hp</td><td>{kw(split.pumpHp)} kW</td></tr>
         </tbody>
       </table>
       <p class="formula">
