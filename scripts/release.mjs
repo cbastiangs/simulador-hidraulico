@@ -43,6 +43,12 @@ function printUncovered(uncovered) {
   for (const c of uncovered) console.log(`    ${c.hash} ${c.subject}`);
 }
 
+function printStray(stray) {
+  if (stray.length === 0) return;
+  console.log(`  ${stray.length} non-feat/fix commit(s) carry \`Novedad:\` lines and are ignored by the catalog:`);
+  for (const c of stray) console.log(`    ${c.hash} ${c.subject} (${c.notes} line(s))`);
+}
+
 function doPreview() {
   const catalog = readCatalog(root);
   console.log("Novedades — data/releases.json");
@@ -79,6 +85,7 @@ function doDraft() {
     printItems(result.release.items);
   }
   printUncovered(result.uncovered);
+  printStray(result.stray);
   console.log("Edit data/releases.json for wording and order, then run `pnpm release --publish`.");
 }
 

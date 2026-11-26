@@ -174,6 +174,13 @@ export function commitsWithoutNotes(commits) {
     .map((commit) => ({ hash: commit.hash.slice(0, 7), subject: commit.subject }));
 }
 
+/** `Novedad:` lines on types that never produce a note: a workflow slip, not copy. */
+export function commitsWithStrayNotes(commits) {
+  return commits
+    .filter((commit) => !["feat", "fix"].includes(conventionalType(commit.subject)) && novedadLines(commit.body).length > 0)
+    .map((commit) => ({ hash: commit.hash.slice(0, 7), subject: commit.subject, notes: novedadLines(commit.body).length }));
+}
+
 /**
  * Creates the draft from the commits since the last release. An existing
  * draft is never rewritten (hand edits survive); instead the result lists
@@ -186,13 +193,25 @@ export function prepare(root, { commits = [], date = todayUtc() } = {}) {
   const existing = catalog.find((release) => release.published_at === null);
   if (existing) {
     const texts = new Set(existing.items.map((item) => item.text));
-    return { action: "existing-draft", release: existing, missing: notes.filter((note) => !texts.has(note.text)), uncovered: commitsWithoutNotes(commits) };
+    return {
+      action: "existing-draft",
+      release: existing,
+      missing: notes.filter((note) => !texts.has(note.text)),
+      uncovered: commitsWithoutNotes(commits),
+      stray: commitsWithStrayNotes(commits),
+    };
   }
   const release = { id: nextReleaseId(catalog, date), date, published_at: null, items: notes };
   const next = [...catalog, release];
   validateCatalog(next);
   writeCatalog(root, next);
-  return { action: "created-draft", release, missing: [], uncovered: commitsWithoutNotes(commits) };
+  return {
+    action: "created-draft",
+    release,
+    missing: [],
+    uncovered: commitsWithoutNotes(commits),
+    stray: commitsWithStrayNotes(commits),
+  };
 }
 
 /**
