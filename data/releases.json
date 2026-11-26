@@ -1,1 +1,81 @@
-[]
+[
+  {
+    "id": "2026.11.26",
+    "date": "2026-11-26",
+    "published_at": "2026-11-26T02:00:59.636Z",
+    "items": [
+      {
+        "kind": "new",
+        "text": "Puedes elegir M11-5 con sus siete descargas y tanque de 500 galones; la bomba CX se identifica como aproximada y sus tres entradas se muestran como referencia."
+      },
+      {
+        "kind": "new",
+        "text": "El simulador se adapta al teléfono en vertical y horizontal y mantiene los controles accesibles al escribir."
+      },
+      {
+        "kind": "new",
+        "text": "El nombre de la tendida es el título de la página; «Cambiar escenario» abre el selector y «Opciones del escenario» reúne tus líneas guardadas, enlaces y reinicio."
+      },
+      {
+        "kind": "new",
+        "text": "Consulta los métodos, las fuentes y los límites del simulador desde Ayuda."
+      },
+      {
+        "kind": "new",
+        "text": "La práctica NFA muestra la referencia, la entrega y lo que falta mientras operas la tendida."
+      },
+      {
+        "kind": "new",
+        "text": "Tres nuevos ejercicios permiten comparar el diámetro de manguera, el selector del pitón y una segunda descarga."
+      },
+      {
+        "kind": "new",
+        "text": "Compara presión y caudal antes y después de abrir otra descarga, con capacidad disponible o al límite de giro."
+      },
+      {
+        "kind": "new",
+        "text": "En la práctica de diámetro puedes comparar la fricción y el caudal del pitón con la referencia del piso al cambiar de manguera."
+      },
+      {
+        "kind": "new",
+        "text": "Compara la alimentación desde hidrante o piscina cebada en la misma tendida y observa las presiones de admisión y descarga."
+      },
+      {
+        "kind": "new",
+        "text": "Con succión de 6 pulgadas, compara el caudal de ataque con y sin asistencia por chorro a las mismas RPM."
+      },
+      {
+        "kind": "new",
+        "text": "El alcance del chorro se consulta directamente y una regla horizontal muestra las distancias en metros o pies."
+      },
+      {
+        "kind": "new",
+        "text": "Mide en el dibujo cómo cambia el alcance del chorro al ajustar la presión o la inclinación."
+      },
+      {
+        "kind": "new",
+        "text": "El alcance del chorro se llama «Alcance total» y muestra la prueba publicada más cercana a la presión y el caudal actuales, con su alcance efectivo."
+      },
+      {
+        "kind": "new",
+        "text": "Las tendidas nuevas usan pitones Akron de fábrica: Turbojet 1720 o Protek 368, y boquillas Akron de chorro sólido."
+      },
+      {
+        "kind": "fix",
+        "text": "Cuando la bomba no puede resolver el caudal, el manómetro muestra un guion y la tendida indica qué condición lo limita."
+      },
+      {
+        "kind": "fix",
+        "text": "Las tendidas bifurcadas se abren con ambos chorros a la vista y el caudal de cada línea junto a su manómetro."
+      },
+      {
+        "kind": "fix",
+        "text": "Al cambiar de escenario, Deshacer recupera la tendida anterior y sus ajustes."
+      },
+      {
+        "kind": "fix",
+        "text": "En el celular puedes ver la tendida y tocar «Ver todo» incluso con poco espacio, y «Ver bomba» abre directamente las pestañas del equipo."
+      }
+    ]
+  }
+]
