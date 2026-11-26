@@ -497,6 +497,11 @@ tests/
 docs/
 ```
 
+**[Architecture review and target layout](ARCHITECTURE.md)** (2026-11-26):
+where each kind of state belongs, the current coupling, and an incremental
+migration. This section fixes the stack; that document fixes the layers and
+module boundaries.
+
 Language: code and docs in English, UI in Spanish, with CGBVP terms (pitón,
 paño, bifurco, desnivel).
 
