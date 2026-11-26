@@ -94,6 +94,7 @@
   // Replaced whole by each edit (lib/edit.ts), never mutated in place.
   let activeDocument: AppDocument = $state.raw(presets[0].scenario);
   const scenario = $derived(activeDocument.scenario);
+  const scenarioTitle = $derived(scenario.name.trim() || "Escenario sin nombre");
   let practiceOpen = $state(false);
   let practiceHeaderHeight = $state(0);
   let pressureDockHeight = $state(70);
@@ -160,6 +161,7 @@
   /** Viewport edge available to the drawing above the peek or closed sheet. */
   const shortPortrait = $derived(phone && !landscape && viewportHeight < 650);
   const canvasBottom = $derived(landscape ? Infinity : windowHeight - keyboardBottom - (sheet === "peek" ? sheetHeights(viewportHeight).peek : closedSheetHeight));
+  let pumpHeaderHeight = $state(0);
   let desktopPanel: HTMLDivElement | undefined = $state();
   let landscapePanel: HTMLDivElement | undefined = $state();
 
@@ -815,21 +817,38 @@
   {/if}
 {/snippet}
 
+{#snippet historyControls()}
+  <div class="history">
+    <button type="button" onclick={undo} disabled={past.length === 0} aria-label="Deshacer" title="Deshacer (Ctrl+Z)">↶<span class="word">Deshacer</span></button>
+    <button type="button" onclick={redo} disabled={future.length === 0} aria-label="Rehacer" title="Rehacer (Ctrl+Shift+Z)">↷<span class="word">Rehacer</span></button>
+  </div>
+{/snippet}
+
 <div class="app" class:phone class:wide class:landscape class:short-portrait={shortPortrait} class:has-practice={!!activeDocument.exercise} style:--dock-space={`${Math.max(90, pressureDockHeight + 12)}px`} style:--sheet-closed={`${closedSheetHeight}px`} style:--viewport-height={`${viewportHeight}px`}>
   <header class="top">
-    <h1>Simulador hidráulico</h1>
-    <div class="history">
-      <button type="button" onclick={undo} disabled={past.length === 0} aria-label="Deshacer" title="Deshacer (Ctrl+Z)">↶<span class="word">Deshacer</span></button>
-      <button type="button" onclick={redo} disabled={future.length === 0} aria-label="Rehacer" title="Rehacer (Ctrl+Shift+Z)">↷<span class="word">Rehacer</span></button>
-    </div>
+    {#if shortPortrait}
+      <h1><button type="button" class="compact-scenario" data-tour="escenario" aria-haspopup="dialog"
+          aria-label={`Cambiar escenario: ${scenarioTitle}`} onclick={() => openPicker(activeDocument.exercise ? "practices" : "examples")}>
+          <span>{scenarioTitle}</span> ▾
+        </button></h1>
+    {:else}
+      <h1>Simulador hidráulico</h1>
+      {@render historyControls()}
+    {/if}
     <details class="scenario" bind:this={scenarioMenu}>
-      <summary data-tour="escenario" aria-label={`Escenario: ${scenario.name}`} title={scenario.name} onclick={() => { if (helpMenu) helpMenu.open = false; }}>
-        <span class="scenario-title"><span class="scenario-label">Escenario</span><span class="name">{scenario.name}</span></span>
-        <span class="caret" aria-hidden="true">▾</span>
-      </summary>
+      {#if shortPortrait}
+        <summary aria-label="Opciones del escenario" onclick={() => { if (helpMenu) helpMenu.open = false; }}>Opciones ▾</summary>
+      {:else}
+        <summary data-tour="escenario" aria-label={`Escenario: ${scenario.name}`} title={scenario.name} onclick={() => { if (helpMenu) helpMenu.open = false; }}>
+          <span class="scenario-title"><span class="scenario-label">Escenario</span><span class="name">{scenario.name}</span></span>
+          <span class="caret" aria-hidden="true">▾</span>
+        </summary>
+      {/if}
       <div class="scenario-menu">
-        <button type="button" onclick={() => openPicker("examples")}>Tendidas de ejemplo…</button>
-        <button type="button" onclick={() => openPicker("practices")}>Prácticas guiadas…</button>
+        {#if shortPortrait}{@render historyControls()}{:else}
+          <button type="button" onclick={() => openPicker("examples")}>Tendidas de ejemplo…</button>
+          <button type="button" onclick={() => openPicker("practices")}>Prácticas guiadas…</button>
+        {/if}
         <button type="button" onclick={newLine}>Línea en blanco</button>
         <hr />
         <button type="button" onclick={() => { closeMenu(scenarioMenu); libraryOpen = true; }}>Mis líneas…</button>
@@ -858,22 +877,24 @@
     <button type="button" class="gear" aria-label="Ajustes" title="Ajustes: método, altura de piso, accesorios, vista" onclick={() => (settingsOpen = true)}>⚙</button>
   </header>
 
-  {#if !wide && !landscape}
-    <div class="pump" data-tour="pump">{@render pumpPanel(phone ? "strip" : "bar")}</div>
-  {/if}
+  <div class="operating-header">
+    {#if !wide && !landscape}
+      <div class="pump" data-tour="pump">{@render pumpPanel(phone ? "strip" : "bar")}</div>
+    {/if}
 
-  {#if !landscape && !shortPortrait && activeDocument.exercise && practiceReadings}
-    <div class="practice-summary" bind:clientHeight={practiceHeaderHeight} inert={phone && sheet === "full"} style:visibility={phone && sheet === "full" ? "hidden" : undefined}>
-      <PracticeSummary readings={practiceReadings} revealed={practiceRevealed} lessonId={activeDocument.exercise.lessonId} compact onOpen={openPractice} />
-      {#if practiceRevealed && activeDocument.exercise?.lessonId === 'second-discharge'}
-        <DischargeComparison values={dischargeValues} baseline={baselineValues} canCapture={scenario.discharges?.[1]?.open === false} onCapture={captureDischargeBaseline} pump={scenario.source.pump} status={pumpResult.pump?.status} onCase={chooseDischargeCase} />
-      {/if}
-    </div>
-  {/if}
+    {#if !landscape && !shortPortrait && activeDocument.exercise && practiceReadings}
+      <div class="practice-summary" bind:clientHeight={practiceHeaderHeight} inert={phone && sheet === "full"} style:visibility={phone && sheet === "full" ? "hidden" : undefined}>
+        <PracticeSummary readings={practiceReadings} revealed={practiceRevealed} lessonId={activeDocument.exercise.lessonId} compact onOpen={openPractice} />
+        {#if practiceRevealed && activeDocument.exercise?.lessonId === 'second-discharge'}
+          <DischargeComparison values={dischargeValues} baseline={baselineValues} canCapture={scenario.discharges?.[1]?.open === false} onCapture={captureDischargeBaseline} pump={scenario.source.pump} status={pumpResult.pump?.status} onCase={chooseDischargeCase} />
+        {/if}
+      </div>
+    {/if}
 
-  {#if shortPortrait && activeDocument.exercise}
-    <button type="button" class="practice-short" onclick={() => { selection = null; sheet = 'full'; }}>Práctica NFA · ver resultados y comparación ›</button>
-  {/if}
+    {#if shortPortrait && activeDocument.exercise}
+      <button type="button" class="practice-short" onclick={() => { selection = null; sheet = 'full'; }}>Práctica NFA · ver resultados y comparación ›</button>
+    {/if}
+  </div>
   <div class="canvas" data-tour="canvas">
     {#if !lineScenario.sections.length && network}
       <EmptyPumpCanvas {scenario} {network} onPump={() => select({ kind: "pump" })}
@@ -886,6 +907,7 @@
       {selection}
       {phone}
       {landscape}
+      {shortPortrait}
       {wide}
       visibleBottom={canvasBottom}
       bottomInsetPx={pressureDockHeight}
@@ -925,14 +947,14 @@
   </div>
 
   {#if !phone}
-    <div class="side" bind:this={desktopPanel}>
-      {#if wide}<div class="head" data-tour="pump">{@render pumpPanel("head")}</div>{/if}
+    <div class="side" bind:this={desktopPanel} style:--pump-height={`${pumpHeaderHeight}px`}>
+      {#if wide}<div class="head" bind:offsetHeight={pumpHeaderHeight} data-tour="pump">{@render pumpPanel("head")}</div>{/if}
       {@render side()}
     </div>
     <div class="results">{@render results()}</div>
   {:else if landscape}
-    <div class="side landscape-panel" bind:this={landscapePanel} aria-label="Controles y resultados">
-      <div class="landscape-pump">{@render pumpPanel("strip")}</div>
+    <div class="side landscape-panel" bind:this={landscapePanel} style:--pump-height={`${pumpHeaderHeight}px`} aria-label="Controles y resultados">
+      <div class="landscape-pump" bind:offsetHeight={pumpHeaderHeight}>{@render pumpPanel("strip")}</div>
       {@render side()}
       {@render summary()}
       {#if practiceReadings}
@@ -980,11 +1002,11 @@
 
 {#if phone && !landscape}
   <Sheet viewportHeight={viewportHeight} bottomInset={keyboardBottom} onClosedHeight={(height) => (closedSheetHeight = height)} selectionKey={JSON.stringify([selectedPath, selection])} {summary} {sheet} onSheet={(s) => (sheet = s)}>
-    {#if selection?.kind === "pump" && !(activeDocument.exercise && pumpTab === "discharges")}
+    {#if sheet === "full" && selection?.kind === "pump" && !(activeDocument.exercise && pumpTab === "discharges")}
       {@render pumpPanel("full")}
     {/if}
     {#if !shortPortrait || selection !== null}{@render side()}{/if}
-    {#if selection?.kind === "pump" && activeDocument.exercise && pumpTab === "discharges"}
+    {#if sheet === "full" && selection?.kind === "pump" && activeDocument.exercise && pumpTab === "discharges"}
       {@render pumpPanel("full")}
     {/if}
     {#if sheet === "full" && practiceReadings}
@@ -1043,7 +1065,7 @@
   .app.wide .top > * { flex-shrink: 0; }
   .app.wide .top > .scenario { flex-shrink: 1; }
   /* Reserve the measured dock, including wrapped pressure labels. */
-  .app.wide .side { scroll-padding-top: 190px; position: sticky; top: var(--gap); align-self: start; max-height: calc(100dvh - 2 * var(--gap) - 44px - var(--dock-space)); overflow: auto; }
+  .app.wide .side { scroll-padding-top: var(--pump-height); position: sticky; top: var(--gap); align-self: start; max-height: calc(100dvh - 2 * var(--gap) - 44px - var(--dock-space)); overflow: auto; }
   .dock { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; padding: 8px var(--gap) calc(8px + env(safe-area-inset-bottom)); background: var(--bg); box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.15); }
   .dock > :global(*) { max-width: 1976px; margin: 0 auto; }
   .top { grid-area: top; display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; justify-content: space-between; }
@@ -1101,6 +1123,28 @@
     grid-template-rows: auto auto minmax(0, 1fr);
   }
   .app.phone.has-practice { grid-template-areas: "top" "pump" "practice" "canvas"; grid-template-rows: auto auto auto minmax(0, 1fr); }
+  .operating-header { display: contents; }
+  /* In a short window, long supply or practice readings scroll within their own row. */
+  .app.phone.short-portrait {
+    grid-template-areas: "top" "pump" "canvas";
+    grid-template-rows: auto minmax(0, max-content) minmax(min(234px, calc(var(--viewport-height) / 2)), 1fr);
+  }
+  .short-portrait .operating-header {
+    display: flex; flex-direction: column; gap: 6px; grid-area: pump; overflow-y: auto;
+  }
+  .short-portrait .operating-header > * { flex: none; }
+  .app.phone.short-portrait .top { gap: 6px; }
+  .app.phone.short-portrait .top h1 { display: block; flex: 1; min-width: 0; font-size: 16px; }
+  .app.phone.short-portrait .scenario { flex: none; }
+  .app.phone.short-portrait .scenario > .scenario-menu { right: -60px; left: auto; }
+  .compact-scenario {
+    display: flex; align-items: center; gap: 4px; max-width: 100%; min-height: 44px; padding: 2px 6px;
+    border: 1px solid var(--line); border-radius: 8px; background: var(--surface); font: inherit; text-align: left; cursor: pointer;
+  }
+  .compact-scenario span { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
+  .app.phone .scenario-menu .history { margin: 0; }
+  .app.phone .scenario-menu .history button { width: auto; padding: 0 8px; }
+  .app.phone .scenario-menu .word { display: inline; }
   .app.phone .top { flex-wrap: nowrap; }
   /* Svelte trims a leading space inside the span, so the gap after the arrow is a margin. */
   .word { margin-left: 0.35em; }
@@ -1120,7 +1164,7 @@
     grid-template-rows: 44px minmax(0, 1fr);
   }
   .landscape .scenario { max-width: none; }
-  .landscape-panel { min-height: 0; min-width: 0; overflow: auto; overscroll-behavior: contain; border-radius: var(--radius); scroll-padding-top: 78px; }
+  .landscape-panel { min-height: 0; min-width: 0; overflow: auto; overscroll-behavior: contain; border-radius: var(--radius); scroll-padding-top: var(--pump-height); }
   .landscape-pump { position: sticky; top: 0; z-index: 8; background: var(--bg); }
   @media (max-width: 1023px) { .field input { font-size: 16px; } }
 </style>

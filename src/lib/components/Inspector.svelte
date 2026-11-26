@@ -461,10 +461,10 @@
   .style-switch { display: flex; justify-content: flex-end; margin: -8px 0 -6px; }
   .style-switch button { min-height: 44px; padding: 0 4px; border: 0; background: transparent; color: var(--accent); font-size: 13px; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
   header { position: relative; background: var(--surface); padding-bottom: 6px; }
-  header.sticky { position: sticky; top: 0; z-index: 2; }
+  header.sticky { position: sticky; top: var(--pump-height, 0px); min-height: 44px; padding-right: 36px; z-index: 2; }
   .inspector :global(button), .inspector :global(input), .inspector :global(select) { scroll-margin-top: 100px; }
-  header h3 { margin: 0; font-size: 16px; padding-right: 40px; }
-  .close { position: absolute; top: -8px; right: -8px; width: 44px; height: 44px; border: 0; border-radius: 8px; background: transparent; font-size: 22px; color: var(--muted); cursor: pointer; }
+  header h3 { margin: 0; font-size: 16px; }
+  .close { position: absolute; top: 0; right: -8px; width: 44px; height: 44px; border: 0; border-radius: 8px; background: transparent; font-size: 22px; color: var(--muted); cursor: pointer; }
   .close:hover { background: var(--band); color: var(--ink); }
   .parts { display: grid; gap: 4px; }
   .parts button { min-height: 44px; padding: 0 12px; text-align: left; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); cursor: pointer; font-size: 14px; }

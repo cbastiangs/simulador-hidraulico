@@ -1632,6 +1632,25 @@ physical-device keyboard behavior still needs a hardware check. Hydraulic
 tests, typecheck (zero errors/warnings) and static build pass.
 Screenshots: `reports/mobile-layout-2026-11-21/`.
 
+### Compact canvas controls and inspector layout (2026-11-26)
+
+On phones, keep **Piezas**, **Alcance** and **Ver todo** directly reachable.
+**Vista** holds zoom, follow and focus. The aim slider sits beside the reach
+reading in tall portrait and inside Vista in short portrait and compact
+landscape. Opening Vista preserves the selection and camera position.
+
+In short portrait, the scenario title opens the chooser, and **Opciones**
+includes undo and redo. Reserve space for the drawing and its controls.
+The pump and practice readings can scroll within their row when they grow.
+The shallow drawing uses one ruler row and a smaller margin below the hose
+to keep the gauges in view.
+
+Selecting the pump in portrait opens the equipment tabs at half height.
+The strip still operates the pump. Expanding the sheet gives access to
+the large gauge, coarse steps and stop control. In both side-panel layouts
+the equipment heading and close button stick below the measured pump header,
+including any supply readings.
+
 ### Compact pressure breakdown (2026-11-21)
 
 The operating pressure bar includes a wrapping text legend beneath its slices,

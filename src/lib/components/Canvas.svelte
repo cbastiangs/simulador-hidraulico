@@ -72,6 +72,7 @@
     fitSignal = 0,
     phone = false,
     landscape = false,
+    shortPortrait = false,
     wide = false,
     visibleBottom = Infinity,
     topInsetPx = 0,
@@ -118,6 +119,7 @@
     /** Touch layout below 1024 px: the sheet replaces floating toolbars (UX.md §10.9). */
     phone?: boolean;
     landscape?: boolean;
+    shortPortrait?: boolean;
     /** Desktop three-column layout (UX.md §4): the canvas takes the window's height. */
     wide?: boolean;
     /** Viewport y-coordinate of the sheet’s top edge (UX.md §10.9). */
@@ -157,13 +159,13 @@
   } = $props();
 
   const TAP_PX = 6;
-  /** Room kept under the lay for the ground line and its caption (§10.8). */
-  const BOTTOM_INSET_PX = 64;
   /** Below this the constant-size gauges crowd each other. */
   const MIN_FIT_ZOOM = 0.12;
 
   let viewWidth = $state(0);
   let viewHeight = $state(0);
+  // Leave room above the truck for its fixed-size gauge in shallow drawings.
+  const groundInset = $derived(phone ? Math.min(64, Math.max(14, viewHeight - 136)) : 64);
   let windowHeight = $state(800);
   let scroller: HTMLDivElement | undefined = $state();
   let svg: SVGSVGElement | undefined = $state();
@@ -314,7 +316,7 @@
   // the lay is available for raising a hose. On desktop, reserve the header and measured toolbar
   // and pressure dock so wrapping controls never cover the drawing tools.
   const canvasHeight = $derived(
-    phone ? Math.max(200, viewHeight) : Math.max(260, wide ? windowHeight - 68 - toolbarHeight - 8 - Math.max(70, bottomInsetPx) - topInsetPx : windowHeight * 0.5),
+    phone ? viewHeight : Math.max(260, wide ? windowHeight - 68 - toolbarHeight - 8 - Math.max(70, bottomInsetPx) - topInsetPx : windowHeight * 0.5),
   );
   // Display-only ruler: the geometry remains in metres, including in feet mode.
   const horizontalTicks = $derived.by(() => {
@@ -337,7 +339,7 @@
     const w = fitted.maxX * PX_PER_M;
     const h = (fitted.maxY - fitted.minY) * PX_PER_M;
     // Fit inside the usable height: the bottom inset keeps the ground caption clear.
-    const avail = Math.max(80, (phone ? canvasHeight : canvasHeight - 40) - BOTTOM_INSET_PX);
+    const avail = Math.max(80, (phone ? canvasHeight : canvasHeight - 40) - groundInset);
     return Math.min(2.2, Math.max(MIN_FIT_ZOOM, Math.min(Math.max(80, viewWidth - 140) / w, avail / h)));
   });
 
@@ -406,7 +408,7 @@
     if (frozen) return frozen.filled;
     // Reserve screen space for the schematic source without changing hose coordinates.
     const sourceBounds = { ...bounds, minX: Math.min(bounds.minX, -116 / (PX_PER_M * zoom)) };
-    const f = fillViewport(sourceBounds, viewWidth, viewHeight, zoom, BOTTOM_INSET_PX);
+    const f = fillViewport(sourceBounds, viewWidth, viewHeight, zoom, groundInset);
     return { ...f, maxX: Math.max(f.maxX, bounds.maxX + viewWidth / (2 * PX_PER_M * zoom)) };
   });
   const layout = $derived(
@@ -1382,10 +1384,14 @@
       });
       let { bw, bh } = boxOf(w);
       const baseX = h.labelX * zoom - camX;
-      const baseY = (low ? layout.groundY + 32 * k : h.labelY + 32 * k) * zoom - camY;
+      const labelY = (low ? layout.groundY : h.labelY) * zoom - camY + 32;
+      // Horizontal SVG text is positioned by its baseline. Use the bottom row
+      // in a shallow view so the hose caption stays below the nozzle flow.
+      const bottomMargin = shortPortrait && angle === 0 ? 4 : 8;
+      const baseY = shortPortrait && inView && angle === 0 ? Math.min(labelY, viewHeight - bottomMargin) : labelY;
       const clampX = (sx: number, half: number) => (inView ? Math.max(8 + half, Math.min(viewWidth - 8 - half, sx)) : sx);
       const clear = (sx: number, sy: number, bw: number, bh: number) => {
-        if (inView && (sy < 8 || sy > viewHeight - 8)) return false;
+        if (inView && (sy < 8 || sy > viewHeight - bottomMargin)) return false;
         return !boxes.some((b) => sx - bw / 2 < b.x + b.w && sx + bw / 2 > b.x && sy - bh / 2 < b.y + b.h && sy + bh / 2 > b.y);
       };
       // Coiled hoses sit side by side on the ground: lanes step down below it.
@@ -1480,6 +1486,9 @@
   let armed = $state<PieceId | null>(null);
   /** The phone's tray of pieces, opened from the toolbar. */
   let tray = $state(false);
+  let viewDialog = $state<HTMLDialogElement>();
+  const reachText = $derived(result.state === "flowing" ? jetOf(scenario, result).measurement : "Alcance · sin chorro");
+  const compactToolbar = $derived(landscape || shortPortrait);
   const armedPiece = $derived(PIECES.find((p) => p.id === armed));
   async function pick(piece: PieceId | null) {
     if (piece) onDeselect();
@@ -1618,6 +1627,25 @@
   }
 </script>
 
+{#snippet aimControl()}
+  <label class="canvas-aim">Inclinación {scenario.nozzle.aimDeg ?? DEFAULT_AIM_DEG}°
+    <input type="range" min="0" max="90" step="1" value={scenario.nozzle.aimDeg ?? DEFAULT_AIM_DEG}
+      aria-label="Inclinación del chorro" aria-valuetext={`${scenario.nozzle.aimDeg ?? DEFAULT_AIM_DEG} grados sobre la horizontal`}
+      oninput={e => onEdit(edit.setNozzleAim(scenario, e.currentTarget.valueAsNumber), "nozzle:aim")} />
+    <small>{selectedTestAngle != null ? `Ensayo a ${selectedTestAngle}°` : "Sin ángulo de ensayo registrado"}</small>
+  </label>
+{/snippet}
+
+{#snippet cameraButtons()}
+  <button type="button" aria-label="Alejar" onclick={() => setManualZoom(zoom / 1.25)}>−</button>
+  <button type="button" aria-label="Acercar" onclick={() => setManualZoom(zoom * 1.25)}>+</button>
+  {#if !phone}
+    <button type="button" onclick={showWhole}>Ver todo</button>
+  {/if}
+  <button type="button" class="camera-lock" class:on={locked} aria-pressed={locked} aria-label="Seguir la pieza seleccionada" title="Seguir la pieza seleccionada (Y)" onclick={() => (locked = !locked)}>Seguir</button>
+  <button type="button" disabled={!selection} title="Acercar a la selección" onclick={() => { viewDialog?.close(); zoomToSelection(); }}>Enfocar</button>
+{/snippet}
+
 {#snippet removeButton()}
   {#if removable}
     <button type="button" class="bar-remove" class:blocked={removable.blocked !== null} title={removable.blocked ?? `${removable.label} (Supr)`} aria-label={removable.label} onclick={removeSelected}>{removeShort}</button>
@@ -1644,16 +1672,16 @@
   }}
 />
 
-<div class="canvas" class:phone class:landscape style:--k={k}>
+<div class="canvas" class:phone style:--k={k}>
   <div class="body" style:height={phone ? undefined : `${canvasHeight}px`}>
   {#if !phone}<PieceStrip {armed} onPick={pick} />{/if}
   <div class="drawing">
-  <div class="distance-axis" role="img" aria-label={`Distancia horizontal en ${u.length}; cero en la salida de la bomba`}>
-    <span>Horizontal · {u.length} · 0 = salida de bomba</span>
+  <div class="distance-axis" class:compact-axis={shortPortrait} role="img" aria-label={`Distancia horizontal en ${u.length}; cero en la salida de la bomba`}>
+    <span title="Cero en la salida de la bomba">{shortPortrait ? `Dist. (${u.length})` : `Horizontal · ${u.length} · 0 = salida de bomba`}</span>
     <svg width="100%" height="24" aria-hidden="true">
       <line x1="0" y1="23" x2="100%" y2="23" />
       {#each horizontalTicks as tick (tick.value)}
-        <g transform={`translate(${tick.x} 0)`}><line y1="18" y2="24" /><text y="13" text-anchor="middle">{tick.label}</text></g>
+        <g transform={`translate(${tick.x} 0)`}><line y1="18" y2="24" />{#if !shortPortrait || tick.x > 68}<text y="13" text-anchor="middle">{tick.label}</text>{/if}</g>
       {/each}
     </svg>
   </div>
@@ -1711,7 +1739,7 @@
         <text
           class="floor-label caption"
           x={(camX + viewWidth) / zoom - 12 * k}
-          y={layout.groundY + 64 * k}
+          y={layout.groundY + groundInset * k}
           text-anchor="end"
         >Piso 1 · 0 {u.length}</text>
 
@@ -2227,30 +2255,35 @@
     {#if toast}<div class="toast" role="status">{toast}</div>{/if}
   </div>
   <!-- Controls live below the drawing, never over it. -->
-  <div class="toolbar" bind:clientHeight={toolbarHeight}>
+  <div class="toolbar" class:compact={compactToolbar} bind:clientHeight={toolbarHeight}>
   {#if missing.length > 0}
     <button type="button" class="missing-note" onclick={() => onSelect({ kind: "joint", index: missing[0].index })}>
       ⚠ Falta adaptador en {missing.map((j) => (j.index === 0 ? "la salida" : j.index === last ? "el pitón" : `el acople ${j.index}`)).join(", ")}
     </button>
   {/if}
   {#if phone}<button type="button" class="pieces-toggle" class:on={tray || !!armed} aria-expanded={tray} onclick={() => (tray ? (tray = false) : armed ? (armed = null) : (tray = true))}>{tray ? "× Piezas" : armed ? "× Pieza" : "+ Piezas"}</button>{/if}
-  <button type="button" class="reach-control" title="Ver alcance y detalles del pitón" onclick={() => onShowReach ? onShowReach() : onSelect({ kind: "nozzle" })}>{result.state === "flowing" ? jetOf(scenario, result).measurement : "Alcance · sin chorro"} ›</button>
-  <label class="canvas-aim">Inclinación {scenario.nozzle.aimDeg ?? DEFAULT_AIM_DEG}°
-    <input type="range" min="0" max="90" step="1" value={scenario.nozzle.aimDeg ?? DEFAULT_AIM_DEG}
-      aria-label="Inclinación del chorro" aria-valuetext={`${scenario.nozzle.aimDeg ?? DEFAULT_AIM_DEG} grados sobre la horizontal`}
-      oninput={e => onEdit(edit.setNozzleAim(scenario, e.currentTarget.valueAsNumber), "nozzle:aim")} />
-    <small>{selectedTestAngle != null ? `Ensayo a ${selectedTestAngle}°` : "Sin ángulo de ensayo registrado"}</small>
-  </label>
+  <button type="button" class="reach-control" aria-label={reachText} title="Ver alcance y detalles del pitón" onclick={() => onShowReach ? onShowReach() : onSelect({ kind: "nozzle" })}>{compactToolbar ? "Alcance" : `${reachText} ›`}</button>
+  {#if !compactToolbar}{@render aimControl()}{/if}
   {#if !phone}<span class="badge">{Math.round(zoom * 100)} %{manualZoom === null ? (showAll ? " · todo" : " · auto") : ""}{trueScale ? "" : ` · grosor ×${EXAGGERATION}`}</span>{/if}
-  <div class="zoom">
-    <button type="button" aria-label="Alejar" onclick={() => setManualZoom(zoom / 1.25)}>−</button>
-    <button type="button" aria-label="Acercar" onclick={() => setManualZoom(zoom * 1.25)}>+</button>
-    <button type="button" onclick={showWhole}>Ver todo</button>
-    <button type="button" class="camera-lock" class:on={locked} aria-pressed={locked} aria-label="Seguir la pieza seleccionada" title="Seguir la pieza seleccionada (Y)" onclick={() => (locked = !locked)}>Seguir</button>
-    <button type="button" disabled={!selection} title="Acercar a la selección" onclick={zoomToSelection}>Enfocar</button>
-  </div>
+  {#if phone}
+    <button type="button" class="view-toggle" aria-haspopup="dialog" onclick={() => viewDialog?.showModal()}>Vista</button>
+    <button type="button" class="fit" onclick={showWhole}>Ver todo</button>
+  {:else}
+    <div class="zoom">{@render cameraButtons()}</div>
+  {/if}
   </div>
 </div>
+
+{#if phone}
+  <dialog class="view-dialog" class:landscape bind:this={viewDialog} aria-labelledby="view-title"
+    onclick={event => { if (event.target === viewDialog) viewDialog?.close(); }}>
+    <div class="view-content">
+      <header><h2 id="view-title">Vista</h2><button type="button" aria-label="Cerrar vista" onclick={() => viewDialog?.close()}>×</button></header>
+      {#if compactToolbar}{@render aimControl()}{/if}
+      <div class="zoom">{@render cameraButtons()}</div>
+    </div>
+  </dialog>
+{/if}
 
 {#if menu}
   <ContextMenu target={menu.target} x={menu.x} y={menu.y} choices={menu.choices} {scenario} requiredPsi={result.requiredPumpPressurePsi} {onAction} onClose={() => (menu = null)} />
@@ -2277,6 +2310,8 @@
   .body .scroller { flex: 1; min-width: 0; min-height: 0; }
   .distance-axis { height: 40px; flex: none; overflow: hidden; background: var(--surface); color: var(--muted); pointer-events: none; }
   .distance-axis span { display: block; height: 16px; padding: 0 8px; font-size: 11px; line-height: 16px; }
+  .compact-axis { position: relative; height: 24px; }
+  .compact-axis span { position: absolute; top: 0; left: 0; }
   .distance-axis svg { display: block; }
   .distance-axis line { stroke: var(--line); }
   .distance-axis text { fill: var(--ink); font-size: 11px; font-variant-numeric: tabular-nums; }
@@ -2397,9 +2432,35 @@
   .bar-remove.blocked { opacity: 0.5; }
   .zoom button:disabled { opacity: 0.4; cursor: default; }
   .camera-lock.on { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
-  .landscape .toolbar { flex-wrap: nowrap; gap: 4px; padding: 4px; overflow-x: auto; }
-  .landscape .reach-control { flex: none; white-space: nowrap; }
-  .landscape .badge { display: none; }
-  .landscape .pieces-toggle { flex: none; padding: 0 8px; }
-  .landscape .zoom { flex: none; }
+  .canvas.phone .toolbar {
+    display: grid; flex: none; grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-areas: "reach reach aim" "pieces view fit"; align-items: stretch; gap: 4px;
+  }
+  .canvas.phone .toolbar.compact {
+    grid-template-columns: repeat(4, minmax(0, 1fr)); grid-template-areas: "pieces reach view fit"; padding: 4px;
+  }
+  .toolbar .pieces-toggle { grid-area: pieces; }
+  .toolbar .reach-control { grid-area: reach; }
+  .toolbar .canvas-aim { grid-area: aim; width: auto; }
+  .toolbar .fit { grid-area: fit; }
+  .toolbar .view-toggle { grid-area: view; }
+  .toolbar .missing-note { grid-column: 1 / -1; }
+  .toolbar.compact button { min-width: 0; padding: 2px; font-size: 13px; }
+  .fit, .view-toggle, .view-content header button {
+    min-height: 44px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); cursor: pointer;
+  }
+  .view-dialog {
+    position: fixed; inset: auto 8px max(8px, env(safe-area-inset-bottom)); margin: 0 auto;
+    width: min(340px, calc(100% - 16px)); max-height: calc(100dvh - 16px); overflow: auto;
+    border: 1px solid var(--line); border-radius: var(--radius); padding: 0; background: var(--surface); color: var(--ink);
+    box-shadow: 0 4px 18px rgb(0 0 0 / .2);
+  }
+  .view-dialog.landscape { margin-right: 0; }
+  .view-dialog::backdrop { background: rgb(0 0 0 / .15); }
+  .view-content { display: grid; gap: 8px; padding: 8px 12px 12px; }
+  .view-content header { display: flex; align-items: center; justify-content: space-between; }
+  .view-content h2 { margin: 0; font-size: 16px; }
+  .view-content header button { width: 44px; font-size: 20px; }
+  .view-content .zoom button { flex: 1; }
+  .view-content .canvas-aim { width: 100%; }
 </style>

@@ -10,8 +10,8 @@
   // The panel's pump header (UX.md §4): discharge gauge, pressure typed or
   // stepped, "Presión ideal" (the required pressure: shown, and set on a tap), "Ralentí" and the flow,
   // large. Always in view: atop the right panel (desktop), above the canvas
-  // (tablet), as a strip (phone). On a phone the strip is a summary and the
-  // pump's whole control (`full`) opens in the sheet with its detail. The
+  // (tablet), as a strip (phone). On a phone the strip is a summary and its
+  // equipment tabs open at half height and the full sheet adds the large controls. The
   // detail (outlets, fittings; truck, control and tank with M3) is the panel
   // body when the pump is selected (Inspector).
   let {
