@@ -1,10 +1,10 @@
+import { SUPPLY_RIG_NOZZLE } from "./catalog.ts";
 import { solveAttackLine } from "./line.ts";
 import { WATEROUS_CX, dischargePressureAt } from "./pump.ts";
 import { CAPACITY, parseHydrant, supplyAtFlow, type HydrantCase, type HydrantOutlet } from "./supply.ts";
 export * from "./supply.ts";
 
 const supplyHose = { lengthM: 30, frictionCoefficient: 2 };
-const nozzle = { ratedPressurePsi: 100, ratedFlowGpm: 250, open: true };
 
 export function solveHydrantSupply(layout: HydrantCase, intakeRefPsi = 0, siameseRefPsi = 0,
   outlet: HydrantOutlet = "ideal", testFlowGpm: number = CAPACITY.default) {
@@ -12,7 +12,7 @@ export function solveHydrantSupply(layout: HydrantCase, intakeRefPsi = 0, siames
   function at(totalGpm: number) {
     const supply = supplyAtFlow(config, totalGpm);
     const dischargePsi = dischargePressureAt(WATEROUS_CX.points, totalGpm, supply.intakePsi)!;
-    const demand = solveAttackLine({ pumpPressurePsi: dischargePsi, hose: supplyHose, nozzle, nozzleElevationM: 0 });
+    const demand = solveAttackLine({ pumpPressurePsi: dischargePsi, hose: supplyHose, nozzle: SUPPLY_RIG_NOZZLE, nozzleElevationM: 0 });
     return { totalGpm, ...supply, dischargePsi, residualGpm: demand.flowGpm - totalGpm };
   }
   let low = 0, high = Math.min(testFlowGpm, 500); // This fixed attack line delivers below 500 gpm even at static supply pressure.

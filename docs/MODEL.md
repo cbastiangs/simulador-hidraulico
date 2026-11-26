@@ -401,6 +401,14 @@ grows with Q². What a coupling does limit is **what can be connected**
 - A "maximum practical flow" per hose size is a training rule of thumb, not
   a law; it enters only with a published source (§9).
 
+The smooth-bore piece uses the Akron 439 with the 15/16″ orifice exposed on
+a 1½″ inlet and the Akron 2393 with the 1⅛″ orifice exposed on a 2½″ inlet.
+Akron specifies the hardware dimensions. The simulator uses the 50 psi
+handline reference and Freeman flow calculation above. The 439 uses its
+own two published reach points (§3.14).
+[Akron 439](https://www.akronbrass.com/dual-stacked-tips),
+[Akron 2393](https://www.akronbrass.com/axial-playpipe-with-stacked-tips).
+
 ### 3.5 Fog nozzles
 
 **Fixed gallonage:** `nozzle.fixed-orifice` (§3.3), default NP 100 psi
@@ -968,7 +976,9 @@ Each nozzle with a published reach table has its own fit to that table:
 
 **R = c · Q^a · (NP/100)^b** m, "overall" reach (farthest droplets), Q the
 actual flow (gpm), NP the nozzle pressure (psi), straight stream. The Akron
-tables specify 32° in still air. The Protek table omits the angle. `published` fits, least squares in log space to the "overall" rows of
+and Protek tables specify 32° in still air. Overall distance extends to where
+the last droplets land. The drawing assumes a return to nozzle height.
+`published` fits, least squares in log space to the "overall" rows of
 `data/catalog/nozzle-reach.csv` (sources in
 `docs/reference/nozzles/SOURCES.md`). Test: `tests/nozzle.test.mjs`, each
 curve within 6 % of every row of its own table.
@@ -977,21 +987,28 @@ curve within 6 % of every row of its own table.
 |---|---|---|---|---|---|
 | AKR-17204001 (Akron Turbojet 1720) | 9.83 | 0.328 | 0.076 | 75–125 psi, 26–140 gpm | 12 (4 settings × 3 pressures), 4.1 % |
 | AKR-1723P (Akron Mid-Range Turbojet) | 10.90 | 0.308 | 0.184 | 75–125 psi, 82–224 gpm | 12, 4.1 % |
-| PRO-368 (Protek 368) | 13.16 | 0.263 | 0.167 | 75–125 psi, 82–280 gpm | 15, 5.2 %; angle not stated by the page |
+| PRO-368 (Protek 368) | 13.16 | 0.263 | 0.167 | 75–125 psi, 82–280 gpm | 15, 5.2 % |
 | smooth-bore-7-8 (generic 7/8″ tip) | 56.69 | 0 | 0.3014 | 50–80 psi | 2 (Akron style 1430 7/8″ tip), <0.01%; one tip, so NP alone |
 | AKR-439-15-16 (also used by the generic 15/16″ tip) | 61.48 | 0 | 0.4185 | 50–80 psi | 2 (Akron style 439 15/16″ tip), <0.01%; one tip, so NP alone |
 
-- **Stated** ("alcance ≈ 50 m") only for those nozzles, in straight stream
-  (pattern ≤ 0.05), at the documented test angle and inside the table’s pressure and flow ranges. Outside it the
-  nozzle keeps its own curve to keep the arc continuous. The canvas labels its measured span “Dibujo ilustrativo”.
+- **Stated** as “Alcance total” at the test angle in Directo (pattern = 0).
+  For a selectable nozzle the rating and ring position must identify a tested
+  setting. For a smooth bore the exposed tip must match. Use the inclusive
+  tested nozzle-pressure interval for that setting or tip. The formula takes
+  solved flow. Rounded flows printed in the table describe the measurements.
+  The nearest measured pressure for that setting supplies a separate example
+  of effective and overall reach, with its actual test pressure and flow.
+  At an equal distance between rows show the lower pressure. Beyond the
+  tested pressure interval, continue the curve with the physical ceiling
+  below and label its drawn span “Dibujo ilustrativo”.
 - **Every other nozzle** (TFT G-Force, Akron Assault 48634028, MAFCO SS402,
   generic fog, the other smooth-bore tips, open end) draws an illustrative
   stream from the cross-maker curve **R = 14.3 · Q^0.25** m (`published`
   fit to the 11 "overall" handline rows at 100 psi: Akron 1720/1723P,
   Elkhart Chief XD, Protek 368; 95–250 gpm, max error 11 %, rms 4 %),
   with the ruler labelled as illustrative. No matching reach curve exists for those nozzles (SOURCES.md records
-  where we looked); nor for the generic 1″ and 1⅛″ tips (one Protek 1″ point,
-  effective only, is not a curve).
+  where we looked); the generic 1″ and 1⅛″ tips also use the illustrative curve. Protek publishes
+  1″ measurements for its own multi-purpose handline.
 - **Pressure enters through the flow.** Once Q is the actual flow, the
   tables leave a pressure exponent of 0.08–0.18 (above), far from the ½
   built on 2026-11-02, which read the 1720's points −11 % to +17 % and was
@@ -1015,8 +1032,12 @@ curve within 6 % of every row of its own table.
   offsets by sin²(θ)/sin²(32°). This preserves the existing curve at 32°,
   aligns its initial tangent with the nozzle, and gives a finite vertical
   stream at 90°. At 0° the same-height arc vanishes and the tip spray remains.
-  With a documented reference angle, a straight stream and in-range flow and
-  pressure, the interface may give the geometry's horizontal distance as an
+  Bound the illustrative span by the equal-height vacuum range
+  v²·sin(2θ)/g, using §3.7's Bernoulli exit speed and standard gravity
+  9.80665 m/s² (CGPM 1901). Scale the vertical control offsets by the same
+  factor. This is an upper limit for drawing weak streams, derived from
+  projectile motion in the manual (pp. 76–77). It supplies no field estimate.
+  With a documented reference angle, straight stream and a supported operating point, the interface may give the geometry's horizontal distance as an
   explicitly unvalidated projection. Its field error is unknown. The 0° and
   90° endpoints give zero same-height span in this construction.
   The percentages in the table above are the maximum absolute relative

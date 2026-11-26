@@ -2,7 +2,7 @@
   import { u } from "$lib/display-units.svelte.ts";
   import { WATEROUS_CX, type PumpOperation, type PumpPoint } from "$hydraulics/pump.ts";
   import type { Scenario } from "$hydraulics/scenario.ts";
-  import { poolRangeMessage, hydrantLimitMessage } from "$lib/readings.ts";
+  import { pumpLimitMessage, hydrantLimitMessage } from "$lib/readings.ts";
   import NumberField from "./NumberField.svelte";
   let { scenario, operation, onchange }: { scenario: Scenario; operation?: PumpOperation; onchange: (s: Scenario) => void } = $props();
   const pump = $derived(scenario.source.pump);
@@ -20,12 +20,16 @@
   const points = (ps: PumpPoint[]) => ps.map(p => `${x(p.flowGpm)},${y(p.pressurePsi)}`).join(" ");
   const systemPath = (ps: (PumpPoint | null)[]) => ps.map((p, i) => p
     ? `${i === 0 || ps[i - 1] === null ? "M" : "L"}${x(p.flowGpm)},${y(p.pressurePsi)}` : "").join(" ");
-  const status = $derived(operation ? {
-    empty: "Tanque vacío · sin entrega",
-    holding: "Mantiene la presión solicitada", limited: "Capacidad alcanzada · la presión cae",
-    rpm: "RPM fijas · la presión depende de la tendida", stopped: "Bomba detenida",
-    "outside-curve": "Fuera de la curva publicada · sin resultado", unbalanced: "Sin equilibrio exacto · revisa la tendida",
-  }[operation.status] : "");
+  function status(op: PumpOperation) {
+    if (op.hydrantLimit) return hydrantLimitMessage(op.hydrantLimit);
+    switch (op.status) {
+      case "holding": return "Mantiene la presión solicitada";
+      case "limited": return "Capacidad alcanzada · la presión cae";
+      case "rpm": return "RPM fijas · la presión depende de la tendida";
+      case "stopped": return "Bomba detenida";
+      default: return pumpLimitMessage(op);
+    }
+  }
 </script>
 <section class="pump-model" aria-label="Modelo de bomba">
   <label for="pump-model">Bomba</label>
@@ -45,7 +49,7 @@
       onchange={n => control({ speedRpm: n <= 0 ? 0 : Math.min(pump!.curve.maxRpm, Math.max(pump!.curve.minRpm, n)) })} />
     <p>{pump.curve.minRpm}–{pump.curve.maxRpm} rpm de eje, no de motor; 0 detiene la bomba.</p>
     {#if operation}
-      <strong class="status" role="status">{operation.poolLimit ? poolRangeMessage() : operation.hydrantLimit ? hydrantLimitMessage(operation.hydrantLimit) : status}</strong>
+      <strong class="status" role="status">{status(operation)}</strong>
       <div class="readings">
         <span>Solicitada: {pump.mode === "pressure" ? `${u.p(scenario.source.pressurePsi, 0)} ${u.pressure}` : "control por RPM"}</span>
         <b>Descarga: {u.p(operation.pressurePsi)} {u.pressure} · {u.q(operation.flowGpm)} {u.flow}</b>
@@ -53,7 +57,7 @@
       {#if operation.status === "limited"}<p>La tendida demanda más agua de la que la bomba sostiene a la presión solicitada. La descarga real baja hasta equilibrarse. Cerrar una salida o cambiar el límite de giro cambia ese equilibrio.</p>
       {:else if operation.status === "outside-curve" && !operation.hydrantLimit && !operation.poolLimit}<p>La tendida exige un punto fuera de los datos disponibles. Reduce la demanda cerrando una salida o elige otra configuración; el modelo no puede afirmar cuánto entregaría aquí.</p>
       {:else if operation.status === "holding"}<p>La bomba puede sostener la presión solicitada con las salidas abiertas actualmente.</p>
-      {:else if operation.status === "unbalanced" && !operation.hydrantLimit && !operation.poolLimit}<p>Las pérdidas o una condición de la manguera impiden equilibrar esta tendida. Revisa los avisos del cálculo y modifica la presión o la configuración.</p>{/if}
+      {/if}
       {#if pump.speedRpm > 0 && operation.status !== "empty"}
         <svg viewBox="0 0 340 212" role="img" aria-label="Curva de bomba y demanda de la tendida, con el punto de operación">
           <path d="M44 28 V174 H312" class="axis" />

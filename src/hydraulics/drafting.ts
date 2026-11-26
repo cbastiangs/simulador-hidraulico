@@ -1,4 +1,5 @@
 // MODEL §3.8: fixed, primed CX teaching rig with one 5″ × 20 ft intake.
+import { SUPPLY_RIG_NOZZLE } from "./catalog.ts";
 import { solveAttackLine } from "./line.ts";
 import { dischargePressureAt, WATEROUS_CX } from "./pump.ts";
 import { POOL, poolIntakePsi } from "./pool.ts";
@@ -6,7 +7,7 @@ import { POOL, poolIntakePsi } from "./pool.ts";
 export const POOL_RIG = {
   minLiftM: POOL.minLiftM, maxLiftM: POOL.maxLiftM, shaftRpm: WATEROUS_CX.referenceRpm,
   hose: { lengthM: 30, frictionCoefficient: 2 },
-  nozzle: { ratedFlowGpm: 250, ratedPressurePsi: 100, open: true },
+  nozzle: SUPPLY_RIG_NOZZLE,
 } as const;
 
 // F-2093, Figure 3. The two published rows bracket this exercise's operating points.

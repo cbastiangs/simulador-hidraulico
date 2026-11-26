@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { deliveredFlow, pumpLimitMessage } from "$lib/readings.ts";
   import { u } from "$lib/display-units.svelte.ts";
   import type { Scenario, ScenarioBranch, ScenarioTreeResult, TreeSegmentResult } from "$hydraulics/scenario.ts";
   import * as branch from "$lib/branch-edit.ts";
@@ -41,7 +42,7 @@
   }
   const referenceAt = (current: string[]) => (reference ? readingAt(reference.root, current) : null);
 
-  const refApprox = $derived(reference && !reference.balanced ? "≈ " : "");
+  const refApprox = $derived(reference && reference.root.result.pump?.flowGpm !== null && !reference.balanced ? "≈ " : "");
 
   const number = u.q;
   const pressure = (value: number | null | undefined) => (value === null || value === undefined || !Number.isFinite(value) ? "presión —" : `${u.p(value)} ${u.pressure}`);
@@ -58,15 +59,19 @@
 
 <section class="tree-results">
   <div class="total">
-    <div><b>{network.balanced ? "" : "≈ "}{number(network.totalFlowGpm)}</b> <span>{u.flow} total</span></div>
+    <div><b>{network.balanced || network.root.result.pump?.flowGpm === null ? "" : "≈ "}{number(deliveredFlow(network.root.result))}</b> <span>{u.flow} total</span></div>
     {#if reference}
-      <div class="ref"><b>{refApprox}{number(reference.totalFlowGpm)}</b> <span>{u.flow} · {referenceLabel}</span></div>
+      <div class="ref"><b>{refApprox}{number(deliveredFlow(reference.root.result))}</b> <span>{u.flow} · {referenceLabel}</span></div>
     {/if}
   </div>
-  {#if !network.balanced}
+  {#if network.root.result.pump?.pressurePsi === null}
+    <p class="balance" role="status">{pumpLimitMessage(network.root.result.pump)}</p>
+  {:else if !network.balanced}
     <p class="balance" role="status">≈ Resultado aproximado: el solver no encontró un equilibrio exacto.</p>
   {/if}
-  {#if reference && !reference.balanced}
+  {#if reference?.root.result.pump?.pressurePsi === null}
+    <p class="balance" role="status">{referenceLabel} · {pumpLimitMessage(reference.root.result.pump)}</p>
+  {:else if reference && !reference.balanced}
     <p class="balance" role="status">≈ {referenceLabel}: resultado aproximado; ese método tampoco encontró un equilibrio exacto.</p>
   {/if}
 
@@ -82,7 +87,7 @@
           </span>
           <span class="state">{gateState(entry.segment, entry.depth)}{#if branch.isEmptyOutlet(entry.segment)} · nada conectado{#if r.flowGpm > 0} · <b class="spill">⚠ al suelo</b>{/if}{:else if !entry.segment.wye} · {entry.segment.nozzle.open ? "pitón abierto" : "pitón cerrado"}{:else} · {entry.segment.wye.device === "trifurca" ? "trifurco" : "bifurco"}{/if}</span>
           <span class="numbers">
-            <span><b>{number(r.flowGpm)}</b> {u.flow}{#if ref} <i>({referenceLabel} {refApprox}{number(ref.flowGpm)})</i>{/if}</span>
+            <span><b>{number(deliveredFlow(r.result))}</b> {u.flow}{#if ref} <i>({referenceLabel} {refApprox}{number(deliveredFlow(ref.result))})</i>{/if}</span>
             <span class="p">{r.isolated ? "presión —" : `${pressure(r.inletPressurePsi)} → ${pressure(r.outletPressurePsi)}`}</span>
           </span>
         </div>

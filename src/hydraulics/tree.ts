@@ -72,7 +72,7 @@ export function solveScenarioTree(input: Scenario, methodId: MethodId = input.me
     const fixed = (pressurePsi: number) => solveScenarioTree({ ...input,
       source: { ...input.source, tank: undefined, hydrant: undefined, pool: undefined, pump: undefined, pressurePsi } }, methodId);
     const pump = solvePump(input.source.pump, input.source.pressurePsi, p => {
-      const r = fixed(p); return { flowGpm: r.totalFlowGpm, balanced: r.balanced };
+      const r = fixed(p); return { flowGpm: r.totalFlowGpm, balanced: r.balanced, issue: r.issues[0] };
     }, input.source.hydrant ?? input.source.pool);
     const r = fixed(pump.pressurePsi ?? 0);
     function annotate(node: TreeSegmentResult): TreeSegmentResult {
@@ -153,7 +153,8 @@ export function solveScenarioTree(input: Scenario, methodId: MethodId = input.me
         const above = Math.sqrt(Math.max(0, available - node.fixed - node.step) / resistance);
         if (above <= threshold) {
           q = threshold;
-          issue = { code: "allowance-gap", segmentId: node.id, residualPsi: available - node.fixed - resistance * q * q };
+          issue = { code: "allowance-gap", segmentId: node.id, residualPsi: available - node.fixed - resistance * q * q,
+            step: { aboveGpm: threshold, lossPsi: node.step } };
         } else q = above;
       }
       const minimum = minimumPressure(node, head, q);
@@ -165,6 +166,7 @@ export function solveScenarioTree(input: Scenario, methodId: MethodId = input.me
     }
     let low = k * node.end;
     let high = head;
+    let lowQ = 0, highQ = 0;
     let x = (low + high) / 2;
     let best: { x: number; q: number; derivative: number; residual: number; children: Evaluation[] } | undefined;
     // A finite bracket; exact zero-flow is evaluated at the static endpoint.
@@ -176,8 +178,8 @@ export function solveScenarioTree(input: Scenario, methodId: MethodId = input.me
       const residual = x + node.resistance * q * q + allowance(node, q) - head;
       if (!best || Math.abs(residual) < Math.abs(best.residual)) best = { x, q, derivative, residual, children };
       if (pressureBalanced(residual)) break;
-      if (residual > 0) high = x;
-      else low = x;
+      if (residual > 0) { high = x; highQ = q; }
+      else { low = x; lowQ = q; }
       if (high - low <= 1e-10) break;
       const candidate = x - residual / (1 + 2 * node.resistance * q * derivative);
       x = candidate > low && candidate < high ? candidate : (low + high) / 2;
@@ -193,6 +195,10 @@ export function solveScenarioTree(input: Scenario, methodId: MethodId = input.me
       ...(!pressureBalanced(solved.residual) ? { issue: {
         code: node.fixed || node.step ? "allowance-gap" as const : "pressure-balance" as const,
         segmentId: node.id, residualPsi: solved.residual,
+        ...(node.step && lowQ <= threshold && highQ > threshold ? { step: {
+          aboveGpm: threshold, lossPsi: node.step,
+          device: node.segment.wye && !node.fittings.length ? node.segment.wye.device ?? "wye" : undefined,
+        } } : {}),
       } } : {}),
     };
   }

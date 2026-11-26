@@ -23,7 +23,7 @@
   import { beforeNavigate } from "$app/navigation";
   import { resolve } from "$app/paths";
   import { u } from "$lib/display-units.svelte.ts";
-  import { poolRangeMessage, hydrantLimitMessage, enduranceLabel } from "$lib/readings.ts";
+  import { poolRangeMessage, hydrantLimitMessage, pumpLimitMessage, deliveredFlow, enduranceLabel } from "$lib/readings.ts";
   import { pathResult, solveScenario, solveScenarioTree, type Scenario, type TreeSegmentResult } from "$hydraulics/scenario.ts";
   import Breakdown from "$lib/components/Breakdown.svelte";
   import BudgetBar from "$lib/components/BudgetBar.svelte";
@@ -375,9 +375,9 @@
 
   /** Each outlet's reading, keyed by its path joined with "/". */
   const outlets = $derived.by(() => {
-    const out: Record<string, { flowGpm: number; isolated: boolean; nozzlePsi: number | null }> = {};
+    const out: Record<string, { flowGpm: number | null; isolated: boolean; nozzlePsi: number | null }> = {};
     const walk = (node: TreeSegmentResult, path: string[]) => {
-      if (path.length) out[path.join("/")] = { flowGpm: node.flowGpm, isolated: node.isolated, nozzlePsi: node.branches.length ? null : node.outletPressurePsi };
+      if (path.length) out[path.join("/")] = { flowGpm: deliveredFlow(node.result), isolated: node.isolated, nozzlePsi: node.branches.length ? null : node.outletPressurePsi };
       for (const b of node.branches) walk(b, [...path, b.id!]);
     };
     if (network) walk(network.root, []);
@@ -450,10 +450,11 @@
   function closeNovedades() { novedadesOpen = false; unread = []; markSeen(); }
   const comparing = $derived(compareId !== null && compareId !== scenario.methodId ? compareId : null);
   const referenceNetwork = $derived(comparing && network ? solveScenarioTree(scenario, comparing) : null);
-  const reference = $derived(comparing ? referenceNetwork && view ? pathResult(referenceNetwork.root, view.path) : solveScenario(scenario, comparing) : null);
+  const comparisonResult = $derived(comparing ? referenceNetwork && view ? pathResult(referenceNetwork.root, view.path) : solveScenario(scenario, comparing) : null);
   /** The whole lay's power split (MODEL.md §3.8): on a single line, the Conceptos card's pump power instead. */
   const power = $derived(powerSplit(network?.root ?? result));
-  const referencePower = $derived(referenceNetwork ? powerSplit(referenceNetwork.root) : null);
+  const reference = $derived(comparisonResult?.pump?.pressurePsi === null ? null : comparisonResult);
+  const referencePower = $derived(referenceNetwork && referenceNetwork.root.result.pump?.pressurePsi !== null ? powerSplit(referenceNetwork.root) : null);
   const methodName = $derived(METHOD_LABELS[scenario.methodId]);
   const refName = $derived(comparing ? METHOD_LABELS[comparing] : "");
 
@@ -704,7 +705,7 @@
 
 </script>
 
-<svelte:head><title>Simulador hidráulico</title></svelte:head>
+<svelte:head><title>{scenarioTitle} · Simulador hidráulico</title></svelte:head>
 <svelte:window
   onkeydown={onKey}
   onpointerdown={closeOutsideMenus}
@@ -766,11 +767,14 @@
 {/snippet}
 
 {#snippet results()}
-  {#if pumpResult.pump?.pressurePsi === null}
-    <p class="card" role="status">{#if pumpResult.pump.status === "empty"}Tanque vacío: sin entrega. Rellena el tanque en Abastecimiento; la presión aguas abajo es desconocida.{:else if pumpResult.pump.poolLimit}{poolRangeMessage()}{:else if pumpResult.pump.hydrantLimit}{hydrantLimitMessage(pumpResult.pump.hydrantLimit)} Sin punto de operación calculado.{:else}No hay un punto de operación disponible. Revisa la curva de la bomba y la tendida. {#if scenario.source.hydrant}El hidrante requiere admisión positiva o nula, caudal dentro de su ensayo y descarga igual o mayor que la admisión.{/if}{/if}</p>
+  {#if pumpResult.pump?.pressurePsi === null && network}
+    <TreeResults {scenario} {network} reference={referenceNetwork} referenceLabel={refName} />
+  {:else if pumpResult.pump?.pressurePsi === null}
+    <p class="card" role="status">{pumpLimitMessage(pumpResult.pump)}</p>
   {:else if !lineScenario.sections.length && network}
     <TreeResults {scenario} {network} reference={referenceNetwork} referenceLabel={refName} />
   {:else}
+  {#if !network && comparisonResult?.pump?.pressurePsi === null}<p class="card">{refName} · {pumpLimitMessage(comparisonResult.pump)}</p>{/if}
   <div bind:this={budgetEl} data-tour="budget"><BudgetBar {result} {reference} referenceLabel={refName} openEnd={lineScenario.nozzle.design === "open-end"} line={budgetLine} lines={budgetLines} onPickLine={(key) => selectLine(key.split("/"))} /></div>
   {#if network}<PowerSplit split={power} flowGpm={network.totalFlowGpm} pumpPsi={pumpResult.pump?.pressurePsi ?? scenario.source.pressurePsi} lines={budgetLines} reference={referencePower} referenceLabel={refName} />{/if}
   <details class="card">
@@ -793,7 +797,7 @@
 {/snippet}
 
 {#snippet pumpPanel(mode: "strip" | "head" | "full" | "bar")}
-  <PumpPanel {scenario} result={pumpResult} branched={!!network} balanced={network?.balanced ?? pumpResult.issues.length === 0} onchange={(s) => apply(s, "pump")} strip={mode === "strip"} head={mode === "head"} full={mode === "full"} onOpen={() => select({ kind: "pump" })} />
+  <PumpPanel {scenario} result={pumpResult} {network} onchange={(s) => apply(s, "pump")} strip={mode === "strip"} head={mode === "head"} full={mode === "full"} onOpen={() => select({ kind: "pump" })} />
   {#if (scenario.source.hydrant || scenario.source.pool) && mode !== "full"}
     {@const op = pumpResult.pump}
     <button class="supply-readings" type="button" title="Abrir abastecimiento" onclick={() => { pumpTab = "tank"; select({ kind: "pump" }); }}>
@@ -826,29 +830,28 @@
 
 <div class="app" class:phone class:wide class:landscape class:short-portrait={shortPortrait} class:has-practice={!!activeDocument.exercise} style:--dock-space={`${Math.max(90, pressureDockHeight + 12)}px`} style:--sheet-closed={`${closedSheetHeight}px`} style:--viewport-height={`${viewportHeight}px`}>
   <header class="top">
-    {#if shortPortrait}
-      <h1><button type="button" class="compact-scenario" data-tour="escenario" aria-haspopup="dialog"
+    <div class="scenario-heading">
+      {#if shortPortrait}
+        <h1><button type="button" class="compact-scenario" data-tour="escenario" aria-haspopup="dialog"
           aria-label={`Cambiar escenario: ${scenarioTitle}`} onclick={() => openPicker(activeDocument.exercise ? "practices" : "examples")}>
           <span>{scenarioTitle}</span> ▾
         </button></h1>
-    {:else}
-      <h1>Simulador hidráulico</h1>
-      {@render historyControls()}
-    {/if}
-    <details class="scenario" bind:this={scenarioMenu}>
-      {#if shortPortrait}
-        <summary aria-label="Opciones del escenario" onclick={() => { if (helpMenu) helpMenu.open = false; }}>Opciones ▾</summary>
       {:else}
-        <summary data-tour="escenario" aria-label={`Escenario: ${scenario.name}`} title={scenario.name} onclick={() => { if (helpMenu) helpMenu.open = false; }}>
-          <span class="scenario-title"><span class="scenario-label">Escenario</span><span class="name">{scenario.name}</span></span>
-          <span class="caret" aria-hidden="true">▾</span>
-        </summary>
+        <div class="scenario-title">
+          <span class="scenario-label">Escenario actual</span>
+          <h1>{scenarioTitle}</h1>
+        </div>
+        <button type="button" class="switch-scenario" data-tour="escenario" aria-haspopup="dialog"
+          onclick={() => openPicker(activeDocument.exercise ? "practices" : "examples")}>Cambiar escenario</button>
       {/if}
+    </div>
+    {#if !shortPortrait}{@render historyControls()}{/if}
+    <details class="scenario" bind:this={scenarioMenu}>
+      <summary aria-label="Opciones del escenario" title="Opciones del escenario" onclick={() => { if (helpMenu) helpMenu.open = false; }}>
+        Opciones <span aria-hidden="true">▾</span>
+      </summary>
       <div class="scenario-menu">
-        {#if shortPortrait}{@render historyControls()}{:else}
-          <button type="button" onclick={() => openPicker("examples")}>Tendidas de ejemplo…</button>
-          <button type="button" onclick={() => openPicker("practices")}>Prácticas guiadas…</button>
-        {/if}
+        {#if shortPortrait}{@render historyControls()}{/if}
         <button type="button" onclick={newLine}>Línea en blanco</button>
         <hr />
         <button type="button" onclick={() => { closeMenu(scenarioMenu); libraryOpen = true; }}>Mis líneas…</button>
@@ -969,7 +972,7 @@
 </div>
 
 <input class="file-input" type="file" accept=".json,application/json" bind:this={fileInput} onchange={e => importFile(e.currentTarget.files?.[0])} aria-label="Importar archivo de escenario" />
-<ScenarioPicker bind:this={picker} {examples} {practices} current={presetId} onPick={choosePreset} />
+<ScenarioPicker bind:this={picker} {examples} {practices} current={edited ? null : presetId} onPick={choosePreset} />
 <SavedLays open={libraryOpen} scenario={activeDocument} onOpen={s => loadShared(s, true)} onClose={() => libraryOpen = false} />
 <ScenarioText mode={textMode} text={textMode === "copy" ? textCopy : ""} error={pasteError} onOpen={openPasted} onClose={() => (textMode = null)} />
 {#if notice}
@@ -1059,17 +1062,15 @@
   .app.wide.has-practice { overflow-anchor: none; grid-template-areas: "top top" "practice side" "canvas side" "results side"; grid-template-rows: auto auto auto 1fr; }
   .app.wide .practice-summary { align-self: start; }
   .app.wide .head { position: sticky; top: 0; z-index: 5; }
-  /* One header row when wide: a long scenario name truncates rather than pushing ? and ⚙ to a second row, which would shift the panel under the dock. */
-  .app.wide .top { flex-wrap: nowrap; }
-  .app.wide .top h1 { flex: none; white-space: nowrap; }
-  .app.wide .top > * { flex-shrink: 0; }
-  .app.wide .top > .scenario { flex-shrink: 1; }
   /* Reserve the measured dock, including wrapped pressure labels. */
   .app.wide .side { scroll-padding-top: var(--pump-height); position: sticky; top: var(--gap); align-self: start; max-height: calc(100dvh - 2 * var(--gap) - 44px - var(--dock-space)); overflow: auto; }
   .dock { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; padding: 8px var(--gap) calc(8px + env(safe-area-inset-bottom)); background: var(--bg); box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.15); }
   .dock > :global(*) { max-width: 1976px; margin: 0 auto; }
   .top { grid-area: top; display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; justify-content: space-between; }
-  .top h1 { margin: 0; font-size: 18px; }
+  .scenario-heading { display: flex; flex: 1; min-width: 0; align-items: center; gap: 12px; }
+  .top h1 { margin: 0; font-size: clamp(16px, 2vw, 21px); line-height: 1.15; overflow-wrap: anywhere; }
+  .switch-scenario { flex: none; min-height: 44px; padding: 0 12px; border: 1px solid var(--accent); border-radius: 8px; background: var(--accent-soft); color: var(--ink); font: inherit; font-size: 13px; font-weight: 650; cursor: pointer; }
+  .scenario-heading .scenario-title { flex: 1; }
   .history { display: flex; gap: 6px; margin-left: auto; }
   .history button { height: 44px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); font-weight: 600; cursor: pointer; }
   .history button:disabled { opacity: 0.4; cursor: default; }
@@ -1081,7 +1082,7 @@
   .scenario > summary { list-style: none; display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); cursor: pointer; font-weight: 600; font-size: 14px; }
   .scenario > summary::-webkit-details-marker, .help > summary::-webkit-details-marker { display: none; }
   .scenario-title { display: grid; gap: 1px; min-width: 0; }
-  .scenario-label { color: var(--muted); font-size: 10px; font-weight: 600; }
+  .scenario-label { color: var(--muted); font-size: 12px; font-weight: 600; }
   .help { position: relative; flex: none; }
   .help > summary { display: grid; place-items: center; list-style: none; }
   .help .scenario-menu { max-width: min(320px, calc(100vw - 76px)); }
@@ -1089,8 +1090,6 @@
   .more-file > summary { min-height: 44px; padding: 11px 12px; cursor: pointer; font-size: 14px; border-radius: 6px; }
   .more-file > summary:hover { background: var(--accent-soft); }
   .more-file > button { display: block; width: 100%; }
-  .scenario .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .scenario .caret { margin-left: auto; color: var(--muted); }
   .scenario-menu { max-height: calc(100dvh - 130px); overflow-y: auto; position: absolute; right: 0; top: 50px; z-index: 65; width: max-content; min-width: 100%; max-width: min(420px, calc(100vw - 16px)); display: grid; padding: 6px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2); }
   .scenario-menu :is(button, a) { min-height: 44px; padding: 0 12px; text-align: left; border: 0; border-radius: 6px; background: transparent; color: var(--ink); font-size: 14px; cursor: pointer; position: relative; }
   .scenario-menu a { display: flex; align-items: center; text-decoration: none; }
@@ -1133,10 +1132,8 @@
     display: flex; flex-direction: column; gap: 6px; grid-area: pump; overflow-y: auto;
   }
   .short-portrait .operating-header > * { flex: none; }
-  .app.phone.short-portrait .top { gap: 6px; }
-  .app.phone.short-portrait .top h1 { display: block; flex: 1; min-width: 0; font-size: 16px; }
-  .app.phone.short-portrait .scenario { flex: none; }
-  .app.phone.short-portrait .scenario > .scenario-menu { right: -60px; left: auto; }
+  .app.phone.short-portrait .scenario-heading { flex-basis: 0; }
+  .short-portrait h1 { min-width: 0; }
   .compact-scenario {
     display: flex; align-items: center; gap: 4px; max-width: 100%; min-height: 44px; padding: 2px 6px;
     border: 1px solid var(--line); border-radius: 8px; background: var(--surface); font: inherit; text-align: left; cursor: pointer;
@@ -1145,15 +1142,20 @@
   .app.phone .scenario-menu .history { margin: 0; }
   .app.phone .scenario-menu .history button { width: auto; padding: 0 8px; }
   .app.phone .scenario-menu .word { display: inline; }
-  .app.phone .top { flex-wrap: nowrap; }
+  .app.phone .top { gap: 4px 8px; }
+  .app.phone:not(.landscape):not(.short-portrait) .scenario-heading { flex-basis: 100%; }
+  .app.phone:not(.landscape) .history { margin-left: 0; margin-right: auto; }
+  .landscape .scenario-title h1 { overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; }
+  .landscape .scenario-label { display: none; }
+  .app.phone .scenario > .scenario-menu { right: -60px; }
   /* Svelte trims a leading space inside the span, so the gap after the arrow is a margin. */
   .word { margin-left: 0.35em; }
-  .app.phone .top h1, .app.phone .word { display: none; }
-  .app.phone .history { order: 2; margin-left: 0; }
+  @media (min-width: 768px) and (max-width: 1149px) {
+    .top .word { display: none; }
+    .history button { min-width: 44px; }
+  }
+  .app.phone .word { display: none; }
   .app.phone .history button { min-width: 44px; padding: 0; font-size: 20px; }
-  .app.phone .scenario { flex: 1; }
-  .app.phone .scenario > .scenario-menu { left: 0; right: auto; }
-  .app.phone .help, .app.phone .gear { order: 3; flex: none; }
   .app.phone .canvas { min-height: 0; }
   .practice-entry { min-height: 44px; border: 1px solid var(--line); border-radius: 8px; background: var(--accent-soft); color: var(--accent); font: inherit; font-size: 13px; padding: 8px; cursor: pointer; }
   .practice-short { grid-area: practice; min-height: 44px; text-align: left; padding: 8px 12px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--accent-soft); color: var(--accent); font: inherit; font-size: 13px; }
@@ -1163,7 +1165,6 @@
     grid-template-areas: "top top" "canvas side";
     grid-template-rows: 44px minmax(0, 1fr);
   }
-  .landscape .scenario { max-width: none; }
   .landscape-panel { min-height: 0; min-width: 0; overflow: auto; overscroll-behavior: contain; border-radius: var(--radius); scroll-padding-top: var(--pump-height); }
   .landscape-pump { position: sticky; top: 0; z-index: 8; background: var(--bg); }
   @media (max-width: 1023px) { .field input { font-size: 16px; } }

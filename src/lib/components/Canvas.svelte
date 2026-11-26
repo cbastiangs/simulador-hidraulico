@@ -34,10 +34,10 @@
   import PieceStrip from "./PieceStrip.svelte";
   import { PIECES, isAdding, removalFor, spotsFor, type PieceId, type Spot } from "$lib/pieces.ts";
   import { hoseVelocityMps, nozzleExitVelocityMps } from "$hydraulics/velocity.ts";
-  import { DEFAULT_AIM_DEG, NOZZLE_REACH, streamReach } from "$hydraulics/reach.ts";
+  import { DEFAULT_AIM_DEG, reachTableFor, streamReach } from "$hydraulics/reach.ts";
   import { smoothBoreFlowGpm } from "$hydraulics/nozzle.ts";
   import { createWaterMotion, type WaterMotion } from "$lib/water-motion.ts";
-  import { jointFlowGpm, reachLabel } from "$lib/readings.ts";
+  import { jointFlowGpm, deliveredFlow, pumpLimitMessage, reachLabel } from "$lib/readings.ts";
 
   // The canvas (UX.md §2, polish §10.8): one uniform scale, the lay auto-fitted
   // to the space available; gauges, labels, handles and the nozzle keep their
@@ -149,7 +149,7 @@
     editedName?: string;
     linePaths?: string[][];
     /** Each wye outlet's flow, by path joined with "/": an open empty outlet's spill. */
-    outletFlows?: Record<string, number>;
+    outletFlows?: Record<string, number | null>;
     /** Drop the picked piece on a spot (lib/pieces.ts); the page applies it as one undo step. */
     /** `path` names another line of a branched lay, which becomes the edited one; the spot is in its numbering. */
     onPlace?: (piece: PieceId, spot: Spot, path?: string[]) => void;
@@ -296,9 +296,9 @@
   function ratedStream(line: Scenario) {
     const n = line.nozzle;
     const design = n.design ?? "fog";
-    if (design === "open-end") return streamReach(null, design, 250, 50, 0, n.aimDeg);
+    if (design === "open-end") return streamReach(n, 250, 50);
     const gpm = design === "smooth-bore" ? smoothBoreFlowGpm(n.tipIn!, n.ratedPressurePsi) : n.ratedFlowGpm;
-    return streamReach(n.specId, design, gpm, n.ratedPressurePsi, 0, n.aimDeg);
+    return streamReach({ ...n, pattern: 0 }, gpm, n.ratedPressurePsi);
   }
   const hoseBounds = $derived(others.reduce(
     (bounds, line) => growBounds(bounds, line.scenario.sections, floorM),
@@ -961,11 +961,11 @@
   // particle, so a handline shows a dozen or more along its arc.
   const GALLONS_PER_DROP = GALLONS_PER_PARTICLE / 10;
   const nozzleTestAngle = (n: Scenario["nozzle"]) =>
-    n.design !== "open-end" && n.specId ? NOZZLE_REACH[n.specId]?.testAngleDeg : null;
+    reachTableFor(n)?.testAngleDeg;
   const selectedTestAngle = $derived(nozzleTestAngle(scenario.nozzle));
   function jetOf(line: Scenario, r: Pick<SeriesResult, "flowGpm" | "nozzlePressurePsi">) {
     const psi = r.nozzlePressurePsi ?? 0;
-    const reach = streamReach(line.nozzle.specId, line.nozzle.design ?? "fog", r.flowGpm, psi, line.nozzle.pattern, line.nozzle.aimDeg);
+    const reach = streamReach(line.nozzle, r.flowGpm, psi);
     const unitsPerM = PX_PER_M / nozzleK;
     const seconds = r.flowGpm > 0 ? (60 * GALLONS_PER_DROP) / r.flowGpm : 0;
     const drops: WaterMotion = {
@@ -976,14 +976,7 @@
       offsetPx: 0,
       reduced: reducedMotion,
     };
-    // A fog pattern on a nozzle with its own table: say where its number is (owner, 2026-11-06).
-    const aim = line.nozzle.aimDeg ?? DEFAULT_AIM_DEG;
-    const showReference = reach.referenceM !== null && nozzleTestAngle(line.nozzle) === aim;
-    const measurement = reachLabel(reach);
-    const label = showReference && !reach.fitted
-      ? `en Directo: alcance ≈ ${u.l(reach.referenceM, 0)} ${u.length}`
-      : measurement;
-    return { ...reach, unitsPerM, screen: k / nozzleK, label, measurement, drops };
+    return { ...reach, unitsPerM, screen: k / nozzleK, label: reachLabel(reach), drops };
   }
   /** The visible canvas's edges from a nozzle at world (x, y), in its icon units (NozzleDrawing `view`). */
   const jetView = (x: number, y: number) => ({
@@ -1320,7 +1313,7 @@
 
   function flowLabel(r: SeriesResult, nozzle: Scenario["nozzle"]) {
     if (r.pump?.status === "empty") return `tanque vacío · 0 ${u.flow}`;
-    if (r.pump?.pressurePsi === null) return "sin resultado";
+    if (r.pump?.pressurePsi === null) return `— ${u.flow}`;
     if (r.state === "unbalanced") return "sin caudal exacto";
     if (r.flowGpm > 0) return `${u.q(r.flowGpm, r.flowGpm < 1 ? 1 : 0)} ${u.flow}`;
     if (r.state === "isolated") return "línea aislada";
@@ -1487,7 +1480,7 @@
   /** The phone's tray of pieces, opened from the toolbar. */
   let tray = $state(false);
   let viewDialog = $state<HTMLDialogElement>();
-  const reachText = $derived(result.state === "flowing" ? jetOf(scenario, result).measurement : "Alcance · sin chorro");
+  const reachText = $derived(result.state === "flowing" ? jetOf(scenario, result).label : result.pump?.flowGpm === null ? "Alcance · sin lectura" : "Alcance · sin chorro");
   const compactToolbar = $derived(landscape || shortPortrait);
   const armedPiece = $derived(PIECES.find((p) => p.id === armed));
   async function pick(piece: PieceId | null) {
@@ -1773,6 +1766,7 @@
         <!-- What leaves each nozzle (owner, 2026-10-17): the header's gpm is the pump's total. -->
         {#snippet flowTag(at: { x: number; y: number }, r: SeriesResult, nozzle: Scenario["nozzle"])}
           <text class="flow-tag" class:idle={r.flowGpm <= 0} x={at.x + 24 * nozzleK} y={at.y + 18 * nozzleK + 12 * k}>
+            {#if r.pump?.flowGpm === null}<title>{pumpLimitMessage(r.pump)}</title>{/if}
             {flowLabel(r, nozzle)}
           </text>
         {/snippet}
@@ -2187,7 +2181,7 @@
         >
           <button type="button" class="bar-close" aria-label="Quitar selección (Esc)" title="Quitar selección (Esc)" onclick={onDeselect}>×</button>
           {#if n.design === "open-end"}
-            <div class="chips"><span class="len">Sin pitón · {u.q(result.flowGpm, 0)} {u.flow}</span></div>
+            <div class="chips"><span class="len">Sin pitón · {u.q(deliveredFlow(result), 0)} {u.flow}</span></div>
           {:else}
             <div class="chips" role="radiogroup" aria-label="Manija" data-tour="manija">
               <button type="button" role="radio" aria-checked={!n.open} class:on={!n.open} onclick={() => onEdit(edit.setNozzleOpen(scenario, false))}>Cerrado</button>
@@ -2203,7 +2197,7 @@
             {#if (n.design ?? "fog") === "fog"}
               <div class="chips" role="radiogroup" aria-label="Patrón">
                 {#each PATTERN_STOPS as stop (stop.value)}
-                  {@const on = Math.abs(n.pattern - stop.value) < 0.13}
+                  {@const on = stop.value === 0 ? n.pattern === 0 : Math.abs(n.pattern - stop.value) < 0.13}
                   <button type="button" role="radio" aria-checked={on} class:on onclick={() => onEdit(edit.setNozzlePattern(scenario, stop.value))}>{stop.label}</button>
                 {/each}
               </div>

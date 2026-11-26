@@ -23,7 +23,7 @@
     /** The whole branched lay, which these edits change. */
     tree: Scenario;
     junction: branch.Junction;
-    outlets: Record<string, { flowGpm: number; isolated: boolean; nozzlePsi: number | null }>;
+    outlets: Record<string, { flowGpm: number | null; isolated: boolean; nozzlePsi: number | null }>;
     onTree: (s: Scenario) => void;
     onLine: (path: string[]) => void;
   } = $props();

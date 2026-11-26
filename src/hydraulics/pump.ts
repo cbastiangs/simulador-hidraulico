@@ -1,5 +1,6 @@
 /** Waterous CX family model; MODEL §3.8 and docs/reference/pumps/waterous-cx/. */
 import { supplyAtFlow, type HydrantSupply } from "./supply.ts";
+import type { BalanceIssue } from "./balance.ts";
 
 import { smoothBoreFlowGpm } from "./nozzle.ts";
 import { POOL, poolIntakePsi, type PoolSupply } from "./pool.ts";
@@ -14,6 +15,7 @@ export type PumpOperation = {
   addedPsi?: number | null;
   poolLimit?: boolean;
   hydrantLimit?: HydrantLimit;
+  balanceIssue?: BalanceIssue;
   intakePsi?: number | null;
   pressurePsi: number | null;
   flowGpm: number | null;
@@ -66,7 +68,7 @@ export function dischargePressureAt(curve: readonly PumpPoint[], flowGpm: number
 
 /** Pressure-dependent demand comes from the existing series/tree solver, never the UI. */
 export function solvePump(pump: PumpConfig, requestPsi: number,
-  demand: (pressurePsi: number) => { flowGpm: number; balanced: boolean }, supply?: HydrantSupply | PoolSupply): PumpOperation {
+  demand: (pressurePsi: number) => { flowGpm: number; balanced: boolean; issue?: BalanceIssue }, supply?: HydrantSupply | PoolSupply): PumpOperation {
   const p = parsePump(pump);
   const net = scaledPumpCurve(p);
   const pool = supply && "liftM" in supply ? supply : undefined;
@@ -130,7 +132,8 @@ export function solvePump(pump: PumpConfig, requestPsi: number,
   const available = dischargeAt(top.flowGpm);
   if (p.mode === "pressure" && available !== null && available >= upper && upper === requestPsi) {
     if (upper < inlet(top.flowGpm)) return answer("unbalanced", null, null, "below-inlet");
-    return top.balanced ? answer("holding", upper, top.flowGpm) : answer("unbalanced", null, null);
+    return top.balanced ? answer("holding", upper, top.flowGpm)
+      : { ...answer("unbalanced", null, null), balanceIssue: top.issue };
   }
   // If demand already exceeds the known flow domain at its end pressure,
   // an intersection would require extrapolation. Pressure mode can hold a
@@ -150,7 +153,8 @@ export function solvePump(pump: PumpConfig, requestPsi: number,
   }
   const d = demand(x), supplied = dischargeAt(d.flowGpm);
   if (supplied === null) return answer("outside-curve", null, null, domainLimit);
-  if (!d.balanced || Math.abs(supplied-x) > 1e-6) return answer("unbalanced", null, null);
+  if (!d.balanced || Math.abs(supplied-x) > 1e-6)
+    return { ...answer("unbalanced", null, null), balanceIssue: d.issue };
   return answer(p.mode === "rpm" ? "rpm" : "limited", x, d.flowGpm);
 }
 

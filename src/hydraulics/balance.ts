@@ -4,6 +4,7 @@ export const PRESSURE_TOLERANCE_PSI = 1e-7;
 export type BalanceIssue = {
   code: "allowance-gap" | "high-point" | "pressure-balance";
   residualPsi: number;
+  step?: { aboveGpm: number; lossPsi: number; device?: "wye" | "trifurca" };
 };
 
 export const pressureBalanced = (residualPsi: number) =>

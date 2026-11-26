@@ -48,6 +48,12 @@ export const SOURCES = {
     published: "read 2026-11-25",
     url: "https://www.akronbrass.com/dual-stacked-tips",
   },
+  akron2393: {
+    title: "Axial Playpipe with Stacked Tips · Style 2393",
+    publisher: "Akron Brass",
+    published: "read 2026-11-25",
+    url: "https://www.akronbrass.com/axial-playpipe-with-stacked-tips",
+  },
   akron1720: {
     title: "Turbojet 1720 / 17204001",
     publisher: "Akron Brass",

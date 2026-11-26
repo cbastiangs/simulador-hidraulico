@@ -41,6 +41,30 @@ test('pump/lay balance: governor, RPM, shared branches, closed nozzle and domain
   near(solveScenario(parseScenario(copy)).pump.pressurePsi,202);
 });
 
+test('CX at 3200 rpm reports the shared wye allowance gap and recovers with 7 m more lift', () => {
+  const branch = (id, ratedFlowGpm, endElevationM) => ({
+    id, name: id, open: true, sections: [{ ...hose, lengthM: 30, endElevationM }],
+    nozzle: { ...nozzle, ratedFlowGpm, ratedPressurePsi: 100 },
+  });
+  const atHeight = h => solveScenarioTree({
+    ...lay(), source: { kind: 'fixed-pressure', pressurePsi: 202, pump: config('pressure', 3200) },
+    sections: [{ ...hose, lengthM: 15, endElevationM: h }],
+    wye: { branches: [branch('a', 95, h + 7), branch('b', 250, h + 0.5)] },
+  });
+  // At 350 gpm the scaled CX gives 140.16 psi. The two nozzle flows at
+  // equal junction head sum to 350 at 139.28 psi discharge (feed loss
+  // included). Immediately above 350 the wye needs another 10 psi.
+  const lower = atHeight(8).root.result.pump;
+  assert.equal(lower.status, 'unbalanced');
+  assert.equal(lower.pressurePsi, null);
+  assert.equal(lower.flowGpm, null);
+  assert.deepEqual(lower.balanceIssue.step, { aboveGpm: 350, lossPsi: 10, device: 'wye' });
+  const higher = atHeight(15);
+  assert.equal(higher.root.result.pump.status, 'limited');
+  near(higher.root.result.pump.pressurePsi, 140.32, 0.01);
+  near(higher.totalFlowGpm, 337.22, 0.01);
+});
+
 test('independent discharges conserve total flow without a wye loss at the manifold',()=>{
   // Two 500 gpm @ 202 psi openings, with no hose loss: at the CX chart's
   // (1000,202) node each delivers 500. CGBVP would charge 5 psi for a wye,

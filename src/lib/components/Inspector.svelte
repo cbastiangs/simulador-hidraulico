@@ -1,12 +1,12 @@
 <script lang="ts">
   import { resolve } from "$app/paths";
-  import { DEFAULT_AIM_DEG, streamReach, NOZZLE_REACH } from "$hydraulics/reach.ts";
+  import { DEFAULT_AIM_DEG, streamReach, reachTableFor } from "$hydraulics/reach.ts";
   import { u } from "$lib/display-units.svelte.ts";
   import { hoseSizeName, jointName } from "$lib/names.ts";
   import { NOZZLE_SPECS } from "$hydraulics/catalog.ts";
   import { HOSE_SIZES, SOURCES, type Source } from "$hydraulics/references.ts";
   import { couplingOf, endBoreIn, reactionAt, resolvedNozzle, type Scenario } from "$hydraulics/scenario.ts";
-  import { sectionFlowGpm, jointFlowGpm, reachLabel } from "$lib/readings.ts";
+  import { sectionFlowGpm, jointFlowGpm, pumpLimitMessage, reachLabel } from "$lib/readings.ts";
   import type { SeriesResult } from "$hydraulics/series.ts";
   import * as edit from "$lib/edit.ts";
   import { runsOf } from "$lib/geometry/world.ts";
@@ -56,7 +56,7 @@
     branched?: boolean;
     /** A branched lay (UX.md §2): `scenario` is its drawn path; `tree` the whole lay, for the wye's panel. */
     tree?: Scenario;
-    outlets?: Record<string, { flowGpm: number; isolated: boolean; nozzlePsi: number | null }>;
+    outlets?: Record<string, { flowGpm: number | null; isolated: boolean; nozzlePsi: number | null }>;
     onTree?: (s: Scenario) => void;
     onLine?: (path: string[]) => void;
   } = $props();
@@ -77,8 +77,8 @@
   const design = $derived(scenario.nozzle.design ?? "fog");
   const displayNozzle = $derived(resolvedNozzle(scenario.sections, scenario.nozzle));
   const aim = $derived(scenario.nozzle.aimDeg ?? DEFAULT_AIM_DEG);
-  const reach = $derived(streamReach(scenario.nozzle.specId, design, result.flowGpm, result.nozzlePressurePsi ?? 0, scenario.nozzle.pattern, aim));
-  const reachTable = $derived(design !== "open-end" && scenario.nozzle.specId ? NOZZLE_REACH[scenario.nozzle.specId] : undefined);
+  const reach = $derived(streamReach(scenario.nozzle, result.flowGpm, result.nozzlePressurePsi ?? 0));
+  const reachTable = $derived(reachTableFor(scenario.nozzle));
   const nozzleSpec = $derived(NOZZLE_SPECS.find((spec) => spec.id === scenario.nozzle.specId));
   const manufacturer: Source | null = $derived(nozzleSpec?.manufacturerSource ? SOURCES[nozzleSpec.manufacturerSource] : null);
   const nozzleInlet = $derived(scenario.nozzle.inletIn ?? nozzleSpec?.inletIn);
@@ -120,7 +120,7 @@
 
 {#snippet reachReading()}
   <section class="reach-reading" aria-label="Alcance del chorro">
-    <b>{result.state !== "flowing" ? "Sin chorro" : reachLabel(reach)}</b>
+    <b>{unavailable ? "Alcance sin calcular" : result.state !== "flowing" ? "Sin chorro" : reachLabel(reach)}</b>
     <div class="aim-control">
       <label for="stream-aim">Inclinación sobre la horizontal <strong>{aim}°</strong></label>
       <input id="stream-aim" type="range" min="0" max="90" step="1" value={aim} aria-valuetext={`${aim} grados sobre la horizontal`}
@@ -140,13 +140,21 @@
         <p>Distancia horizontal hasta volver a la altura del pitón. La tabla solo documenta el ensayo a {reachTable?.testAngleDeg}°.</p>
       {/if}
       {#if reach.fitted}
-        <p>Estimación de las gotas más lejanas en chorro directo y aire quieto, a la altura del pitón.</p>
+        <p>Distancia horizontal hasta donde caen las últimas gotas en chorro directo y aire quieto. La forma del arco es ilustrativa.</p>
       {:else if reach.referenceM !== null}
-        <p>Referencia de la tabla en chorro directo{reachTable?.testAngleDeg != null ? ` a ${reachTable.testAngleDeg}°` : " (ángulo sin indicar)"}: ≈ {u.l(reach.referenceM, 0)} {u.length} al caudal y presión actuales.</p>
+        <p>Alcance total estimado en Directo{reachTable?.testAngleDeg != null ? ` a ${reachTable.testAngleDeg}°` : " (ángulo sin indicar)"}: ≈ {u.l(reach.referenceM, 0)} {u.length} al caudal y presión actuales.</p>
       {:else}
-        <p>{reachTable ? "La presión o el caudal están fuera del rango publicado de este pitón." : "Este pitón no tiene una curva de alcance publicada incorporada."}</p>
+        <p>{reachTable ? "La presión del pitón está fuera del intervalo de ensayo." : "Sin tabla de alcance para esta configuración."}</p>
       {/if}
-      {#if reachTable}<p>Rango de referencia: {u.p(reachTable.psi[0], 0)}–{u.p(reachTable.psi[1], 0)} {u.pressure} · {u.q(reachTable.gpm[0], 0)}–{u.q(reachTable.gpm[1], 0)} {u.flow}.</p>{/if}
+      {#if reach.testPoint && reachTable}
+        {@const point = reach.testPoint}
+        <div class="reach-test">
+          <strong>Ensayo publicado más cercano</strong>
+          <p>Directo a {reachTable.testAngleDeg}° · {u.p(point.pressurePsi, 0)} {u.pressure} · {u.q(point.flowGpm, 0)} {u.flow}</p>
+          <p>Alcance total <b>{u.l(point.overallM, 0)}&nbsp;{u.length}</b> · Alcance efectivo <b>{u.l(point.effectiveM, 0)}&nbsp;{u.length}</b></p>
+        </div>
+      {/if}
+      {#if reachTable}<p>Intervalo de presión: {u.p(reachTable.psi[0], 0)}–{u.p(reachTable.psi[1], 0)} {u.pressure}.</p>{/if}
       <div class="reach-limit">
         {#if reach.referenceM !== null && reachTable}
           {#if reachTable.maxTableDeviationPct !== null}
@@ -203,7 +211,7 @@
         <p>Punta abierta · el agua sale por el acople de {tipName(endBoreIn(scenario.sections))}</p>
       {:else}
         <h3>{manufacturer ? nozzleSpec?.label : design === "smooth-bore" ? "Pitón de chorro sólido" : n.kind === "selectable" ? "Pitón combinado" : "Pitón"}</h3>
-        <p>{nozzleKind} · {u.p(n.ratedPressurePsi)} {u.pressure} nominal{manufacturer ? " · ficha del fabricante" : n.specId === null || !nozzleSpec ? " · personalizado" : " · genérico"}</p>
+        <p>{nozzleKind} · {u.p(n.ratedPressurePsi)} {u.pressure} {design === "smooth-bore" ? "de referencia" : "nominal"}{manufacturer && design === "smooth-bore" ? " · dimensiones según fabricante" : manufacturer ? " · ficha del fabricante" : n.specId === null || !nozzleSpec ? " · personalizado" : " · genérico"}</p>
       {/if}
     </header>
     {#if selection.reachFirst}{@render reachReading()}{/if}
@@ -298,7 +306,7 @@
     <!-- The force on the hands at the solved flow (MODEL.md §3.6, §7): the engine's numbers, formula substituted. -->
     {#if result.pump?.status === "empty"}<p class="warn" role="status">Tanque vacío · 0 {u.flow}. Rellena el tanque en Abastecimiento; la presión aguas abajo es desconocida.</p>{/if}
     {#if unavailable}
-      <p class="warn" role="status">Sin resultado hidráulico: la tendida está fuera del modelo de bomba disponible.</p>
+      <p class="warn" role="status">{pumpLimitMessage(result.pump!)}</p>
     {:else}
     <div class="reaction" role="status">
       <div><span class="label">Reacción</span> <b>{fmt(reaction.lbf, 0)} lbf</b> · {fmt(reaction.kgf, 0)} kgf</div>
@@ -441,6 +449,7 @@
   .aim-scale { font-size: 11px; color: var(--muted); }
   .aim-source { margin-top: 8px; }
   .aim-source button { min-height: 44px; padding: 4px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--accent); cursor: pointer; }
+  .reach-test { margin-top: 10px; font-size: 13px; }
   .reach-limit { margin-top: 10px; padding-top: 4px; border-top: 1px solid var(--line); }
   .reach-reading b { color: var(--ink); }
   .reach-reading p { margin: 6px 0 0; font-size: 13px; color: var(--muted); }

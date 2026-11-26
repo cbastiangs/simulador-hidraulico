@@ -72,13 +72,6 @@ const DEVICE_NAME: Record<WyeDevice, string> = { wye: "bifurco", trifurca: "trif
 
 export const isAdding = (piece: PieceId) => piece !== "eraser";
 
-/** The smooth bore that fits the line's last coupling: 15/16″ on 1½″, 1⅛″ on 2½″ and up (catalog.ts). */
-function smoothBoreFor(line: Scenario) {
-  const coupling = HOSE_SIZES.find((h) => h.id === line.sections.at(-1)?.hoseSizeId)?.couplingIn ?? 1.5;
-  return coupling === 1.5 ? "smooth-bore-15-16" : "smooth-bore-1-1-8";
-}
-const specFor = (piece: PieceId, line: Scenario) => (piece === "fog" ? "combination-selectable" : smoothBoreFor(line));
-
 const sectionsFull = (line: Scenario) =>
   branch.totalSections(branch.treeOf(line)) >= branch.BRANCH_LIMITS.sections ? `Máximo ${branch.BRANCH_LIMITS.sections} tramos en total.` : null;
 
@@ -118,7 +111,7 @@ export function spotsFor(piece: PieceId, line: Scenario): SpotChoice[] {
       out.push({ spot: { kind: "joint", index: j }, label: `Poner un ${DEVICE_NAME[device]} ${j === n ? "al final de la línea" : `en el acople ${j}`}`, blocked: branch.wyeLimit(line, j, device) });
     }
   } else if (piece === "fog" || piece === "smooth-bore") {
-    const id = specFor(piece, line);
+    const id = edit.defaultNozzleId(line.sections, piece);
     const same = line.nozzle.design !== "open-end" && line.nozzle.specId === id;
     const verb = line.nozzle.design === "open-end" ? "Poner" : "Cambiar por";
     out.push({ spot: { kind: "joint", index: n }, label: `${verb} ${piece === "fog" ? "un pitón combinado" : "un pitón de chorro sólido"}`, blocked: same ? "Ya tiene este pitón" : null });
@@ -216,7 +209,7 @@ export function place(piece: PieceId, spot: Spot, line: Scenario): Placed {
     return { tree: branch.insertWyeAtJoint(line, spot.index, device), select: { kind: "joint", index: spot.index } };
   }
   if ((piece === "fog" || piece === "smooth-bore") && spot.kind === "joint") {
-    return { scenario: edit.setNozzleSpec(line, specFor(piece, line)), select: { kind: "nozzle" } };
+    return { scenario: edit.setNozzleSpec(line, edit.defaultNozzleId(line.sections, piece)), select: { kind: "nozzle" } };
   }
   if (piece !== "eraser") return {};
   if (spot.kind === "section") {

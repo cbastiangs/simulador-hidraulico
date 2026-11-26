@@ -185,6 +185,7 @@ export const NOZZLE_SPECS: readonly NozzleSpec[] = [
     provenance: { ratedFlowGpm: GENERIC_FLOW, ratedPressurePsi: FOG_PRESSURE, inletIn: GENERIC_INLET },
   },
   smoothBore({ id: "AKR-439-15-16", name: "Akron 439 · boquilla 15/16″", manufacturerSource: "akron439", tipIn: 15 / 16, inletIn: 1.5 }),
+  smoothBore({ id: "AKR-2393-1-1-8", name: "Akron 2393 · boquilla 1⅛″", manufacturerSource: "akron2393", tipIn: 9 / 8, inletIn: 2.5 }),
   ...SMOOTH_BORE_TIPS.map(smoothBore),
   {
     id: "open-end",
@@ -199,6 +200,10 @@ export const NOZZLE_SPECS: readonly NozzleSpec[] = [
     provenance: { ratedFlowGpm: OPEN_END, ratedPressurePsi: OPEN_END, inletIn: OPEN_END },
   },
 ];
+
+// Both fixed supply exercises use this selector at its 250 gpm detent.
+const protek368 = NOZZLE_SPECS.find(spec => spec.id === "PRO-368")!;
+export const SUPPLY_RIG_NOZZLE = { specId: protek368.id, ratedFlowGpm: 250, ratedPressurePsi: protek368.ratedPressurePsi, open: true } as const;
 
 /** A junction device (MODEL.md §2 "Devices and empty outlets"). */
 export type WyeDevice = "wye" | "trifurca";

@@ -1,11 +1,11 @@
 <script lang="ts">
   import { u } from "$lib/display-units.svelte.ts";
-  import { missingAdapters, type Scenario } from "$hydraulics/scenario.ts";
+  import { missingAdapters, type ScenarioTreeResult, type TreeSegmentResult, type Scenario } from "$hydraulics/scenario.ts";
   import type { SeriesResult } from "$hydraulics/series.ts";
   import * as edit from "$lib/edit.ts";
   import Gauge from "./Gauge.svelte";
   import NumberField from "./NumberField.svelte";
-  import { balanceMessage } from "$lib/readings.ts";
+  import { balanceMessage, deliveredFlow, pumpLimitMessage } from "$lib/readings.ts";
 
   // The panel's pump header (UX.md §4): discharge gauge, pressure typed or
   // stepped, "Presión ideal" (the required pressure: shown, and set on a tap), "Ralentí" and the flow,
@@ -22,8 +22,7 @@
     head = false,
     full = false,
     onOpen,
-    branched = false,
-    balanced = true,
+    network = null,
   }: {
     scenario: Scenario;
     result: SeriesResult;
@@ -35,8 +34,7 @@
     head?: boolean;
     /** Phone, in the sheet when the pump is selected: large gauge, ±1 and ±10, Presión ideal, Ralentí. */
     full?: boolean;
-    branched?: boolean;
-    balanced?: boolean;
+    network?: ScenarioTreeResult | null;
   } = $props();
   const STATE = {
     flowing: "Fluyendo",
@@ -45,12 +43,12 @@
     isolated: "Línea sin conectar",
     unbalanced: "Sin equilibrio exacto · revisa la presión",
   };
-  const f = (n: number) => u.q(n);
+  const branched = $derived(!!network);
   // A missing adapter (manual fittings) leaves the line unconnected: say so rather than "nozzle closed".
   const missing = $derived(missingAdapters(scenario));
   const gap = $derived(result.unsatisfied);
-  const issue = $derived(result.issues[0]);
-  const warn = $derived(result.pump?.status === "limited" || result.state !== "flowing" || missing.length > 0 || !!issue || !balanced);
+  const issue = $derived(network?.issues[0] ?? result.issues[0]);
+  const warn = $derived(result.pump?.status === "limited" || result.state !== "flowing" || missing.length > 0 || !!issue);
   // Inside the 350 gpm step no flow balances (MODEL.md §2): say so, and how to leave it.
   const gapTip = $derived(
     gap
@@ -65,6 +63,27 @@
   // there, and a tap sets it; a tick marks it on the pump's dial.
   const operation = $derived(result.pump);
   const actualPsi = $derived(operation ? operation.pressurePsi : scenario.source.pressurePsi);
+  function leafStates(node: TreeSegmentResult): SeriesResult["state"][] {
+    return node.branches.length ? node.branches.flatMap(leafStates) : [node.result.state];
+  }
+  function stateText(compact: boolean) {
+    if (operation?.pressurePsi === null) return pumpLimitMessage(operation, compact);
+    if (operation?.status === "stopped") return `${u.p(actualPsi, 0)} ${u.pressure} · Bomba detenida`;
+    if (issue) return balanceMessage(issue, compact);
+    if (result.flowGpm === 0) {
+      const pressure = operation ? `${u.p(actualPsi, 0)} ${u.pressure} · ` : "";
+      if (network) {
+        const states = leafStates(network.root);
+        if (states.includes("no-pressure")) return pressure + "Presión insuficiente para alcanzar las líneas";
+        if (states.every(s => s === "isolated")) return pressure + "Todas las líneas están aisladas";
+        return pressure + "Ninguna salida conectada está abierta";
+      }
+      return pressure + (missing.length ? "Falta un adaptador" : STATE[result.state]);
+    }
+    if (operation) return `${u.p(actualPsi, 0)} ${u.pressure} reales${operation.status === "limited" ? " · límite de capacidad" : ""}`;
+    if (branched) return compact ? "Total de líneas" : "Caudal total · líneas conectadas";
+    return `${compact ? "" : "Fluyendo · "}${u.p(result.nozzlePressurePsi, 0)} ${u.pressure} ${rated ? "en pitón" : "en la punta"}`;
+  }
   const rpmMode = $derived(scenario.source.pump?.mode === "rpm");
   const controlValue = $derived(rpmMode ? scenario.source.pump!.speedRpm : scenario.source.pressurePsi);
   function setControl(value: number) {
@@ -93,25 +112,12 @@
 {/snippet}
 
 {#snippet stateLine()}
-  <span class="state" class:warn title={gapTip || (issue ? balanceMessage(issue) : undefined)}>
-    {#if operation}
-      {operation.status === "empty" ? "Tanque vacío · sin entrega" : operation.pressurePsi === null ? "Sin resultado · fuera de curva o sin equilibrio" : `${u.p(operation.pressurePsi, 0)} ${u.pressure} reales${operation.status === "limited" ? " · límite de capacidad" : ""}`}
-    {:else if branched}
-      {balanced ? result.flowGpm > 0 ? "Caudal total · líneas conectadas" : "Sin caudal" : "Sin equilibrio exacto · revisa las líneas"}
-    {:else if missing.length > 0}
-      Línea sin conectar · falta adaptador
-    {:else if gap}
-      En el escalón de {u.q(gap.stepGpm)} {u.flow} · sin caudal exacto
-    {:else if issue}
-      {issue.code === "high-point" ? "Sin entrega · presión negativa en un acople" : "Sin equilibrio exacto · revisa la presión"}
-    {:else}
-      {STATE[result.state]}{result.state === "flowing" ? ` · ${u.p(result.nozzlePressurePsi, 0)} ${u.pressure} ${rated ? "en pitón" : "en la punta"}` : ""}
-    {/if}
+  <span class="state" class:warn title={gapTip || stateText(false)}>{stateText(head && operation?.pressurePsi === null)}
   </span>
 {/snippet}
 
 {#if strip}
-  <section class="strip" class:branched aria-label="Panel de bomba">
+  <section class="strip" class:branched={branched || rpmMode || !rated || required === null} aria-label="Panel de bomba">
     <NumberField
       label={rpmMode ? "Giro del eje de bomba" : operation ? "Presión solicitada" : "Presión de descarga"}
       hideLabel
@@ -127,8 +133,8 @@
       <span class="req-value">{u.p(required, 0)}</span>
     </button>{/if}
     <button type="button" class="flow-open" onclick={onOpen}>
-      <span class="big">{operation && operation.flowGpm === null ? "—" : u.q(result.flowGpm, 0)} <small>{u.flow}</small></span>
-      <span class="mini" class:warn-text={warn}>{operation ? `${u.p(actualPsi, 0)} ${u.pressure} reales` : branched ? balanced ? "Total de líneas" : "Sin equilibrio" : missing.length > 0 ? "Sin conectar" : gap ? `escalón ${u.q(gap.stepGpm, 0)}` : issue ? issue.code === "high-point" ? "Sin entrega" : "Sin equilibrio" : result.state === "flowing" ? `${rated ? "pitón" : "punta"} ${u.p(result.nozzlePressurePsi, 0)} ${u.pressure}` : result.state === "nozzle-closed" ? "Cerrado" : "No llega"}</span>
+      <span class="big">{u.q(deliveredFlow(result), 0)} <small>{u.flow}</small></span>
+      <span class="mini" class:warn-text={warn}>{stateText(true)}</span>
       <span class="open-label">Ver bomba ›</span>
     </button>
   </section>
@@ -139,7 +145,7 @@
     </svg>
     <div class="flow" aria-live="polite">
       <span class="kicker">Bomba · descarga</span>
-      <div class="big">{operation && operation.flowGpm === null ? "—" : f(result.flowGpm)} <small>{u.flow}</small></div>
+      <div class="big">{u.q(deliveredFlow(result))} <small>{u.flow}</small></div>
       {@render stateLine()}
     </div>
     <div class="controls" class:branched>
@@ -167,7 +173,7 @@
     </svg>
     <div class="flow" aria-live="polite">
       <span class="kicker">Bomba · descarga</span>
-      <div class="big">{operation && operation.flowGpm === null ? "—" : f(result.flowGpm)} <small>{u.flow}</small></div>
+      <div class="big">{u.q(deliveredFlow(result))} <small>{u.flow}</small></div>
       {@render stateLine()}
     </div>
     <div class="span">
@@ -210,7 +216,7 @@
     </button>{/if}
     {@render idleButton()}
     <div class="flow" aria-live="polite">
-      <div class="big">{operation && operation.flowGpm === null ? "—" : f(result.flowGpm)} <small>{u.flow}</small></div>
+      <div class="big">{u.q(deliveredFlow(result))} <small>{u.flow}</small></div>
       {@render stateLine()}
     </div>
   </section>
@@ -252,7 +258,7 @@
   .flow-open { display: grid; justify-items: end; gap: 2px; min-width: 0; min-height: 44px; padding: 2px; border: 0; border-radius: 8px; background: transparent; color: var(--panel-ink); cursor: pointer; }
   .flow-open .big { font-size: 21px; white-space: nowrap; }
   .flow-open .big small { font-size: 11px; }
-  .mini { font-size: 11px; color: var(--ok-ink); white-space: nowrap; }
+  .mini { font-size: 11px; color: var(--ok-ink); text-align: right; }
   .open-label { font-size: 12px; color: var(--panel-ink); }
   .chip.small { width: 48px; min-width: 48px; min-height: 44px; padding: 4px 2px; font-size: 13px; display: grid; justify-items: center; align-content: center; gap: 1px; line-height: 1; }
   .req-label { font-size: 10px; font-weight: 600; color: var(--panel-muted); }

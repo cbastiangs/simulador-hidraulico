@@ -162,7 +162,7 @@
     },
     {
       title: "Volver a verlo",
-      text: () => "Abre Ayuda (?) para repetir el recorrido o consultar métodos y fuentes. En Escenario puedes elegir ejemplos y prácticas.",
+      text: () => "Abre Ayuda (?) para repetir el recorrido o consultar métodos y fuentes. En «Cambiar escenario» puedes elegir ejemplos y prácticas.",
       target: () => find("help"),
       button: "Listo",
     },

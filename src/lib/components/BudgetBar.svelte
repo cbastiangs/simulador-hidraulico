@@ -1,7 +1,7 @@
 <script lang="ts">
   import { u } from "$lib/display-units.svelte.ts";
   import type { SeriesResult } from "$hydraulics/series.ts";
-  import { balanceMessage } from "$lib/readings.ts";
+  import { balanceMessage, pumpLimitMessage } from "$lib/readings.ts";
 
   const f = u.p;
 
@@ -150,7 +150,8 @@
     </ul>{/if}
   {:else}
     <p class="small">
-      {#if result.issues.length}{balanceMessage(result.issues[0])}
+      {#if result.pump?.pressurePsi === null}{pumpLimitMessage(result.pump, compact)}
+      {:else if result.issues.length}{balanceMessage(result.issues[0])}
       {:else if result.state === "isolated"}Línea aislada: sin caudal y con presión desconocida aguas abajo.
       {:else if result.state === "no-pressure"}La bomba no alcanza el punto más alto de la línea: sin entrega de agua.
       {:else}Pitón cerrado: sin caudal en esta línea. La presión en el pitón es {u.p(result.nozzlePressurePsi)} {u.pressure}.{#if lines.length > 1} Otras salidas pueden seguir consumiendo presión en la alimentación común.{/if}

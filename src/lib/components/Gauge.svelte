@@ -43,14 +43,18 @@
   {/if}
   {#if psi !== null}
     <path class="needle" d={`M0 ${4-r} L1.8 0 1 4h-2l-.8-4Z`} transform={`rotate(${angle})`} />
+    <circle class="hub" r={r / 8} />
+  {:else}
+    <text class="unknown" text-anchor="middle" dominant-baseline="central">—</text>
   {/if}
-  <circle class="hub" r={r / 8} />
   {#if label}<text class="value" y={r + 16}>{u.p(psi, 0)} {u.pressure}</text>{/if}
 </g>
 
 <style>
   /* Gauges float above the drawing and the height axis (owner, 2026-10-16): a shadow lifts the face, a halo keeps the reading clear of what is under it. */
   .face { fill: var(--equipment-paper); stroke: var(--equipment-edge); stroke-width: 1.6; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3)); }
+  .unknown { fill: var(--ink); font-weight: bold; }
+  .dark .unknown { fill: var(--panel-ink); }
   .bezel { fill: none; stroke: var(--equipment-metal); stroke-width: 1; }
   .tick { stroke: var(--ink); stroke-width: 1.5; }
   .needle { fill: var(--needle); }

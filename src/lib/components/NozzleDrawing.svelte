@@ -136,9 +136,7 @@
     }
     const s = (lo + hi) / 2;
     const y = -arc.h * s * (1 - s) * (1.2 * (1 - s) + 0.75 * s);
-    // Close to the edge the full wording would run over the nozzle: the number alone.
-    const text = x < r && x < 200 * px ? jet.label.replace("alcance ", "") : jet.label;
-    return { x, y: Math.max(y - 12 * px, top), text };
+    return { x, y: Math.max(y - 12 * px, top) };
   });
 
   const shutoffLabel = $derived(
@@ -160,7 +158,7 @@
       {#if measureSpan && arc.r > 0}
         <path class="span-measure" d={`M 0 ${4 * arc.px} v ${8 * arc.px} M 0 ${8 * arc.px} H ${arc.r} M ${arc.r} ${4 * arc.px} v ${8 * arc.px}`} />
       {/if}
-      <text class="reach" class:fitted={jet.fitted} transform={`translate(${labelAt?.x ?? arc.r} ${labelAt?.y ?? 0}) scale(${arc.px})`}>{labelAt?.text ?? jet.label}</text>
+      <text class="reach" class:fitted={jet.fitted} transform={`translate(${labelAt?.x ?? arc.r} ${labelAt?.y ?? 0}) scale(${arc.px})`}>{jet.label}</text>
     </g>
   {/if}
   {#if stream.length > 1}

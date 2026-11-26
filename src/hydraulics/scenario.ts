@@ -337,7 +337,7 @@ export function unavailablePumpResult(result: SeriesResult): SeriesResult {
   return { ...result, state: "unbalanced", flowGpm: 0, nozzlePressurePsi: null,
     nodes: result.nodes.map(n => ({ ...n, pressurePsi: null })), terms: [],
     frictionLossPsi: 0, fittingLossPsi: 0, elevationPressurePsi: 0,
-    issues: [{ code: "pressure-balance", residualPsi: 0 }] };
+    issues: [] };
 }
 
 /** Parse the optional tree without changing the version-1 series document. */
@@ -523,7 +523,7 @@ export function solveScenario(scenario: Scenario, methodId: MethodId = scenario.
     const fixed = (pressurePsi: number) => solveScenario({ ...scenario,
       source: { ...scenario.source, tank: undefined, hydrant: undefined, pool: undefined, pump: undefined, pressurePsi } }, methodId);
     const pump = solvePump(scenario.source.pump, scenario.source.pressurePsi, p => {
-      const r = fixed(p); return { flowGpm: r.flowGpm, balanced: !r.issues.length };
+      const r = fixed(p); return { flowGpm: r.flowGpm, balanced: !r.issues.length, issue: r.issues[0] };
     }, scenario.source.hydrant ?? scenario.source.pool);
     const result = fixed(pump.pressurePsi ?? 0);
     return { ...(pump.pressurePsi === null ? unavailablePumpResult(result) : result), pump };

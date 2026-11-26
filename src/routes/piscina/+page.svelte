@@ -60,7 +60,7 @@
       <div class="ends"><span>{u.l(POOL_RIG.minLiftM)} {u.length}</span><span>{u.l(POOL_RIG.maxLiftM)} {u.length}</span></div>
     </div>
   </section>
-  <p>Manguerote de 5″ × {u.l(feetToMeters(20))} {u.length} con canastilla. Descarga por {u.l(POOL_RIG.hose.lengthM)} {u.length} de manguera de 2½″, a nivel, con el pitón en {u.q(POOL_RIG.nozzle.ratedFlowGpm,0)} {u.flow} a {u.p(POOL_RIG.nozzle.ratedPressurePsi,0)} {u.pressure} nominales.</p>
+  <p>Manguerote de 5″ × {u.l(feetToMeters(20))} {u.length} con canastilla. Descarga por {u.l(POOL_RIG.hose.lengthM)} {u.length} de manguera de 2½″, a nivel, con el Protek 368 ajustado a {u.q(POOL_RIG.nozzle.ratedFlowGpm,0)} {u.flow} a {u.p(POOL_RIG.nozzle.ratedPressurePsi,0)} {u.pressure} nominales.</p>
   <details>
     <summary>Cómo interpretar las lecturas</summary>
     <p>La piscina está abierta a la atmósfera. Una admisión más negativa indica mayor vacío. A las mismas rpm, una mayor altura de aspiración reduce la presión de descarga y el caudal que llega al pitón.</p>

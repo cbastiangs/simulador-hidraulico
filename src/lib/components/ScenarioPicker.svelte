@@ -45,8 +45,8 @@
 
 <dialog bind:this={dialog} aria-labelledby="picker-title">
   <header>
-    <h2 id="picker-title">Elegir tendida</h2>
-    <button class="close" type="button" aria-label="Cerrar selector de tendidas" onclick={() => dialog.close()}>✕</button>
+    <h2 id="picker-title">Cambiar escenario</h2>
+    <button class="close" type="button" aria-label="Cerrar selector de escenarios" onclick={() => dialog.close()}>✕</button>
   </header>
   <div class="groups" role="group" aria-label="Tipo de tendida">
     <button type="button" aria-pressed={group === "examples"} onclick={() => switchGroup("examples")}>Ejemplos</button>
@@ -86,7 +86,7 @@
   .groups { display: flex; gap: 6px; padding: 0 14px 10px; }
   .groups button { flex: 1; padding: 5px; font-weight: 600; }
   .groups button[aria-pressed=true], .option[aria-current=true] { border-color: var(--accent); background: var(--accent-soft); }
-  .choices { min-height: 0; overflow: auto; display: grid; gap: 6px; padding: 2px 14px 14px; overscroll-behavior: contain; }
+  .choices { min-height: 0; overflow: auto; display: grid; grid-auto-rows: max-content; gap: 6px; padding: 2px 14px 14px; overscroll-behavior: contain; }
   h3 { margin: 8px 0 2px; font-size: 15px; }
   .option { display: grid; gap: 2px; min-width: 0; padding: 8px 12px; text-align: left; overflow-wrap: anywhere; }
   .practice-link { min-height: 44px; color: inherit; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; text-decoration: none; }

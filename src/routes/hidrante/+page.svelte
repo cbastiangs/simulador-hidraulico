@@ -2,6 +2,7 @@
   import { resolve } from "$app/paths";
   import { page } from "$app/state";
   import { replaceState } from "$app/navigation";
+  import { SUPPLY_RIG_NOZZLE } from "$hydraulics/catalog.ts";
   import { CAPACITY, HYDRANT_OUTLETS, HYDRANT_CASES, MAX_REFERENCE_PSI, solveHydrantSupply, type HydrantCase, type HydrantSupply } from "$hydraulics/hydrant.ts";
   import { u } from "$lib/display-units.svelte.ts";
   import HydrantControls from "$lib/components/HydrantControls.svelte";
@@ -115,7 +116,7 @@
   <HydrantControls {supply} onchange={changeSupply} losses />
   <details>
     <summary>Equipo y datos del hidrante</summary>
-    <p>Bomba CX genérica a 4000 rpm de eje. Cada línea de alimentación mide {u.l(30,0)} {u.length}. La descarga alimenta una línea nivelada de 2½″ de igual longitud, con pitón de {u.q(250,0)} {u.flow} a {u.p(100,0)} {u.pressure} nominales.</p>
+    <p>Bomba CX genérica a 4000 rpm de eje. Cada línea de alimentación mide {u.l(30,0)} {u.length}. La descarga alimenta una línea nivelada de 2½″ de igual longitud, con el Protek 368 ajustado a {u.q(SUPPLY_RIG_NOZZLE.ratedFlowGpm,0)} {u.flow} a {u.p(SUPPLY_RIG_NOZZLE.ratedPressurePsi,0)} {u.pressure} nominales.</p>
     <p>La red entrega {u.p(65,0)} {u.pressure} en reposo y {u.p(30,0)} {u.pressure} a {u.q(capacity,0)} {u.flow} antes del hidrante. El punto de referencia publicado es de {u.q(500,0)} {u.flow}. Los demás caudales representan redes hipotéticas. El indicador «Hidrante» muestra la presión después de la salida. Las salidas con diámetro usan coeficientes del Kennedy K81-D. Para 4″ y 4½″ se supone un adaptador ideal, con bifurcación si se conectan dos líneas. Las pérdidas específicas del camión y de la siamesa están pendientes de medición.</p>
     <p><a href="https://www.usfa.dhs.gov/downloads/pdf/publications/Water_Supply_Systems_Volume_II.pdf">Ensayo de referencia USFA, diagrama 3-1</a> · <a href="https://www.kennedyvalve.com/upl/downloads/kenn/products/documents/product-brochure-5-1-4-kennedy-guardian-hydrant-models-k81d.pdf">Coeficientes del hidrante Kennedy</a></p>
   </details>

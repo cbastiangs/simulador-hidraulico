@@ -98,26 +98,36 @@ for (const [id, pressure, settings, inletIn = 1.5] of [
 // Each nozzle's reach curve against its own published table (MODEL.md §3.14):
 // the "overall" rows of data/catalog/nozzle-reach.csv, read as printed.
 const reachRows = readFileSync(new URL("../data/catalog/nozzle-reach.csv", import.meta.url), "utf8")
-  .trim().split("\n").slice(1).map((line) => line.split(","))
-  .filter(([, , , , kind]) => kind === "overall")
-  .map(([id, gpm, psi, angle, , metres]) => ({ id, angle: angle ? Number(angle) : null, gpm: Number(gpm), psi: Number(psi), metres: Number(metres) }));
+  .trim().split("\n").slice(1).map(line => {
+    const [id, gpm, psi, angle, kind, metres] = line.split(",");
+    const setting = line.match(/setting (\d+) gpm/);
+    return { id, kind, gpm: Number(gpm), psi: Number(psi), angle: angle ? Number(angle) : null,
+      metres: Number(metres), setting: setting ? Number(setting[1]) : Number(gpm) };
+  });
+
+function catalogNozzle(id, changes = {}) {
+  const spec = NOZZLE_SPECS.find(spec => spec.id === id);
+  return { ...spec, specId: id, open: true, pattern: 0, ...changes };
+}
 // The generic tips' curves come from Akron's tip rows.
 const reachTable = { "smooth-bore-7-8": "AKR-1430-7-8", "smooth-bore-15-16": "AKR-439-15-16" };
 for (const specId of Object.keys(NOZZLE_REACH)) {
   test(`stream.reach ${specId}: its curve within 6 % of every published overall point`, () => {
-    const rows = reachRows.filter((r) => r.id === (reachTable[specId] ?? specId));
+    const rows = reachRows.filter((r) => r.kind === "overall" && r.id === (reachTable[specId] ?? specId));
     const fit = NOZZLE_REACH[specId];
     assert.equal(fit.fitRows, rows.length);
     const deviations = rows.map(r => Math.abs(nozzleReachM(specId, r.gpm, r.psi) / r.metres - 1) * 100);
     assert.equal(fit.maxTableDeviationPct, rows.length === 2 ? null : Number(Math.max(...deviations).toFixed(1)));
     for (const r of rows) {
       near(nozzleReachM(specId, r.gpm, r.psi), r.metres, 0.06 * r.metres);
-      const design = NOZZLE_SPECS.find(spec => spec.id === specId).design;
-      const reference = streamReach(specId, design, r.gpm, r.psi, 0);
+      const nozzle = catalogNozzle(specId, { ratedFlowGpm: r.setting });
+      const reference = streamReach(nozzle, r.gpm, r.psi);
+      const effective = reachRows.find(e => e.kind === "effective" && e.id === r.id && e.gpm === r.gpm && e.psi === r.psi);
+      assert.deepEqual(reference.testPoint, { flowGpm: r.gpm, pressurePsi: r.psi, effectiveM: effective.metres, overallM: r.metres });
       assert.equal(NOZZLE_REACH[specId].testAngleDeg, r.angle);
       near(reference.referenceM, r.metres, 0.06 * r.metres);
       assert.equal(reference.fitted, r.angle === 32);
-      const tilted = streamReach(specId, design, r.gpm, r.psi, 0, 60);
+      const tilted = streamReach({ ...nozzle, aimDeg: 60 }, r.gpm, r.psi);
       assert.equal(tilted.fitted, false);
       assert.equal(tilted.referenceM, reference.referenceM);
       assert.equal(reference.angleProjectionM, null);
@@ -134,12 +144,45 @@ test("stream.reach generic: R = 14.3·Q^0.25 m, illustrative, against published 
     [95, 45], [125, 48], [150, 51], [200, 54], // Protek 368
   ];
   for (const [gpm, metres] of published) near(genericReachM(gpm), metres, 0.12 * metres);
-  // Hand arithmetic: 14.3 × 125^0.25 = 14.3 × 3.3437 = 47.81 m; a generic nozzle never states it.
-  near(streamReach("fog-150", "fog", 125, 100, 0).reachM, 47.81, 0.01);
-  assert.equal(streamReach("fog-150", "fog", 125, 100, 0).fitted, false);
-  assert.equal(streamReach("fog-150", "fog", 125, 100, 0, 60).angleProjectionM, null);
-  assert.equal(streamReach("AKR-17204001", "fog", 100, 100, 1, 60).angleProjectionM, null);
-  assert.equal(streamReach("AKR-17204001", "fog", 100, 60, 0, 60).angleProjectionM, null);
-  // Akron 1720 outside its table (60 psi): its own curve, not stated.
-  assert.equal(streamReach("AKR-17204001", "fog", 100, 60, 0).fitted, false);
+  const generic = catalogNozzle("fog-150");
+  near(streamReach(generic, 125, 100).reachM, 47.81, 0.01);
+  assert.equal(streamReach({ ...generic, aimDeg: 60 }, 125, 100).angleProjectionM, null);
+});
+
+test("stream.reach: solved operating points qualify by setting or exposed tip and pressure", () => {
+  const cases = [
+    ["AKR-17204001", 30, 75, true],     // actual 25.98 gpm, printed as 26
+    ["smooth-bore-7-8", 159, 80, true],  // actual 203.38 gpm, chart gives 201
+    ["AKR-439-15-16", 182, 80, true],   // actual 233.48 gpm, chart gives 230
+    ["AKR-439-15-16", 182, 81, false],
+  ];
+  for (const [id, setting, psi, expected] of cases) {
+    const scenario = line({ hoseSizeId: "1-1/2", diameterIn: 1.5, frictionCoefficient: 24,
+      lengthM: 0, pumpPsi: psi, nozzle: catalogNozzle(id, { ratedFlowGpm: setting }) });
+    const r = solveScenario(scenario);
+    assert.equal(streamReach(scenario.nozzle, r.flowGpm, r.nozzlePressurePsi).fitted, expected);
+  }
+  const turbojet = catalogNozzle("AKR-17204001");
+  assert.equal(streamReach({ ...turbojet, ratedFlowGpm: 90 }, 90, 100).referenceM, null);
+  assert.equal(streamReach({ ...turbojet, design: "open-end" }, 95, 100).referenceM, null);
+  assert.equal(streamReach(catalogNozzle("smooth-bore-7-8", { tipIn: 1 }), 210, 50).referenceM, null);
+  const fog = streamReach({ ...turbojet, pattern: 0.05 }, 95, 100);
+  near(fog.reachM, 42.24, 0.01);
+  assert.equal(fog.fitted, false);
+  near(fog.referenceM, 43.78, 0.01);
+  const protek = catalogNozzle("PRO-368", { aimDeg: 33 });
+  const tilted = streamReach(protek, 95, 100);
+  assert.equal(tilted.fitted, false);
+  assert.equal(tilted.angleProjectionM, tilted.reachM);
+  assert.equal(tilted.testPoint.pressurePsi, 100);
+});
+
+test("stream.reach: a weak stream stays within the Bernoulli/projectile ceiling", () => {
+  const nozzle = catalogNozzle("AKR-17204001");
+  // 1 psi = 6894.76 Pa. v² = 2P/1000. At 32°, R = v² sin(64°)/9.80665 = 1.264 m.
+  near(streamReach(nozzle, 9.5, 1).reachM, 1.264, 0.001);
+  near(streamReach(nozzle, 4.75, 0.25).reachM, 0.316, 0.001);
+  near(streamReach({ ...nozzle, aimDeg: 45 }, 9.5, 1).reachM, 1.406, 0.001);
+  assert.equal(streamReach({ ...nozzle, aimDeg: 90 }, 9.5, 1).reachM, 0);
+  assert.equal(streamReach(nozzle, 0, 0).reachM, 0);
 });

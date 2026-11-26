@@ -19,7 +19,7 @@
   }: {
     outlets: { id: string; path: string[]; name: string; open: boolean; active?: boolean; empty?: boolean }[];
     /** Flow per outlet path ("a/b"), gpm. */
-    flows?: Record<string, number>;
+    flows?: Record<string, number | null>;
     onGate: (path: string[]) => void;
   } = $props();
 
@@ -45,7 +45,7 @@
     {#if sp && sp.gpm > 0}
       <path class="spill" d={`M 24 ${-6 - 4 * n} Q 44 ${-12 - 4 * n} 58 ${8 - 4 * n} L 50 ${14 - 4 * n} Q 40 ${2 - 4 * n} 24 ${-2 - 4 * n} Z`} />
       <text class="spill-tag" x="40" y={-14 - 4 * n}>{u.q(sp.gpm, 0)} {u.flow}</text>
-    {:else if sp}
+    {:else if sp && !sp.open}
       <rect class="cap" x="23" y={-6 - 4 * n} width="3" height="12" rx="1" />
     {/if}
   {/each}

@@ -141,7 +141,7 @@
   // Ball valve: 90° across the body (shut) to along it (open).
   const ballRot = $derived(-90 + 90 * (dragF ?? motion.current));
 
-  const patternName = (p: number) => (p < 0.08 ? "Chorro directo" : p < 0.55 ? "Neblina estrecha" : "Neblina amplia");
+  const patternName = (p: number) => (p === 0 ? "Chorro directo" : p < 0.55 ? "Neblina estrecha" : "Neblina amplia");
   const shutoffName = $derived(shutKind === "slide" ? "Palanca" : shutKind === "ball" ? "Palanca" : "Manija");
 
   let svg: SVGSVGElement | undefined = $state();

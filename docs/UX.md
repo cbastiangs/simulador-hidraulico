@@ -518,9 +518,10 @@ and dropped: the pump was edited in two places and line settings in three.
   coupling, the nozzle: its editor, with × back to Línea.
 - **Under the canvas:** view only (zoom, Ver todo, Cámara, Enfocar).
   **Header of the page:** undo and redo, **Escenario**, **Ayuda (?)**, and **Ajustes (⚙)**.
-- **Escenario** shows the active lay's name and offers examples, guided
-  practices, a blank lay, saved lays, and link copying. Examples and
-  practices open the same chooser with the relevant group selected.
+- The active scenario name is the page heading. **Cambiar escenario** opens
+  the chooser directly, with tabs for examples and guided practices. The
+  adjacent **Opciones del escenario** menu offers a blank lay, saved lays
+  and link copying. On portrait phones the title and chooser get their own row.
   Practices are ordered 1–2–3, with the reserve case immediately after
   exercise 3. Group practices that load into the editor under “Practicar en el
   editor”. Group the hydrant and pool pages under “Prácticas independientes”.
@@ -528,6 +529,10 @@ and dropped: the pump was edited in two places and line settings in three.
   text exchange, and reset sit under "Archivos, texto y reinicio". Loading an
   example or editor practice, creating a blank lay, resetting and pasting
   are undo steps.
+- New lays and newly fitted nozzles use manufacturer models. The fog piece
+  starts with an Akron Turbojet 1720 on a small coupling or a Protek 368 on
+  a large coupling. The smooth-bore piece uses the corresponding Akron tip
+  (§3.4 of MODEL.md). Generic models remain explicit equipment choices.
 - **Ayuda (?)** is available at every width. It opens methods and sources,
   the tour, release notes, and installation and offline information.
 - **The "Bifurcada" example** (the starting lay from 2026-10-18 until the
@@ -615,6 +620,11 @@ shortcut until whole-tree planning exists. A failed pressure balance or a
 dry high point is labelled in the pump status and pressure breakdown, rather
 than displayed as a normally flowing line. An open nozzle with zero delivery
 reads "sin caudal" on the canvas; "cerrado" means the nozzle is actually shut.
+
+When the pump cannot resolve delivery, its dial shows a dash and each open
+outlet shows the cause or a dash. The header and pressure breakdown name the
+limiting condition. For a stepped wye loss, show the combined-flow threshold
+and explain the pressure jump. A stopped pump or an empty tank shows zero flow.
 
 ## 7. Process
 
@@ -830,7 +840,9 @@ A task whose law is not built yet waits for its milestone.
 
 Built from the top tasks (§9). Every action belongs to one pattern; a new
 feature picks a pattern rather than inventing an interaction. §8 says where
-each surface lives on desktop and phone.
+each surface lives on desktop and phone. The reusable UI/UX rules and
+anti-patterns are in `PATTERNS.md` §5–§7; this table remains the approved
+screen-level pattern list.
 
 ### 10.1 Patterns
 
@@ -1321,14 +1333,13 @@ drops (one per 0.125 gal) run along it at the jet's exit speed, 12.18·√NP
 ft/s, on the line's own water clock; they are hidden under reduced motion,
 the arc stays. A nozzle with its own reach table (owner, 2026-11-03: a curve
 per nozzle; MODEL §3.14 lists them), in straight stream inside that table,
-reads "alcance ≈ N m" at the arc's end (display units). The same nozzle on a
-fog pattern reads, muted, "en Directo: alcance ≈ N m", the number its table
-gives at that flow and pressure on straight stream (owner, 2026-11-06: the
-default pattern otherwise hides it). The active line has a horizontal dimension line from its tip to the stream
+reads "Alcance total ≈ N m" at the arc's end (display units). The drawn arc shape is illustrative.
+In fog its endpoint and ruler show the illustrative span. The nozzle details
+retain the separate Directo reference. The active line has a horizontal dimension line from its tip to the stream
 endpoint. Its toolbar button and inspector report the current span to one
 decimal place in the selected unit so a small pressure adjustment is visible.
 An unsupported span is labelled “Dibujo ilustrativo” to identify what the
-ruler measures. The canvas keeps the separate straight-stream reference in fog.
+ruler measures. The details also give the closest published test on the chosen ring setting or tip, with its pressure, flow, overall and effective reach.
 A label at an offscreen landing follows the visible arc edge.
 A wider fog thickens the arc's halo and shortens it. Text, strokes and drops
 keep their screen size where the nozzle icon shrinks (from zoom 1.2 down).

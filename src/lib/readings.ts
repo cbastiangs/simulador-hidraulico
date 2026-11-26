@@ -2,7 +2,7 @@ import type { StreamReach } from "$hydraulics/reach.ts";
 import { POOL } from "$hydraulics/pool.ts";
 import { u } from "$lib/display-units.svelte.ts";
 import type { BalanceIssue } from "$hydraulics/balance.ts";
-import type { HydrantLimit } from "$hydraulics/pump.ts";
+import type { HydrantLimit, PumpOperation } from "$hydraulics/pump.ts";
 import type { SeriesResult } from "$hydraulics/series.ts";
 import { SECONDS_PER_MINUTE } from "$hydraulics/units.ts";
 
@@ -13,7 +13,7 @@ export const reading = (value: number | null | undefined, digits = 1) =>
 /** Horizontal span from the tip to the end of the simulated stream. */
 export function reachLabel(reach: StreamReach) {
   const distance = `${u.l(reach.reachM, 1)} ${u.length}`;
-  if (reach.fitted) return `Alcance ≈ ${distance}`;
+  if (reach.fitted) return `Alcance total ≈ ${distance}`;
   if (reach.angleProjectionM !== null) return `Proyección ≈ ${distance} · sin validar`;
   return `Dibujo ilustrativo · ${distance}`;
 }
@@ -39,11 +39,35 @@ export function jointFlowGpm(result: SeriesResult, index: number): number | null
   return sectionFlowGpm(result, index);
 }
 
-export function balanceMessage(issue: BalanceIssue): string {
-  if (issue.code === "high-point") return `El caudal exigiría presión negativa en un acople (${u.p(issue.residualPsi)} ${u.pressure}); la línea no entrega agua.`;
+export function balanceMessage(issue: BalanceIssue, compact = false): string {
+  if (issue.step) {
+    const { device, aboveGpm, lossPsi } = issue.step;
+    const part = device === "wye" ? "Bifurco" : device === "trifurca" ? "Trifurco" : "Accesorios";
+    const threshold = `${u.q(aboveGpm, 0)} ${u.flow}`;
+    if (compact) return `${part} · +${u.p(lossPsi, 0)} ${u.pressure} sobre ${threshold}`;
+    const flow = device ? "el caudal total por el " + part.toLowerCase() : "el caudal por los accesorios";
+    return `El modelo suma ${u.p(lossPsi, 0)} ${u.pressure} de pérdida cuando ${flow} supera ${threshold}. Sin esa pérdida se supera el umbral. Al aplicarla, el caudal cae hasta el umbral o por debajo.`;
+  }
+  if (issue.code === "high-point") return compact ? "Presión insuficiente en un acople" : `El caudal exigiría presión negativa en un acople (${u.p(issue.residualPsi)} ${u.pressure}).`;
+  if (compact && issue.code === "allowance-gap") return "Pérdida por accesorios";
   if (issue.code === "allowance-gap") return "La pérdida fija o escalonada de los accesorios no permite un caudal exacto con esta presión.";
   return "No se encontró un caudal que equilibre la presión de la línea.";
 }
+
+/** Explain the boundary reported at the attempted pump/lay operating point. */
+export function pumpLimitMessage(op: PumpOperation, compact = false): string {
+  if (op.status === "empty") return compact ? "Tanque vacío" : "Tanque vacío. Rellena el tanque en Abastecimiento.";
+  if (op.poolLimit) return compact ? "Caudal fuera de la tabla de aspiración" : poolRangeMessage();
+  if (op.hydrantLimit) return hydrantLimitMessage(op.hydrantLimit);
+  if (op.balanceIssue) return balanceMessage(op.balanceIssue, compact);
+  if (op.status === "outside-curve") {
+    const last = op.curve.at(-1);
+    return last ? `La demanda supera la curva de ${u.q(last.flowGpm, 0)} ${u.flow} a este giro.` : "Caudal fuera de la curva de la bomba.";
+  }
+  return "La presión que entrega la bomba y la que necesita la tendida no coinciden a un mismo caudal.";
+}
+
+export const deliveredFlow = (result: SeriesResult) => result.pump?.flowGpm === null ? null : result.flowGpm;
 
 export function hydrantLimitMessage(limit: HydrantLimit) {
   switch (limit) {

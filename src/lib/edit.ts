@@ -1,6 +1,6 @@
-import { NOZZLE_SPECS } from "$hydraulics/catalog.ts";
+import { NOZZLE_SPECS, type NozzleSpec } from "$hydraulics/catalog.ts";
 import { HOSE_SIZES, type FittingKind } from "$hydraulics/references.ts";
-import { joints, type Scenario, type ScenarioSection, type ScenarioBranch } from "$hydraulics/scenario.ts";
+import { endBoreIn, joints, type Scenario, type ScenarioSection, type ScenarioBranch } from "$hydraulics/scenario.ts";
 import type { MethodId } from "$hydraulics/references.ts";
 import { runsOf, tautRunM } from "$lib/geometry/world.ts";
 
@@ -283,24 +283,27 @@ export function setNozzleOpen(scenario: Scenario, open: boolean): Scenario {
   return { ...scenario, nozzle: { ...scenario.nozzle, open } };
 }
 
+function nozzleFromSpec(spec: NozzleSpec): Scenario["nozzle"] {
+  return {
+    kind: spec.kind, specId: spec.id, inletIn: spec.inletIn,
+    settingsGpm: [...spec.settingsGpm], ratedFlowGpm: spec.ratedFlowGpm, ratedPressurePsi: spec.ratedPressurePsi,
+    pattern: 0, open: true,
+    ...(spec.design === "smooth-bore" ? { design: "smooth-bore", tipIn: spec.tipIn } : {}),
+  };
+}
+
 export function setNozzleSpec(scenario: Scenario, specId: string): Scenario {
   const spec = NOZZLE_SPECS.find((n) => n.id === specId);
   if (!spec) return scenario;
   if (spec.design === "open-end") return removeNozzle(scenario);
-  const { design: _d, tipIn: _t, ...rest } = scenario.nozzle;
   return pruneAdapters({
     ...scenario,
     nozzle: {
-      ...rest,
-      kind: spec.kind,
-      specId: spec.id,
-      inletIn: spec.inletIn,
-      settingsGpm: [...spec.settingsGpm],
-      ratedFlowGpm: spec.ratedFlowGpm,
-      ratedPressurePsi: spec.ratedPressurePsi,
+      ...nozzleFromSpec(spec),
+      pattern: scenario.nozzle.pattern,
+      ...(scenario.nozzle.aimDeg === undefined ? {} : { aimDeg: scenario.nozzle.aimDeg }),
       // A nozzle put back on an open end starts shut, as one is screwed on.
       open: scenario.nozzle.design === "open-end" ? false : scenario.nozzle.open,
-      ...(spec.design === "smooth-bore" ? { design: "smooth-bore" as const, tipIn: spec.tipIn } : {}),
     },
   });
 }
@@ -314,10 +317,16 @@ export function removeNozzle(scenario: Scenario): Scenario {
   return pruneAdapters({ ...scenario, nozzle: { ...scenario.nozzle, design: "open-end", open: true } });
 }
 
+export function defaultNozzleId(sections: ScenarioSection[], design: "fog" | "smooth-bore") {
+  const large = endBoreIn(sections) >= 2.5;
+  if (design === "smooth-bore") return large ? "AKR-2393-1-1-8" : "AKR-439-15-16";
+  return large ? "PRO-368" : "AKR-17204001";
+}
+
 /** Puts back the nozzle an open end came from (its catalog spec), else the default combination nozzle. */
 export function attachNozzle(scenario: Scenario): Scenario {
   const back = NOZZLE_SPECS.find((n) => n.id === scenario.nozzle.specId && n.design !== "open-end");
-  return setNozzleSpec(scenario, back?.id ?? "combination-selectable");
+  return setNozzleSpec(scenario, back?.id ?? defaultNozzleId(scenario.sections, "fog"));
 }
 
 /**
@@ -379,21 +388,21 @@ export function setFloorHeight(scenario: Scenario, floorHeightM: number): Scenar
 export const floorOf = (scenario: Scenario) => scenario.floorHeightM ?? 3;
 
 /**
- * "Línea nueva": one flat 15 m length of 1½″ and a 100 gpm fog nozzle, the
+ * "Línea nueva": one flat 15 m length of 1½″ and an Akron Turbojet 1720, the
  * pump at 100 psi, keeping the current method; built from the catalog.
  */
 export function blankLine(scenario: Scenario): Scenario {
   const hose = HOSE_SIZES.find((h) => h.id === "1-1/2")!;
-  const blank: Scenario = {
+  const sections = [{ hoseSizeId: hose.id, diameterIn: hose.nominalDiameterIn, frictionCoefficient: hose.frictionCoefficient, lengthM: 15, endElevationM: 0 }];
+  const specId = defaultNozzleId(sections, "fog");
+  const nozzle = NOZZLE_SPECS.find(spec => spec.id === specId)!;
+  return {
     schema: scenario.schema,
     version: scenario.version,
     name: "Línea nueva",
     methodId: scenario.methodId,
     source: { kind: "fixed-pressure", pressurePsi: 100 },
-    sections: [
-      { hoseSizeId: hose.id, diameterIn: hose.nominalDiameterIn, frictionCoefficient: hose.frictionCoefficient, lengthM: 15, endElevationM: 0 },
-    ],
-    nozzle: { kind: "fixed-orifice", specId: null, settingsGpm: [], ratedFlowGpm: 100, ratedPressurePsi: 100, pattern: 0.25, open: true },
+    sections,
+    nozzle: nozzleFromSpec(nozzle),
   };
-  return setNozzleSpec(blank, "fog-100");
 }

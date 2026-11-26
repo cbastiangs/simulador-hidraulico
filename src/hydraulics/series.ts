@@ -218,7 +218,8 @@ export function solveSeriesLine(line: SeriesLine, method: Method = METHODS.physi
       issues.push({ code: "allowance-gap", residualPsi: pumpPressurePsi - elevation });
     } else if (unsatisfied) {
       flowGpm = unsatisfied.stepGpm;
-      issues.push({ code: "allowance-gap", residualPsi: unsatisfied.sparePsi });
+      issues.push({ code: "allowance-gap", residualPsi: unsatisfied.sparePsi,
+        step: { aboveGpm: unsatisfied.stepGpm, lossPsi: unsatisfied.stepPsi } });
     } else {
       const root = rootOfDecreasing(residual);
       if (root === null) {
